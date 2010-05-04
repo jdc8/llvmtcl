@@ -97,6 +97,35 @@ tcltest::test llvm-7.4 {check LLVMDisposeBuilder sub command} -setup {
     llvmtcl::llvmtcl LLVMDisposeBuilder $b
 } -returnCodes {ok return} -match glob -result {}
 
+# LLVM<type>
+tcltest::test llvm-8.1 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMDoubleType a b c d e f g]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDoubleType "}
+
+tcltest::test llvm-8.2 {check LLVM<type> sub command} -body {
+    lappend t [llvmtcl::llvmtcl LLVMDoubleType]
+    lappend t [llvmtcl::llvmtcl LLVMFP128Type]
+    lappend t [llvmtcl::llvmtcl LLVMFloatType]
+    lappend t [llvmtcl::llvmtcl LLVMInt16Type]
+    lappend t [llvmtcl::llvmtcl LLVMInt1Type]
+    lappend t [llvmtcl::llvmtcl LLVMInt32Type]
+    lappend t [llvmtcl::llvmtcl LLVMInt64Type]
+    lappend t [llvmtcl::llvmtcl LLVMInt8Type]
+    lappend t [llvmtcl::llvmtcl LLVMIntType 43]
+    lappend t [llvmtcl::llvmtcl LLVMIntType 83]
+    lappend t [llvmtcl::llvmtcl LLVMIntType 153]
+    lappend t [llvmtcl::llvmtcl LLVMPPCFP128Type]
+    lappend t [llvmtcl::llvmtcl LLVMX86FP80Type]
+} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
+
+tcltest::test llvm-8.3 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMIntType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMIntType width"}
+
+tcltest::test llvm-8.4 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMIntType qwerty]
+} -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
 ::tcltest::cleanupTests
 return
 

@@ -10,6 +10,7 @@
 static int LLVMRef_id = 0;
 static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
 static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
+static std::map<std::string, LLVMTypeRef> LLVMTypeRef_map;
 
 int LLVMCreateBuilderObjCmd(ClientData clientData, 
 			    Tcl_Interp* interp,
@@ -141,6 +142,99 @@ int HelpObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
+int LLVMTypeObjCmd(ClientData clientData, 
+		   Tcl_Interp* interp,
+		   int objc,
+		   Tcl_Obj* const objv[])
+{
+    static const char *subCommands[] = {
+	"LLVMDoubleType",
+	"LLVMFP128Type",
+	"LLVMFloatType",
+	"LLVMInt16Type",
+	"LLVMInt1Type",
+	"LLVMInt32Type",
+	"LLVMInt64Type",
+	"LLVMInt8Type",
+	"LLVMIntType",
+	"LLVMPPCFP128Type",
+	"LLVMX86FP80Type",
+	NULL
+    };
+    enum SubCmds {
+	eLLVMDoubleType,
+	eLLVMFP128Type,
+	eLLVMFloatType,
+	eLLVMInt16Type,
+	eLLVMInt1Type,
+	eLLVMInt32Type,
+	eLLVMInt64Type,
+	eLLVMInt8Type,
+	eLLVMIntType,
+	eLLVMPPCFP128Type,
+	eLLVMX86FP80Type  
+    };
+    int index = -1;
+    if (Tcl_GetIndexFromObj(interp, objv[1], subCommands, "type", 0, &index) != TCL_OK)
+        return TCL_ERROR;
+    // Check number of arguments
+    switch ((enum SubCmds) index) {
+    case eLLVMDoubleType:
+    case eLLVMFP128Type:
+    case eLLVMFloatType:
+    case eLLVMInt16Type:
+    case eLLVMInt1Type:
+    case eLLVMInt32Type:
+    case eLLVMInt64Type:
+    case eLLVMInt8Type:
+    case eLLVMPPCFP128Type:
+    case eLLVMX86FP80Type:
+	if (objc != 2) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+	break;
+    case eLLVMIntType:
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "width");
+	    return TCL_ERROR;
+	}
+	break;
+    }
+    // Create the requested type
+    LLVMTypeRef tref = 0;
+    switch ((enum SubCmds) index) {
+    case eLLVMDoubleType: tref = LLVMDoubleType(); break;
+    case eLLVMFP128Type: tref = LLVMFP128Type(); break;
+    case eLLVMFloatType: tref = LLVMFloatType(); break;
+    case eLLVMInt16Type: tref = LLVMInt16Type(); break;
+    case eLLVMInt1Type: tref = LLVMInt1Type(); break;
+    case eLLVMInt32Type: tref = LLVMInt32Type(); break;
+    case eLLVMInt64Type: tref = LLVMInt64Type(); break;
+    case eLLVMInt8Type: tref = LLVMInt8Type(); break;
+    case eLLVMIntType:
+    {
+	int width = 0;
+	if (Tcl_GetIntFromObj(interp, objv[2], &width) != TCL_OK)
+	    return TCL_ERROR;
+	tref = LLVMIntType(width);
+	break;
+    }
+    case eLLVMPPCFP128Type: tref = LLVMPPCFP128Type(); break;
+    case eLLVMX86FP80Type: tref = LLVMX86FP80Type(); break;
+    }
+    if (!tref) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new type", -1));
+	return TCL_ERROR;
+    }
+    std::ostringstream os;
+    os << "LLVMTypeRef_" << LLVMRef_id;
+    LLVMRef_id++;
+    LLVMTypeRef_map[os.str().c_str()] = tref;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    return TCL_OK;
+}
+
 typedef int (*LLVMObjCmdPtr)(ClientData clientData, 
 			     Tcl_Interp* interp,
 			     int objc,
@@ -157,23 +251,45 @@ extern "C" int llvmtcl(ClientData clientData,
 	return TCL_ERROR;
     }
     static const char *subCommands[] = {
+	"help",
 	"LLVMCreateBuilder",
 	"LLVMDisposeBuilder",
 	"LLVMDisposeModule",
+	"LLVMDoubleType",
+	"LLVMFP128Type",
+	"LLVMFloatType",
 	"LLVMInitializeNativeTarget",
+	"LLVMInt16Type",
+	"LLVMInt1Type",
+	"LLVMInt32Type",
+	"LLVMInt64Type",
+	"LLVMInt8Type",
+	"LLVMIntType",
 	"LLVMLinkInJIT",
 	"LLVMModuleCreateWithName",
-	"help",
+	"LLVMPPCFP128Type",
+	"LLVMX86FP80Type",
 	NULL
     };
     static LLVMObjCmdPtr subObjCmds[] = {
+	&HelpObjCmd,
 	&LLVMCreateBuilderObjCmd,
 	&LLVMDisposeBuilderObjCmd,
 	&LLVMDisposeModuleObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
 	&LLVMInitializeNativeTargetObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
 	&LLVMLinkInJITObjCmd,
 	&LLVMModuleCreateWithNameObjCmd,
-	&HelpObjCmd
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
     };
     int index = -1;
     if (Tcl_GetIndexFromObj(interp, objv[1], subCommands, "subcommand", 0,

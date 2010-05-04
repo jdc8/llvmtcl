@@ -11,9 +11,144 @@ static int LLVMRef_id = 0;
 static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
 static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
 
-extern "C" int llvmtcl(ClientData     clientData, 
-		       Tcl_Interp*    interp,
-		       int	    objc,
+int LLVMCreateBuilderObjCmd(ClientData clientData, 
+			    Tcl_Interp* interp,
+			    int objc,
+			    Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+    LLVMBuilderRef builder = LLVMCreateBuilder();
+    if (!builder) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new builder", -1));
+	return TCL_ERROR;
+    }
+    std::ostringstream os;
+    os << "LLVMBuilderRef_" << LLVMRef_id;
+    LLVMRef_id++;
+    LLVMBuilderRef_map[os.str().c_str()] = builder;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    return TCL_OK;
+}
+int LLVMDisposeBuilderObjCmd(ClientData clientData, 
+			     Tcl_Interp* interp,
+			     int objc,
+			     Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "builder");
+	return TCL_ERROR;
+    }
+    std::string builder = Tcl_GetStringFromObj(objv[2], 0);
+    if (LLVMBuilderRef_map.find(builder) == LLVMBuilderRef_map.end()) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown builder", -1));
+	return TCL_ERROR;
+    }
+    LLVMDisposeBuilder(LLVMBuilderRef_map[builder]);
+    LLVMBuilderRef_map.erase(builder);
+    return TCL_OK;
+}
+
+int LLVMDisposeModuleObjCmd(ClientData clientData, 
+			    Tcl_Interp* interp,
+			    int objc,
+			    Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "module");
+	return TCL_ERROR;
+    }
+    std::string module = Tcl_GetStringFromObj(objv[2], 0);
+    if (LLVMModuleRef_map.find(module) == LLVMModuleRef_map.end()) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown module", -1));
+	return TCL_ERROR;
+    }
+    LLVMDisposeModule(LLVMModuleRef_map[module]);
+    LLVMModuleRef_map.erase(module);
+    return TCL_OK;
+}
+
+int LLVMInitializeNativeTargetObjCmd(ClientData clientData, 
+				     Tcl_Interp* interp,
+				     int objc,
+				     Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }	
+    LLVMInitializeNativeTarget();
+    return TCL_OK;
+}
+
+int LLVMLinkInJITObjCmd(ClientData clientData, 
+			Tcl_Interp* interp,
+			int objc,
+			Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 2, objv, "");
+	return TCL_ERROR;
+    }
+    LLVMLinkInJIT();
+    return TCL_OK;
+}
+
+int LLVMModuleCreateWithNameObjCmd(ClientData clientData, 
+				   Tcl_Interp* interp,
+				   int objc,
+				   Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "name");
+	return TCL_ERROR;
+    }	
+    std::string name = Tcl_GetStringFromObj(objv[2], 0);
+    LLVMModuleRef module = LLVMModuleCreateWithName(name.c_str());
+    if (!module) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new module", -1));
+	return TCL_ERROR;
+    }
+    std::ostringstream os;
+    os << "LLVMModuleRef_" << LLVMRef_id;
+    LLVMRef_id++;
+    LLVMModuleRef_map[os.str().c_str()] = module;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    return TCL_OK;
+}
+
+int HelpObjCmd(ClientData clientData, 
+	       Tcl_Interp* interp,
+	       int objc,
+	       Tcl_Obj* const objv[])
+{
+    std::ostringstream os;
+    os << "LLVM Tcl interface\n"
+       << "\n"
+       << "Available commands:\n"
+       << "\n"
+       << "    llvmtcl::llvmtcl LLVMCreateBuilder\n"
+       << "    llvmtcl::llvmtcl LLVMDisposeBuilder builder\n"
+       << "    llvmtcl::llvmtcl LLVMDisposeModule module\n"
+       << "    llvmtcl::llvmtcl LLVMInitializeNativeTarget\n"
+       << "    llvmtcl::llvmtcl LLVMLinkInJit\n"
+       << "    llvmtcl::llvmtcl LLVMModuleCreateWithName name\n"
+       << "    llvmtcl::llvmtcl help : this message\n"
+       << "\n";
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    return TCL_OK;
+}
+
+typedef int (*LLVMObjCmdPtr)(ClientData clientData, 
+			     Tcl_Interp* interp,
+			     int objc,
+			     Tcl_Obj* const objv[]);
+
+extern "C" int llvmtcl(ClientData clientData, 
+		       Tcl_Interp* interp,
+		       int objc,
 		       Tcl_Obj* const objv[]) 
 {
     // objv[1] is llvm c function to be executed
@@ -28,122 +163,23 @@ extern "C" int llvmtcl(ClientData     clientData,
 	"LLVMInitializeNativeTarget",
 	"LLVMLinkInJIT",
 	"LLVMModuleCreateWithName",
-        "help",
+	"help",
 	NULL
     };
-    enum SubCmds {
-	LLVMTCL_LLVMCreateBuilder,
-	LLVMTCL_LLVMDisposeBuilder,
-	LLVMTCL_LLVMDisposeModule,
-	LLVMTCL_LLVMInitializeNativeTarget,
-	LLVMTCL_LLVMLinkInJIT,
-	LLVMTCL_LLVMModuleCreateWithName,
-        LLVMTCL_help
+    static LLVMObjCmdPtr subObjCmds[] = {
+	&LLVMCreateBuilderObjCmd,
+	&LLVMDisposeBuilderObjCmd,
+	&LLVMDisposeModuleObjCmd,
+	&LLVMInitializeNativeTargetObjCmd,
+	&LLVMLinkInJITObjCmd,
+	&LLVMModuleCreateWithNameObjCmd,
+	&HelpObjCmd
     };
     int index = -1;
     if (Tcl_GetIndexFromObj(interp, objv[1], subCommands, "subcommand", 0,
-                            &index) != TCL_OK)
-        return TCL_ERROR;
-    switch((enum SubCmds)index) {
-    case LLVMTCL_LLVMCreateBuilder:
-    {
-	if (objc != 2) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "");
-	    return TCL_ERROR;
-	}
-	LLVMBuilderRef builder = LLVMCreateBuilder();
-	if (!builder) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new builder", -1));
-	    return TCL_ERROR;
-	}
-	std::ostringstream os;
-	os << "LLVMBuilderRef_" << LLVMRef_id;
-	LLVMRef_id++;
-	LLVMBuilderRef_map[os.str().c_str()] = builder;
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	break;
-    }
-    case LLVMTCL_LLVMDisposeBuilder:
-    {
-	if (objc != 3) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "builder");
-	    return TCL_ERROR;
-	}
-	std::string builder = Tcl_GetStringFromObj(objv[2], 0);
-	if (LLVMBuilderRef_map.find(builder) == LLVMBuilderRef_map.end()) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown builder", -1));
-	    return TCL_ERROR;
-	}
-	LLVMDisposeBuilder(LLVMBuilderRef_map[builder]);
-	LLVMBuilderRef_map.erase(builder);
-	break;
-    }
-    case LLVMTCL_LLVMDisposeModule:
-    {
-	if (objc != 3) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "module");
-	    return TCL_ERROR;
-	}
-	std::string module = Tcl_GetStringFromObj(objv[2], 0);
-	if (LLVMModuleRef_map.find(module) == LLVMModuleRef_map.end()) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown module", -1));
-	    return TCL_ERROR;
-	}
-	LLVMDisposeModule(LLVMModuleRef_map[module]);
-	LLVMModuleRef_map.erase(module);
-	break;
-    }
-    case LLVMTCL_LLVMInitializeNativeTarget:
-	if (objc != 2) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "");
-	    return TCL_ERROR;
-	}
-	LLVMInitializeNativeTarget();
-	break;
-    case LLVMTCL_LLVMLinkInJIT:
-	if (objc != 2) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "");
-	    return TCL_ERROR;
-	}
-	LLVMLinkInJIT();
-	break;
-    case LLVMTCL_LLVMModuleCreateWithName:
-    {
-	if (objc != 3) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "name");
-	    return TCL_ERROR;
-	}
-	std::string name = Tcl_GetStringFromObj(objv[2], 0);
-	LLVMModuleRef module = LLVMModuleCreateWithName(name.c_str());
-	if (!module) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new module", -1));
-	    return TCL_ERROR;
-	}
-	std::ostringstream os;
-	os << "LLVMModuleRef_" << LLVMRef_id;
-	LLVMRef_id++;
-	LLVMModuleRef_map[os.str().c_str()] = module;
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	break;
-    }
-    case LLVMTCL_help:
-	std::ostringstream os;
-	os << "LLVM Tcl interface\n"
-	   << "\n"
-	   << "Available commands:\n"
-	   << "\n"
-	   << "    llvmtcl::llvmtcl LLVMCreateBuilder\n"
-	   << "    llvmtcl::llvmtcl LLVMDisposeBuilder builder\n"
-	   << "    llvmtcl::llvmtcl LLVMDisposeModule module\n"
-	   << "    llvmtcl::llvmtcl LLVMInitializeNativeTarget\n"
-	   << "    llvmtcl::llvmtcl LLVMLinkInJit\n"
-	   << "    llvmtcl::llvmtcl LLVMModuleCreateWithName name\n"
-	   << "    llvmtcl::llvmtcl help : this message\n"
-	   << "\n";
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	break;
-    }
-    return TCL_OK;
+			    &index) != TCL_OK)
+	return TCL_ERROR;
+    return subObjCmds[index](clientData, interp, objc, objv);
 }
 
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)

@@ -7,8 +7,9 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm-c/Target.h"
 
+static int LLVMRef_id = 0;
 static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
-static int LLVMModuleRef_id = 0;
+static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
 
 extern "C" int llvmtcl(ClientData     clientData, 
 		       Tcl_Interp*    interp,
@@ -21,6 +22,8 @@ extern "C" int llvmtcl(ClientData     clientData,
 	return TCL_ERROR;
     }
     static const char *subCommands[] = {
+	"LLVMCreateBuilder",
+	"LLVMDisposeBuilder",
 	"LLVMDisposeModule",
 	"LLVMInitializeNativeTarget",
 	"LLVMLinkInJIT",
@@ -29,6 +32,8 @@ extern "C" int llvmtcl(ClientData     clientData,
 	NULL
     };
     enum SubCmds {
+	LLVMTCL_LLVMCreateBuilder,
+	LLVMTCL_LLVMDisposeBuilder,
 	LLVMTCL_LLVMDisposeModule,
 	LLVMTCL_LLVMInitializeNativeTarget,
 	LLVMTCL_LLVMLinkInJIT,
@@ -40,6 +45,39 @@ extern "C" int llvmtcl(ClientData     clientData,
                             &index) != TCL_OK)
         return TCL_ERROR;
     switch((enum SubCmds)index) {
+    case LLVMTCL_LLVMCreateBuilder:
+    {
+	if (objc != 2) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
+	LLVMBuilderRef builder = LLVMCreateBuilder();
+	if (!builder) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new builder", -1));
+	    return TCL_ERROR;
+	}
+	std::ostringstream os;
+	os << "LLVMBuilderRef_" << LLVMRef_id;
+	LLVMRef_id++;
+	LLVMBuilderRef_map[os.str().c_str()] = builder;
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	break;
+    }
+    case LLVMTCL_LLVMDisposeBuilder:
+    {
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "builder");
+	    return TCL_ERROR;
+	}
+	std::string builder = Tcl_GetStringFromObj(objv[2], 0);
+	if (LLVMBuilderRef_map.find(builder) == LLVMBuilderRef_map.end()) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown builder", -1));
+	    return TCL_ERROR;
+	}
+	LLVMDisposeBuilder(LLVMBuilderRef_map[builder]);
+	LLVMBuilderRef_map.erase(builder);
+	break;
+    }
     case LLVMTCL_LLVMDisposeModule:
     {
 	if (objc != 3) {
@@ -56,9 +94,17 @@ extern "C" int llvmtcl(ClientData     clientData,
 	break;
     }
     case LLVMTCL_LLVMInitializeNativeTarget:
+	if (objc != 2) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
 	LLVMInitializeNativeTarget();
 	break;
     case LLVMTCL_LLVMLinkInJIT:
+	if (objc != 2) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "");
+	    return TCL_ERROR;
+	}
 	LLVMLinkInJIT();
 	break;
     case LLVMTCL_LLVMModuleCreateWithName:
@@ -74,8 +120,8 @@ extern "C" int llvmtcl(ClientData     clientData,
 	    return TCL_ERROR;
 	}
 	std::ostringstream os;
-	os << "LLVMModuleRef_" << LLVMModuleRef_id;
-	LLVMModuleRef_id++;
+	os << "LLVMModuleRef_" << LLVMRef_id;
+	LLVMRef_id++;
 	LLVMModuleRef_map[os.str().c_str()] = module;
         Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
 	break;
@@ -86,6 +132,8 @@ extern "C" int llvmtcl(ClientData     clientData,
 	   << "\n"
 	   << "Available commands:\n"
 	   << "\n"
+	   << "    llvmtcl::llvmtcl LLVMCreateBuilder\n"
+	   << "    llvmtcl::llvmtcl LLVMDisposeBuilder builder\n"
 	   << "    llvmtcl::llvmtcl LLVMDisposeModule module\n"
 	   << "    llvmtcl::llvmtcl LLVMInitializeNativeTarget\n"
 	   << "    llvmtcl::llvmtcl LLVMLinkInJit\n"

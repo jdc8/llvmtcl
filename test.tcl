@@ -2,6 +2,7 @@ lappend auto_path .
 package require tcltest
 package require llvmtcl
 
+# Main command
 tcltest::test llvm-1.1 {check main command} -body {
     llvmtcl::llvmtcl
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl subcommand ?arg ...?"}
@@ -14,36 +15,86 @@ tcltest::test llvm-1.3 {check unknown sub command} -body {
     llvmtcl::llvmtcl unknown_sub_command
 } -returnCodes {error} -match glob -result {bad subcommand "unknown_sub_command": must be *}
 
-tcltest::test llvm-2 {check LLVMInitializeNativeTarget sub command} -body {
+# LLVMInitializeNativeTarget
+tcltest::test llvm-2.1 {check LLVMInitializeNativeTarget sub command} -body {
     llvmtcl::llvmtcl LLVMInitializeNativeTarget
 } -returnCodes {ok return} -match glob -result {}
 
-tcltest::test llvm-3 {check LLVMLinkInJIT sub command} -body {
+tcltest::test llvm-2.2 {check LLVMInitializeNativeTarget sub command} -body {
+    llvmtcl::llvmtcl LLVMInitializeNativeTarget a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMInitializeNativeTarget "}
+
+# LLVMLinkInJIT
+tcltest::test llvm-3.1 {check LLVMLinkInJIT sub command} -body {
     llvmtcl::llvmtcl LLVMLinkInJIT
 } -returnCodes {ok return} -match glob -result {}
 
+tcltest::test llvm-3.2 {check LLVMLinkInJIT sub command} -body {
+    llvmtcl::llvmtcl LLVMLinkInJIT a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMLinkInJIT "}
+
+# LLVMModuleCreateWithName
 tcltest::test llvm-4.1 {check LLVMModuleCreateWithName sub command} -body {
     llvmtcl::llvmtcl LLVMModuleCreateWithName
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
 
 tcltest::test llvm-4.2 {check LLVMModuleCreateWithName sub command} -body {
+    llvmtcl::llvmtcl LLVMModuleCreateWithName a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
+
+tcltest::test llvm-4.3 {check LLVMModuleCreateWithName sub command} -body {
     set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test42]
 } -cleanup {
     llvmtcl::llvmtcl LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {LLVMModuleRef_*}
 
+# LLVMDisposeModule
 tcltest::test llvm-5.1 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule module"}
 
 tcltest::test llvm-5.2 {check LLVMDisposeModule sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeModule a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule module"}
+
+tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule brol
 } -returnCodes {error} -match glob -result {unknown module}
 
-tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -setup {
+tcltest::test llvm-5.4 {check LLVMDisposeModule sub command} -setup {
     set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test53]
 } -body {
     llvmtcl::llvmtcl LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {}
+
+# LLVMCreateBuilder
+tcltest::test llvm-6.2 {check LLVMCreateBuilder sub command} -body {
+    llvmtcl::llvmtcl LLVMCreateBuilder a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMCreateBuilder "}
+
+tcltest::test llvm-6.3 {check LLVMCreateBuilder sub command} -body {
+    set b [llvmtcl::llvmtcl LLVMCreateBuilder]
+} -cleanup {
+    llvmtcl::llvmtcl LLVMDisposeBuilder $b
+} -returnCodes {ok return} -match glob -result {LLVMBuilderRef_*}
+
+# LLVMDisposeBuilder
+tcltest::test llvm-7.1 {check LLVMDisposeBuilder sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeBuilder
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builder"}
+
+tcltest::test llvm-7.2 {check LLVMDisposeBuilder sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeBuilder a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builder"}
+
+tcltest::test llvm-7.3 {check LLVMDisposeBuilder sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeBuilder brol
+} -returnCodes {error} -match glob -result {unknown builder}
+
+tcltest::test llvm-7.4 {check LLVMDisposeBuilder sub command} -setup {
+    set b [llvmtcl::llvmtcl LLVMCreateBuilder]
+} -body {
+    llvmtcl::llvmtcl LLVMDisposeBuilder $b
 } -returnCodes {ok return} -match glob -result {}
 
 ::tcltest::cleanupTests

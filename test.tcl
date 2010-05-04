@@ -2,29 +2,48 @@ lappend auto_path .
 package require tcltest
 package require llvmtcl
 
-tcltest::test llvm-1.1 {check main command} -setup {
-} -body {
+tcltest::test llvm-1.1 {check main command} -body {
     llvmtcl::llvmtcl
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl subcommand ?arg ...?"}
 
-tcltest::test llvm-1.2 {check help sub command} -setup {
-} -body {
+tcltest::test llvm-1.2 {check help sub command} -body {
     llvmtcl::llvmtcl help
 } -returnCodes {ok return} -match glob -result {LLVM Tcl interface*}
 
-tcltest::test llvm-1.3 {check unknown sub command} -setup {
-} -body {
+tcltest::test llvm-1.3 {check unknown sub command} -body {
     llvmtcl::llvmtcl unknown_sub_command
 } -returnCodes {error} -match glob -result {bad subcommand "unknown_sub_command": must be *}
 
-tcltest::test llvm-2 {check LLVMInitializeNativeTarget sub command} -setup {
-} -body {
+tcltest::test llvm-2 {check LLVMInitializeNativeTarget sub command} -body {
     llvmtcl::llvmtcl LLVMInitializeNativeTarget
 } -returnCodes {ok return} -match glob -result {}
 
-tcltest::test llvm-3 {check LLVMLinkInJIT sub command} -setup {
-} -body {
+tcltest::test llvm-3 {check LLVMLinkInJIT sub command} -body {
     llvmtcl::llvmtcl LLVMLinkInJIT
+} -returnCodes {ok return} -match glob -result {}
+
+tcltest::test llvm-4.1 {check LLVMModuleCreateWithName sub command} -body {
+    llvmtcl::llvmtcl LLVMModuleCreateWithName
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
+
+tcltest::test llvm-4.2 {check LLVMModuleCreateWithName sub command} -body {
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test42]
+} -cleanup {
+    llvmtcl::llvmtcl LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {LLVMModuleRef_*}
+
+tcltest::test llvm-5.1 {check LLVMDisposeModule sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeModule
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule module"}
+
+tcltest::test llvm-5.2 {check LLVMDisposeModule sub command} -body {
+    llvmtcl::llvmtcl LLVMDisposeModule brol
+} -returnCodes {error} -match glob -result {unknown module}
+
+tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -setup {
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test53]
+} -body {
+    llvmtcl::llvmtcl LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {}
 
 ::tcltest::cleanupTests

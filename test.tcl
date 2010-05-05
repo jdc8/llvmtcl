@@ -39,7 +39,7 @@ tcltest::test llvm-4.2 {check LLVMModuleCreateWithName sub command} -body {
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
 
 tcltest::test llvm-4.3 {check LLVMModuleCreateWithName sub command} -body {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test42]
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test43]
 } -cleanup {
     llvmtcl::llvmtcl LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {LLVMModuleRef_*}
@@ -121,7 +121,10 @@ tcltest::test llvm-8.2 {check LLVM type sub command} -body {
     lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 1]
     lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 0]
     lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 1]
-} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
+    lappend t [llvmtcl::llvmtcl LLVMLabelType]
+    lappend t [llvmtcl::llvmtcl LLVMOpaqueType]
+    lappend t [llvmtcl::llvmtcl LLVMVoidType]
+} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
 
 tcltest::test llvm-8.3 {check LLVM type sub command} -body {
     set t [llvmtcl::llvmtcl LLVMIntType]
@@ -316,7 +319,7 @@ tcltest::test llvm-10.2.5 {check LLVM const sub command} -body {
 # Can't test, LLVM has assert, would need to check type compatibility in C
 #tcltest::test llvm-10.2.6 {check LLVM const sub command} -body {
 #    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMFloatType] 111 16
-#3} -returnCodes {error} -match glob -result {}
+#} -returnCodes {error} -match glob -result {}
 
 tcltest::test llvm-10.2.7 {check LLVM const sub command} -body {
     llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMInt32Type] 111 16
@@ -331,14 +334,18 @@ tcltest::test llvm-10.3.2 {check LLVM const sub command} -body {
     llvmtcl::llvmtcl LLVMConstReal brol 1
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
-# Can't test, LLVM has assert, would need to check type compatibility in C
-#tcltest::test llvm-10.3.3 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMFloatType] brol
-#} -returnCodes {error} -match glob -result {expected floating-point number but got "brol"}
+tcltest::test llvm-10.3.3 {check LLVM const sub command} -body {
+    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMFloatType] brol
+} -returnCodes {error} -match glob -result {expected floating-point number but got "brol"}
 
 tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
     llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMFloatType] 1.234
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
+
+# Can't test, LLVM has assert, would need to check type compatibility in C
+#tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
+#    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMInt32Type] 1.234
+#} -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # RealOfString
 tcltest::test llvm-10.4.1 {check LLVM const sub command} -body {

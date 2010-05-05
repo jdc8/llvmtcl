@@ -9,13 +9,15 @@ LLVMCFLAGS = `$(LLVMDIR)/bin/llvm-config --cflags`
 LLVMLFLAGS = `$(LLVMDIR)/bin/llvm-config --ldflags`
 LLVMLIBS = `$(LLVMDIR)/bin/llvm-config --libs`
 
+#CFLAGS = -fprofile-arcs -ftest-coverage
+
 all: llvmtcl.so
 
 llvmtcl.so : llvmtcl.o
-	g++ -shared -o llvmtcl.so llvmtcl.o $(TCLLIB) $(LLVMLFLAGS) $(LLVMLIBS)
+	g++ -shared $(CFLAGS) -o llvmtcl.so llvmtcl.o $(TCLLIB) $(LLVMLFLAGS) $(LLVMLIBS)
 
 llvmtcl.o : llvmtcl.cpp
-	g++ -fPIC -I$(TCLINCDIR) $(LLVMCFLAGS) llvmtcl.cpp -c -o llvmtcl.o
+	g++ -fPIC $(CFLAGS) -I$(TCLINCDIR) $(LLVMCFLAGS) llvmtcl.cpp -c -o llvmtcl.o
 
 clean:
 	- rm llvmtcl.o

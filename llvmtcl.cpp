@@ -12,7 +12,7 @@ static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
 static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
 static std::map<std::string, LLVMTypeRef> LLVMTypeRef_map;
 
-int LLVMCreateBuilderObjCmd(ClientData clientData, 
+int LLVMCreateBuilderObjCmd(ClientData clientData,
 			    Tcl_Interp* interp,
 			    int objc,
 			    Tcl_Obj* const objv[])
@@ -34,7 +34,7 @@ int LLVMCreateBuilderObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int LLVMDisposeBuilderObjCmd(ClientData clientData, 
+int LLVMDisposeBuilderObjCmd(ClientData clientData,
 			     Tcl_Interp* interp,
 			     int objc,
 			     Tcl_Obj* const objv[])
@@ -55,7 +55,7 @@ int LLVMDisposeBuilderObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int LLVMDisposeModuleObjCmd(ClientData clientData, 
+int LLVMDisposeModuleObjCmd(ClientData clientData,
 			    Tcl_Interp* interp,
 			    int objc,
 			    Tcl_Obj* const objv[])
@@ -76,7 +76,7 @@ int LLVMDisposeModuleObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int LLVMInitializeNativeTargetObjCmd(ClientData clientData, 
+int LLVMInitializeNativeTargetObjCmd(ClientData clientData,
 				     Tcl_Interp* interp,
 				     int objc,
 				     Tcl_Obj* const objv[])
@@ -84,12 +84,12 @@ int LLVMInitializeNativeTargetObjCmd(ClientData clientData,
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
-    }	
+    }
     LLVMInitializeNativeTarget();
     return TCL_OK;
 }
 
-int LLVMLinkInJITObjCmd(ClientData clientData, 
+int LLVMLinkInJITObjCmd(ClientData clientData,
 			Tcl_Interp* interp,
 			int objc,
 			Tcl_Obj* const objv[])
@@ -102,7 +102,7 @@ int LLVMLinkInJITObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int LLVMModuleCreateWithNameObjCmd(ClientData clientData, 
+int LLVMModuleCreateWithNameObjCmd(ClientData clientData,
 				   Tcl_Interp* interp,
 				   int objc,
 				   Tcl_Obj* const objv[])
@@ -110,7 +110,7 @@ int LLVMModuleCreateWithNameObjCmd(ClientData clientData,
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "name");
 	return TCL_ERROR;
-    }	
+    }
     std::string name = Tcl_GetStringFromObj(objv[2], 0);
     LLVMModuleRef module = LLVMModuleCreateWithName(name.c_str());
     if (!module) {
@@ -125,7 +125,7 @@ int LLVMModuleCreateWithNameObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int HelpObjCmd(ClientData clientData, 
+int HelpObjCmd(ClientData clientData,
 	       Tcl_Interp* interp,
 	       int objc,
 	       Tcl_Obj* const objv[])
@@ -159,7 +159,7 @@ static LLVMTypeRef GetLLVMTypeRef(Tcl_Interp* interp, Tcl_Obj* obj)
     return LLVMTypeRef_map[elementTypeName];
 }
 
-int LLVMTypeObjCmd(ClientData clientData, 
+int LLVMTypeObjCmd(ClientData clientData,
 		   Tcl_Interp* interp,
 		   int objc,
 		   Tcl_Obj* const objv[])
@@ -169,6 +169,7 @@ int LLVMTypeObjCmd(ClientData clientData,
 	"LLVMDoubleType",
 	"LLVMFP128Type",
 	"LLVMFloatType",
+	"LLVMFunctionType",
 	"LLVMInt16Type",
 	"LLVMInt1Type",
 	"LLVMInt32Type",
@@ -191,6 +192,7 @@ int LLVMTypeObjCmd(ClientData clientData,
 	eLLVMDoubleType,
 	eLLVMFP128Type,
 	eLLVMFloatType,
+	eLLVMFunctionType,
 	eLLVMInt16Type,
 	eLLVMInt1Type,
 	eLLVMInt32Type,
@@ -264,6 +266,13 @@ int LLVMTypeObjCmd(ClientData clientData,
 	    return TCL_ERROR;
 	}
 	break;
+    // 5 arguments
+    case eLLVMFunctionType:
+	if (objc != 5) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "returnType listOfArgumentTypes isVarArg");
+	    return TCL_ERROR;
+	}
+	break;
     }
     // Create the requested type
     LLVMTypeRef tref = 0;
@@ -288,6 +297,37 @@ int LLVMTypeObjCmd(ClientData clientData,
     case eLLVMFloatType:
 	tref = LLVMFloatType();
 	break;
+    case eLLVMFunctionType:
+    {
+	LLVMTypeRef returnType = GetLLVMTypeRef(interp, objv[2]);
+	if (!returnType)
+	    return TCL_ERROR;
+	int isVarArg = 0;
+	if (Tcl_GetBooleanFromObj(interp, objv[4], &isVarArg) != TCL_OK)
+	    return TCL_ERROR;
+	int argumentCount = 0;
+	Tcl_Obj** argumentTypeObjs = 0;
+	if (Tcl_ListObjGetElements(interp, objv[3], &argumentCount, &argumentTypeObjs) != TCL_OK) {
+	    std::ostringstream os;
+	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[3], 0) << "\"";
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	    return TCL_ERROR;
+	}
+	LLVMTypeRef* argumentTypes = 0;
+	if (argumentCount)
+	    argumentTypes = new LLVMTypeRef[argumentCount];
+	for(int i = 0; i < argumentCount; i++) {
+	    argumentTypes[i] = GetLLVMTypeRef(interp, argumentTypeObjs[i]);
+	    if (!argumentTypes[i]) {
+		delete [] argumentTypes;
+		return TCL_ERROR;
+	    }
+	}
+	tref = LLVMFunctionType(returnType, argumentTypes, argumentCount, isVarArg);
+	delete [] argumentTypes;
+	
+	break;
+    }
     case eLLVMInt16Type:
 	tref = LLVMInt16Type();
 	break;
@@ -416,15 +456,15 @@ int LLVMTypeObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-typedef int (*LLVMObjCmdPtr)(ClientData clientData, 
+typedef int (*LLVMObjCmdPtr)(ClientData clientData,
 			     Tcl_Interp* interp,
 			     int objc,
 			     Tcl_Obj* const objv[]);
 
-extern "C" int llvmtcl(ClientData clientData, 
+extern "C" int llvmtcl(ClientData clientData,
 		       Tcl_Interp* interp,
 		       int objc,
-		       Tcl_Obj* const objv[]) 
+		       Tcl_Obj* const objv[])
 {
     // objv[1] is llvm c function to be executed
     if (objc < 2) {
@@ -440,6 +480,7 @@ extern "C" int llvmtcl(ClientData clientData,
 	"LLVMDoubleType",
 	"LLVMFP128Type",
 	"LLVMFloatType",
+	"LLVMFunctionType",
 	"LLVMInitializeNativeTarget",
 	"LLVMInt16Type",
 	"LLVMInt1Type",
@@ -466,6 +507,7 @@ extern "C" int llvmtcl(ClientData clientData,
 	&LLVMCreateBuilderObjCmd,
 	&LLVMDisposeBuilderObjCmd,
 	&LLVMDisposeModuleObjCmd,
+	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,

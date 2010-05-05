@@ -121,7 +121,11 @@ tcltest::test llvm-8.2 {check LLVM<type> sub command} -body {
     lappend t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] 10]
     lappend t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 10]
     lappend t [llvmtcl::llvmtcl LLVMUnionType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]]]
-} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
+    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
+    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 1]
+    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 0]
+    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 1]
+} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
 
 tcltest::test llvm-8.3 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMIntType]
@@ -202,6 +206,22 @@ tcltest::test llvm-8.21 {check LLVM<type> sub command} -body {
 tcltest::test llvm-8.22 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMUnionType "a b c \{ d e f g"]
 } -returnCodes {error} -match glob -result "expected list of types but got \"a b c \{ d e f g\""
+
+tcltest::test llvm-8.23 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMFunctionType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMFunctionType returnType listOfArgumentTypes isVarArg"}
+
+tcltest::test llvm-8.24 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMFunctionType brol {} 0]
+} -returnCodes {error} -match glob -result {expected type but got "brol"}
+
+tcltest::test llvm-8.25 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {brol} 0]
+} -returnCodes {error} -match glob -result {expected type but got "brol"}
+
+tcltest::test llvm-8.26 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} brol]
+} -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
 
 ::tcltest::cleanupTests
 return

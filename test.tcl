@@ -59,7 +59,7 @@ tcltest::test llvm-5.2 {check LLVMDisposeModule sub command} -body {
 
 tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule brol
-} -returnCodes {error} -match glob -result {unknown module}
+} -returnCodes {error} -match glob -result {expected module but got "brol"}
 
 tcltest::test llvm-5.4 {check LLVMDisposeModule sub command} -setup {
     set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test53]
@@ -89,7 +89,7 @@ tcltest::test llvm-7.2 {check LLVMDisposeBuilder sub command} -body {
 
 tcltest::test llvm-7.3 {check LLVMDisposeBuilder sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeBuilder brol
-} -returnCodes {error} -match glob -result {unknown builder}
+} -returnCodes {error} -match glob -result {expected builder but got "brol"}
 
 tcltest::test llvm-7.4 {check LLVMDisposeBuilder sub command} -setup {
     set b [llvmtcl::llvmtcl LLVMCreateBuilder]
@@ -116,7 +116,12 @@ tcltest::test llvm-8.2 {check LLVM<type> sub command} -body {
     lappend t [llvmtcl::llvmtcl LLVMIntType 153]
     lappend t [llvmtcl::llvmtcl LLVMPPCFP128Type]
     lappend t [llvmtcl::llvmtcl LLVMX86FP80Type]
-} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
+    lappend t [llvmtcl::llvmtcl LLVMArrayType [llvmtcl::llvmtcl LLVMInt32Type] 10]
+    lappend t [llvmtcl::llvmtcl LLVMPointerType [llvmtcl::llvmtcl LLVMInt32Type] 10]
+    lappend t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] 10]
+    lappend t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 10]
+    lappend t [llvmtcl::llvmtcl LLVMUnionType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]]]
+} -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
 
 tcltest::test llvm-8.3 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMIntType]
@@ -125,6 +130,78 @@ tcltest::test llvm-8.3 {check LLVM<type> sub command} -body {
 tcltest::test llvm-8.4 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMIntType qwerty]
 } -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
+tcltest::test llvm-8.5 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMArrayType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMArrayType elementType elementCount"}
+
+tcltest::test llvm-8.6 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMArrayType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+} -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
+tcltest::test llvm-8.7 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMArrayType qwerty 12]
+} -returnCodes {error} -match glob -result {expected type but got "qwerty"}
+
+tcltest::test llvm-8.8 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMPointerType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMPointerType elementType addressSpace"}
+
+tcltest::test llvm-8.9 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMPointerType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+} -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
+tcltest::test llvm-8.10 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMPointerType qwerty 12]
+} -returnCodes {error} -match glob -result {expected type but got "qwerty"}
+
+tcltest::test llvm-8.11 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMVectorType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMVectorType elementType elementCount"}
+
+tcltest::test llvm-8.12 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+} -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
+tcltest::test llvm-8.13 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMVectorType qwerty 12]
+} -returnCodes {error} -match glob -result {expected type but got "qwerty"}
+
+tcltest::test llvm-8.14 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMStructType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMStructType listOfElementTypes packed"}
+
+tcltest::test llvm-8.15 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMStructType {} 0]
+} -returnCodes {error} -match glob -result {no element types found}
+
+tcltest::test llvm-8.16 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] brol]
+} -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
+
+tcltest::test llvm-8.17 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMStructType {a b c d e f g} 0]
+} -returnCodes {error} -match glob -result {expected type but got "a"}
+
+tcltest::test llvm-8.18 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMStructType "a b c \{ d e f g" 0]
+} -returnCodes {error} -match glob -result "expected list of types but got \"a b c \{ d e f g\""
+
+tcltest::test llvm-8.19 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMUnionType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMUnionType listOfElementTypes"}
+
+tcltest::test llvm-8.20 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMUnionType {}]
+} -returnCodes {error} -match glob -result {no element types found}
+
+tcltest::test llvm-8.21 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMUnionType {a b c d e f g}]
+} -returnCodes {error} -match glob -result {expected type but got "a"}
+
+tcltest::test llvm-8.22 {check LLVM<type> sub command} -body {
+    set t [llvmtcl::llvmtcl LLVMUnionType "a b c \{ d e f g"]
+} -returnCodes {error} -match glob -result "expected list of types but got \"a b c \{ d e f g\""
 
 ::tcltest::cleanupTests
 return

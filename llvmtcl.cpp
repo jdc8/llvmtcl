@@ -33,6 +33,7 @@ int LLVMCreateBuilderObjCmd(ClientData clientData,
     Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
     return TCL_OK;
 }
+
 int LLVMDisposeBuilderObjCmd(ClientData clientData, 
 			     Tcl_Interp* interp,
 			     int objc,
@@ -44,7 +45,9 @@ int LLVMDisposeBuilderObjCmd(ClientData clientData,
     }
     std::string builder = Tcl_GetStringFromObj(objv[2], 0);
     if (LLVMBuilderRef_map.find(builder) == LLVMBuilderRef_map.end()) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown builder", -1));
+	std::ostringstream os;
+	os << "expected builder but got \"" << builder << "\"";
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
 	return TCL_ERROR;
     }
     LLVMDisposeBuilder(LLVMBuilderRef_map[builder]);
@@ -63,7 +66,9 @@ int LLVMDisposeModuleObjCmd(ClientData clientData,
     }
     std::string module = Tcl_GetStringFromObj(objv[2], 0);
     if (LLVMModuleRef_map.find(module) == LLVMModuleRef_map.end()) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown module", -1));
+	std::ostringstream os;
+	os << "expected module but got \"" << module << "\"";
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
 	return TCL_ERROR;
     }
     LLVMDisposeModule(LLVMModuleRef_map[module]);
@@ -142,12 +147,25 @@ int HelpObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
+static LLVMTypeRef GetLLVMTypeRef(Tcl_Interp* interp, Tcl_Obj* obj)
+{
+    std::string elementTypeName = Tcl_GetStringFromObj(obj, 0);
+    if (LLVMTypeRef_map.find(elementTypeName) == LLVMTypeRef_map.end()) {
+	std::ostringstream os;
+	os << "expected type but got \"" << elementTypeName << "\"";
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	return 0;
+    }
+    return LLVMTypeRef_map[elementTypeName];
+}
+
 int LLVMTypeObjCmd(ClientData clientData, 
 		   Tcl_Interp* interp,
 		   int objc,
 		   Tcl_Obj* const objv[])
 {
     static const char *subCommands[] = {
+	"LLVMArrayType",
 	"LLVMDoubleType",
 	"LLVMFP128Type",
 	"LLVMFloatType",
@@ -157,11 +175,19 @@ int LLVMTypeObjCmd(ClientData clientData,
 	"LLVMInt64Type",
 	"LLVMInt8Type",
 	"LLVMIntType",
+	"LLVMLabelType",
+	"LLVMOpaqueType",
 	"LLVMPPCFP128Type",
+	"LLVMPointerType",
+	"LLVMStructType",
+	"LLVMUnionType",
+	"LLVMVectorType",
+	"LLVMVoidType",
 	"LLVMX86FP80Type",
 	NULL
     };
     enum SubCmds {
+	eLLVMArrayType,
 	eLLVMDoubleType,
 	eLLVMFP128Type,
 	eLLVMFloatType,
@@ -171,14 +197,22 @@ int LLVMTypeObjCmd(ClientData clientData,
 	eLLVMInt64Type,
 	eLLVMInt8Type,
 	eLLVMIntType,
+	eLLVMLabelType,
+	eLLVMOpaqueType,
 	eLLVMPPCFP128Type,
-	eLLVMX86FP80Type  
+	eLLVMPointerType,
+	eLLVMStructType,
+	eLLVMUnionType,
+	eLLVMVectorType,
+	eLLVMVoidType,
+	eLLVMX86FP80Type
     };
     int index = -1;
     if (Tcl_GetIndexFromObj(interp, objv[1], subCommands, "type", 0, &index) != TCL_OK)
         return TCL_ERROR;
     // Check number of arguments
     switch ((enum SubCmds) index) {
+    // 2 arguments
     case eLLVMDoubleType:
     case eLLVMFP128Type:
     case eLLVMFloatType:
@@ -187,16 +221,46 @@ int LLVMTypeObjCmd(ClientData clientData,
     case eLLVMInt32Type:
     case eLLVMInt64Type:
     case eLLVMInt8Type:
+    case eLLVMLabelType:
+    case eLLVMOpaqueType:
     case eLLVMPPCFP128Type:
+    case eLLVMVoidType:
     case eLLVMX86FP80Type:
 	if (objc != 2) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "");
 	    return TCL_ERROR;
 	}
 	break;
+    // 3 arguments
     case eLLVMIntType:
 	if (objc != 3) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "width");
+	    return TCL_ERROR;
+	}
+	break;
+    case eLLVMUnionType:
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "listOfElementTypes");
+	    return TCL_ERROR;
+	}
+	break;
+    // 4 arguments
+    case eLLVMArrayType:
+    case eLLVMVectorType:
+	if (objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "elementType elementCount");
+	    return TCL_ERROR;
+	}
+	break;
+    case eLLVMPointerType:
+	if (objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "elementType addressSpace");
+	    return TCL_ERROR;
+	}
+	break;
+    case eLLVMStructType:
+	if (objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "listOfElementTypes packed");
 	    return TCL_ERROR;
 	}
 	break;
@@ -204,14 +268,41 @@ int LLVMTypeObjCmd(ClientData clientData,
     // Create the requested type
     LLVMTypeRef tref = 0;
     switch ((enum SubCmds) index) {
-    case eLLVMDoubleType: tref = LLVMDoubleType(); break;
-    case eLLVMFP128Type: tref = LLVMFP128Type(); break;
-    case eLLVMFloatType: tref = LLVMFloatType(); break;
-    case eLLVMInt16Type: tref = LLVMInt16Type(); break;
-    case eLLVMInt1Type: tref = LLVMInt1Type(); break;
-    case eLLVMInt32Type: tref = LLVMInt32Type(); break;
-    case eLLVMInt64Type: tref = LLVMInt64Type(); break;
-    case eLLVMInt8Type: tref = LLVMInt8Type(); break;
+    case eLLVMArrayType:
+    {
+	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
+	if (!elementType)
+	    return TCL_ERROR;
+	int elementCount = 0;
+	if (Tcl_GetIntFromObj(interp, objv[3], &elementCount) != TCL_OK)
+	    return TCL_ERROR;
+	tref = LLVMArrayType(elementType, elementCount);
+	break;
+    }
+    case eLLVMDoubleType:
+	tref = LLVMDoubleType();
+	break;
+    case eLLVMFP128Type:
+	tref = LLVMFP128Type();
+	break;
+    case eLLVMFloatType:
+	tref = LLVMFloatType();
+	break;
+    case eLLVMInt16Type:
+	tref = LLVMInt16Type();
+	break;
+    case eLLVMInt1Type:
+	tref = LLVMInt1Type();
+	break;
+    case eLLVMInt32Type:
+	tref = LLVMInt32Type();
+	break;
+    case eLLVMInt64Type:
+	tref = LLVMInt64Type();
+	break;
+    case eLLVMInt8Type:
+	tref = LLVMInt8Type();
+	break;
     case eLLVMIntType:
     {
 	int width = 0;
@@ -220,8 +311,98 @@ int LLVMTypeObjCmd(ClientData clientData,
 	tref = LLVMIntType(width);
 	break;
     }
-    case eLLVMPPCFP128Type: tref = LLVMPPCFP128Type(); break;
-    case eLLVMX86FP80Type: tref = LLVMX86FP80Type(); break;
+    case eLLVMLabelType:
+	tref = LLVMLabelType();
+	break;
+    case eLLVMOpaqueType:
+	tref = LLVMOpaqueType();
+	break;
+    case eLLVMPPCFP128Type:
+	tref = LLVMPPCFP128Type();
+	break;
+    case eLLVMPointerType:
+    {
+	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
+	if (!elementType)
+	    return TCL_ERROR;
+	int addressSpace = 0;
+	if (Tcl_GetIntFromObj(interp, objv[3], &addressSpace) != TCL_OK)
+	    return TCL_ERROR;
+	tref = LLVMPointerType(elementType, addressSpace);
+	break;
+    }
+    case eLLVMStructType:
+    {
+	int packed = 0;
+	if (Tcl_GetBooleanFromObj(interp, objv[3], &packed) != TCL_OK)
+	    return TCL_ERROR;
+	int elementCount = 0;
+	Tcl_Obj** elementTypeObjs = 0;
+	if (Tcl_ListObjGetElements(interp, objv[2], &elementCount, &elementTypeObjs) != TCL_OK) {
+	    std::ostringstream os;
+	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[2], 0) << "\"";
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	    return TCL_ERROR;
+	}
+	if (elementCount == 0) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types found", -1));
+	    return TCL_ERROR;
+	}
+	LLVMTypeRef* elementTypes = new LLVMTypeRef[elementCount];
+	for(int i = 0; i < elementCount; i++) {
+	    elementTypes[i] = GetLLVMTypeRef(interp, elementTypeObjs[i]);
+	    if (!elementTypes[i]) {
+		delete [] elementTypes;
+		return TCL_ERROR;
+	    }
+	}
+	tref = LLVMStructType(elementTypes, elementCount, packed);
+	delete [] elementTypes;
+	break;
+    }
+    case eLLVMUnionType:
+    {
+	int elementCount = 0;
+	Tcl_Obj** elementTypeObjs = 0;
+	if (Tcl_ListObjGetElements(interp, objv[2], &elementCount, &elementTypeObjs) != TCL_OK) {
+	    std::ostringstream os;
+	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[2], 0) << "\"";
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	    return TCL_ERROR;
+	}
+	if (elementCount == 0) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types found", -1));
+	    return TCL_ERROR;
+	}
+	LLVMTypeRef* elementTypes = new LLVMTypeRef[elementCount];
+	for(int i = 0; i < elementCount; i++) {
+	    elementTypes[i] = GetLLVMTypeRef(interp, elementTypeObjs[i]);
+	    if (!elementTypes[i]) {
+		delete [] elementTypes;
+		return TCL_ERROR;
+	    }
+	}
+	tref = LLVMUnionType(elementTypes, elementCount);
+	delete [] elementTypes;
+	break;
+    }
+    case eLLVMVectorType:
+    {
+	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
+	if (!elementType)
+	    return TCL_ERROR;
+	int elementCount = 0;
+	if (Tcl_GetIntFromObj(interp, objv[3], &elementCount) != TCL_OK)
+	    return TCL_ERROR;
+	tref = LLVMVectorType(elementType, elementCount);
+	break;
+    }
+    case eLLVMVoidType:
+	tref = LLVMVoidType();
+	break;
+    case eLLVMX86FP80Type:
+	tref = LLVMX86FP80Type();
+	break;
     }
     if (!tref) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new type", -1));
@@ -252,6 +433,7 @@ extern "C" int llvmtcl(ClientData clientData,
     }
     static const char *subCommands[] = {
 	"help",
+	"LLVMArrayType",
 	"LLVMCreateBuilder",
 	"LLVMDisposeBuilder",
 	"LLVMDisposeModule",
@@ -265,14 +447,22 @@ extern "C" int llvmtcl(ClientData clientData,
 	"LLVMInt64Type",
 	"LLVMInt8Type",
 	"LLVMIntType",
+	"LLVMLabelType",
 	"LLVMLinkInJIT",
 	"LLVMModuleCreateWithName",
+	"LLVMOpaqueType",
 	"LLVMPPCFP128Type",
+	"LLVMPointerType",
+	"LLVMStructType",
+	"LLVMUnionType",
+	"LLVMVectorType",
+	"LLVMVoidType",
 	"LLVMX86FP80Type",
 	NULL
     };
     static LLVMObjCmdPtr subObjCmds[] = {
 	&HelpObjCmd,
+	&LLVMTypeObjCmd,
 	&LLVMCreateBuilderObjCmd,
 	&LLVMDisposeBuilderObjCmd,
 	&LLVMDisposeModuleObjCmd,
@@ -286,10 +476,17 @@ extern "C" int llvmtcl(ClientData clientData,
 	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
 	&LLVMLinkInJITObjCmd,
 	&LLVMModuleCreateWithNameObjCmd,
 	&LLVMTypeObjCmd,
 	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd,
+	&LLVMTypeObjCmd
     };
     int index = -1;
     if (Tcl_GetIndexFromObj(interp, objv[1], subCommands, "subcommand", 0,

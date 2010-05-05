@@ -177,7 +177,7 @@ tcltest::test llvm-8.14 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.15 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMStructType {} 0]
-} -returnCodes {error} -match glob -result {no element types found}
+} -returnCodes {error} -match glob -result {no element types specified}
 
 tcltest::test llvm-8.16 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] brol]
@@ -197,7 +197,7 @@ tcltest::test llvm-8.19 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.20 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMUnionType {}]
-} -returnCodes {error} -match glob -result {no element types found}
+} -returnCodes {error} -match glob -result {no element types specified}
 
 tcltest::test llvm-8.21 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMUnionType {a b c d e f g}]

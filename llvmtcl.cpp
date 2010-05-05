@@ -147,16 +147,41 @@ int HelpObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-static LLVMTypeRef GetLLVMTypeRef(Tcl_Interp* interp, Tcl_Obj* obj)
+static int GetLLVMTypeRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMTypeRef& typeRef)
 {
+    typeRef = 0;
     std::string elementTypeName = Tcl_GetStringFromObj(obj, 0);
     if (LLVMTypeRef_map.find(elementTypeName) == LLVMTypeRef_map.end()) {
 	std::ostringstream os;
 	os << "expected type but got \"" << elementTypeName << "\"";
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	return 0;
+	return TCL_ERROR;
     }
-    return LLVMTypeRef_map[elementTypeName];
+    typeRef = LLVMTypeRef_map[elementTypeName];
+    return TCL_OK;
+}
+
+static int GetListOfLLVMTypeRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMTypeRef*& typeList, int& typeCount)
+{
+    typeCount = 0;
+    typeList = 0;
+    Tcl_Obj** typeObjs = 0;
+    if (Tcl_ListObjGetElements(interp, obj, &typeCount, &typeObjs) != TCL_OK) {
+	std::ostringstream os;
+	os << "expected list of types but got \"" << Tcl_GetStringFromObj(obj, 0) << "\"";
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	return TCL_ERROR;
+    }
+    if (typeCount == 0)
+	return TCL_OK;
+    typeList = new LLVMTypeRef[typeCount];
+    for(int i = 0; i < typeCount; i++) {
+	if (GetLLVMTypeRefFromObj(interp, typeObjs[i], typeList[i]) != TCL_OK) {
+	    delete [] typeList;
+	    return TCL_ERROR;
+	}
+    }
+    return TCL_OK;
 }
 
 int LLVMTypeObjCmd(ClientData clientData,
@@ -279,8 +304,8 @@ int LLVMTypeObjCmd(ClientData clientData,
     switch ((enum SubCmds) index) {
     case eLLVMArrayType:
     {
-	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
-	if (!elementType)
+	LLVMTypeRef elementType = 0;
+	if (GetLLVMTypeRefFromObj(interp, objv[2], elementType) != TCL_OK) 
 	    return TCL_ERROR;
 	int elementCount = 0;
 	if (Tcl_GetIntFromObj(interp, objv[3], &elementCount) != TCL_OK)
@@ -299,33 +324,19 @@ int LLVMTypeObjCmd(ClientData clientData,
 	break;
     case eLLVMFunctionType:
     {
-	LLVMTypeRef returnType = GetLLVMTypeRef(interp, objv[2]);
-	if (!returnType)
+	LLVMTypeRef returnType = 0;
+	if (GetLLVMTypeRefFromObj(interp, objv[2], returnType) != TCL_OK)
 	    return TCL_ERROR;
 	int isVarArg = 0;
 	if (Tcl_GetBooleanFromObj(interp, objv[4], &isVarArg) != TCL_OK)
 	    return TCL_ERROR;
 	int argumentCount = 0;
-	Tcl_Obj** argumentTypeObjs = 0;
-	if (Tcl_ListObjGetElements(interp, objv[3], &argumentCount, &argumentTypeObjs) != TCL_OK) {
-	    std::ostringstream os;
-	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[3], 0) << "\"";
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	    return TCL_ERROR;
-	}
 	LLVMTypeRef* argumentTypes = 0;
-	if (argumentCount)
-	    argumentTypes = new LLVMTypeRef[argumentCount];
-	for(int i = 0; i < argumentCount; i++) {
-	    argumentTypes[i] = GetLLVMTypeRef(interp, argumentTypeObjs[i]);
-	    if (!argumentTypes[i]) {
-		delete [] argumentTypes;
-		return TCL_ERROR;
-	    }
-	}
+	if (GetListOfLLVMTypeRefFromObj(interp, objv[3], argumentTypes, argumentCount) != TCL_OK)
+	    return TCL_ERROR;
 	tref = LLVMFunctionType(returnType, argumentTypes, argumentCount, isVarArg);
-	delete [] argumentTypes;
-	
+	if (argumentCount)
+	    delete [] argumentTypes;
 	break;
     }
     case eLLVMInt16Type:
@@ -362,8 +373,8 @@ int LLVMTypeObjCmd(ClientData clientData,
 	break;
     case eLLVMPointerType:
     {
-	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
-	if (!elementType)
+	LLVMTypeRef elementType = 0;
+	if (GetLLVMTypeRefFromObj(interp, objv[2], elementType) != TCL_OK)
 	    return TCL_ERROR;
 	int addressSpace = 0;
 	if (Tcl_GetIntFromObj(interp, objv[3], &addressSpace) != TCL_OK)
@@ -373,29 +384,17 @@ int LLVMTypeObjCmd(ClientData clientData,
     }
     case eLLVMStructType:
     {
+	int elementCount = 0;
+	LLVMTypeRef* elementTypes = 0;
+	if (GetListOfLLVMTypeRefFromObj(interp, objv[2], elementTypes, elementCount) != TCL_OK)
+	    return TCL_ERROR;
+	if (!elementCount) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types specified", -1));
+	    return TCL_ERROR;
+	}
 	int packed = 0;
 	if (Tcl_GetBooleanFromObj(interp, objv[3], &packed) != TCL_OK)
 	    return TCL_ERROR;
-	int elementCount = 0;
-	Tcl_Obj** elementTypeObjs = 0;
-	if (Tcl_ListObjGetElements(interp, objv[2], &elementCount, &elementTypeObjs) != TCL_OK) {
-	    std::ostringstream os;
-	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[2], 0) << "\"";
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	    return TCL_ERROR;
-	}
-	if (elementCount == 0) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types found", -1));
-	    return TCL_ERROR;
-	}
-	LLVMTypeRef* elementTypes = new LLVMTypeRef[elementCount];
-	for(int i = 0; i < elementCount; i++) {
-	    elementTypes[i] = GetLLVMTypeRef(interp, elementTypeObjs[i]);
-	    if (!elementTypes[i]) {
-		delete [] elementTypes;
-		return TCL_ERROR;
-	    }
-	}
 	tref = LLVMStructType(elementTypes, elementCount, packed);
 	delete [] elementTypes;
 	break;
@@ -403,24 +402,12 @@ int LLVMTypeObjCmd(ClientData clientData,
     case eLLVMUnionType:
     {
 	int elementCount = 0;
-	Tcl_Obj** elementTypeObjs = 0;
-	if (Tcl_ListObjGetElements(interp, objv[2], &elementCount, &elementTypeObjs) != TCL_OK) {
-	    std::ostringstream os;
-	    os << "expected list of types but got \"" << Tcl_GetStringFromObj(objv[2], 0) << "\"";
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	LLVMTypeRef* elementTypes = 0;
+	if (GetListOfLLVMTypeRefFromObj(interp, objv[2], elementTypes, elementCount) != TCL_OK)
 	    return TCL_ERROR;
-	}
-	if (elementCount == 0) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types found", -1));
+	if (!elementCount) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("no element types specified", -1));
 	    return TCL_ERROR;
-	}
-	LLVMTypeRef* elementTypes = new LLVMTypeRef[elementCount];
-	for(int i = 0; i < elementCount; i++) {
-	    elementTypes[i] = GetLLVMTypeRef(interp, elementTypeObjs[i]);
-	    if (!elementTypes[i]) {
-		delete [] elementTypes;
-		return TCL_ERROR;
-	    }
 	}
 	tref = LLVMUnionType(elementTypes, elementCount);
 	delete [] elementTypes;
@@ -428,8 +415,8 @@ int LLVMTypeObjCmd(ClientData clientData,
     }
     case eLLVMVectorType:
     {
-	LLVMTypeRef elementType = GetLLVMTypeRef(interp, objv[2]);
-	if (!elementType)
+	LLVMTypeRef elementType = 0;
+	if (GetLLVMTypeRefFromObj(interp, objv[2], elementType) != TCL_OK)
 	    return TCL_ERROR;
 	int elementCount = 0;
 	if (Tcl_GetIntFromObj(interp, objv[3], &elementCount) != TCL_OK)

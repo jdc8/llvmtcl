@@ -7,11 +7,7 @@ tcltest::test llvm-1.1 {check main command} -body {
     llvmtcl::llvmtcl
 } -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl subcommand ?arg ...?"}
 
-tcltest::test llvm-1.2 {check help sub command} -body {
-    llvmtcl::llvmtcl help
-} -returnCodes {ok return} -match glob -result {LLVM Tcl interface*}
-
-tcltest::test llvm-1.3 {check unknown sub command} -body {
+tcltest::test llvm-1.2 {check unknown sub command} -body {
     llvmtcl::llvmtcl unknown_sub_command
 } -returnCodes {error} -match glob -result {bad subcommand "unknown_sub_command": must be *}
 
@@ -51,18 +47,18 @@ tcltest::test llvm-4.3 {check LLVMModuleCreateWithName sub command} -body {
 # LLVMDisposeModule
 tcltest::test llvm-5.1 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule module"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule moduleRef"}
 
 tcltest::test llvm-5.2 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule module"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule moduleRef"}
 
 tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeModule brol
 } -returnCodes {error} -match glob -result {expected module but got "brol"}
 
 tcltest::test llvm-5.4 {check LLVMDisposeModule sub command} -setup {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test53]
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test54]
 } -body {
     llvmtcl::llvmtcl LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {}
@@ -81,11 +77,11 @@ tcltest::test llvm-6.3 {check LLVMCreateBuilder sub command} -body {
 # LLVMDisposeBuilder
 tcltest::test llvm-7.1 {check LLVMDisposeBuilder sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeBuilder
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builder"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builderRef"}
 
 tcltest::test llvm-7.2 {check LLVMDisposeBuilder sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeBuilder a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builder"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builderRef"}
 
 tcltest::test llvm-7.3 {check LLVMDisposeBuilder sub command} -body {
     llvmtcl::llvmtcl LLVMDisposeBuilder brol
@@ -137,7 +133,7 @@ tcltest::test llvm-8.4 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.5 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMArrayType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMArrayType elementType elementCount"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMArrayType elementTypeRef elementCount"}
 
 tcltest::test llvm-8.6 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMArrayType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
@@ -149,7 +145,7 @@ tcltest::test llvm-8.7 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.8 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMPointerType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMPointerType elementType addressSpace"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMPointerType elementTypeRef addressSpace"}
 
 tcltest::test llvm-8.9 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMPointerType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
@@ -161,7 +157,7 @@ tcltest::test llvm-8.10 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.11 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMVectorType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMVectorType elementType elementCount"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMVectorType elementTypeRef elementCount"}
 
 tcltest::test llvm-8.12 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
@@ -173,7 +169,7 @@ tcltest::test llvm-8.13 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.14 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMStructType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMStructType listOfElementTypes packed"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMStructType listOfElementTypeRefs packed"}
 
 tcltest::test llvm-8.15 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMStructType {} 0]
@@ -193,7 +189,7 @@ tcltest::test llvm-8.18 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.19 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMUnionType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMUnionType listOfElementTypes"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMUnionType listOfElementTypeRefs"}
 
 tcltest::test llvm-8.20 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMUnionType {}]
@@ -209,7 +205,7 @@ tcltest::test llvm-8.22 {check LLVM<type> sub command} -body {
 
 tcltest::test llvm-8.23 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMFunctionType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMFunctionType returnType listOfArgumentTypes isVarArg"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMFunctionType returnTypeRef listOfArgumentTypeRefs isVarArg"}
 
 tcltest::test llvm-8.24 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMFunctionType brol {} 0]
@@ -222,6 +218,51 @@ tcltest::test llvm-8.25 {check LLVM<type> sub command} -body {
 tcltest::test llvm-8.26 {check LLVM<type> sub command} -body {
     set t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} brol]
 } -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
+
+# Function
+tcltest::test llvm-9.1 {check LLVM<type> sub command} -body {
+    llvmtcl::llvmtcl LLVMAddFunction
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMAddFunction moduleRef functionName functionTypeRef"}
+
+tcltest::test llvm-9.2 {check LLVM<type> sub command} -body {
+    llvmtcl::llvmtcl LLVMAddFunction module function92 type
+} -returnCodes {error} -match glob -result {expected module but got "module"}
+
+tcltest::test llvm-9.3 {check LLVM<type> sub command} -setup {
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test93]
+} -body {
+    llvmtcl::llvmtcl LLVMAddFunction $m function93 type
+} -cleanup {
+    llvmtcl::llvmtcl LLVMDisposeModule $m
+} -returnCodes {error} -match glob -result {expected type but got "type"}
+
+tcltest::test llvm-9.4 {check LLVM<type> sub command} -setup {
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test94]
+    set t [llvmtcl::llvmtcl LLVMFunctionType  [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
+} -body {
+    set f [llvmtcl::llvmtcl LLVMAddFunction $m function94 $t]
+} -cleanup {
+    llvmtcl::llvmtcl LLVMDeleteFunction $f
+    llvmtcl::llvmtcl LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
+
+tcltest::test llvm-9.5 {check LLVM<type> sub command} -setup {
+    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test94]
+    set t [llvmtcl::llvmtcl LLVMFunctionType  [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
+    set f [llvmtcl::llvmtcl LLVMAddFunction $m function94 $t]
+} -body {
+    llvmtcl::llvmtcl LLVMDeleteFunction $f
+} -cleanup {
+    llvmtcl::llvmtcl LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {}
+
+tcltest::test llvm-9.5 {check LLVM<type> sub command} -body {
+    llvmtcl::llvmtcl LLVMDeleteFunction
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDeleteFunction functionRef"}
+
+tcltest::test llvm-9.6 {check LLVM<type> sub command} -body {
+    llvmtcl::llvmtcl LLVMDeleteFunction brol
+} -returnCodes {error} -match glob -result {expected function but got "brol"}
 
 ::tcltest::cleanupTests
 return

@@ -256,7 +256,7 @@ tcltest::test llvm-9.5 {check LLVM function sub command} -body {
 
 tcltest::test llvm-9.6 {check LLVM function sub command} -body {
     llvmtcl::LLVMDeleteFunction brol
-} -returnCodes {error} -match glob -result {expected function but got "brol"}
+} -returnCodes {error} -match glob -result {expected value but got "brol"}
 
 # Constants
 # Int

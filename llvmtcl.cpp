@@ -144,15 +144,11 @@ int LLVMDisposeBuilderObjCmd(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "builderRef");
 	return TCL_ERROR;
     }
-    std::string builder = Tcl_GetStringFromObj(objv[1], 0);
-    if (LLVMBuilderRef_map.find(builder) == LLVMBuilderRef_map.end()) {
-	std::ostringstream os;
-	os << "expected builder but got \"" << builder << "\"";
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    LLVMBuilderRef builderRef = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
 	return TCL_ERROR;
-    }
-    LLVMDisposeBuilder(LLVMBuilderRef_map[builder]);
-    LLVMBuilderRef_map.erase(builder);
+    LLVMDisposeBuilder(builderRef);
+    LLVMBuilderRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
     return TCL_OK;
 }
 
@@ -165,15 +161,11 @@ int LLVMDisposeModuleObjCmd(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "moduleRef");
 	return TCL_ERROR;
     }
-    std::string module = Tcl_GetStringFromObj(objv[1], 0);
-    if (LLVMModuleRef_map.find(module) == LLVMModuleRef_map.end()) {
-	std::ostringstream os;
-	os << "expected module but got \"" << module << "\"";
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    LLVMModuleRef moduleRef = 0;
+    if (GetLLVMModuleRefFromObj(interp, objv[1], moduleRef) != TCL_OK)
 	return TCL_ERROR;
-    }
-    LLVMDisposeModule(LLVMModuleRef_map[module]);
-    LLVMModuleRef_map.erase(module);
+    LLVMDisposeModule(moduleRef);
+    LLVMModuleRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
     return TCL_OK;
 }
 
@@ -256,15 +248,11 @@ int LLVMDeleteFunctionObjCmd(ClientData clientData,
 	Tcl_WrongNumArgs(interp, 1, objv, "functionRef");
 	return TCL_ERROR;
     }
-    std::string function = Tcl_GetStringFromObj(objv[1], 0);
-    if (LLVMValueRef_map.find(function) == LLVMValueRef_map.end()) {
-	std::ostringstream os;
-	os << "expected function but got \"" << function << "\"";
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+    LLVMValueRef functionRef = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], functionRef) != TCL_OK)
 	return TCL_ERROR;
-    }
-    LLVMDeleteFunction(LLVMValueRef_map[function]);
-    LLVMValueRef_map.erase(function);
+    LLVMDeleteFunction(functionRef);
+    LLVMValueRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
     return TCL_OK;
 }
 

@@ -2,372 +2,363 @@ lappend auto_path .
 package require tcltest
 package require llvmtcl
 
-# Main command
-tcltest::test llvm-1.1 {check main command} -body {
-    llvmtcl::llvmtcl
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl subcommand ?arg ...?"}
-
-tcltest::test llvm-1.2 {check unknown sub command} -body {
-    llvmtcl::llvmtcl unknown_sub_command
-} -returnCodes {error} -match glob -result {bad subcommand "unknown_sub_command": must be *}
-
 # LLVMInitializeNativeTarget
 tcltest::test llvm-2.1 {check LLVMInitializeNativeTarget sub command} -body {
-    llvmtcl::llvmtcl LLVMInitializeNativeTarget
+    llvmtcl::LLVMInitializeNativeTarget
 } -returnCodes {ok return} -match glob -result {}
 
 tcltest::test llvm-2.2 {check LLVMInitializeNativeTarget sub command} -body {
-    llvmtcl::llvmtcl LLVMInitializeNativeTarget a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMInitializeNativeTarget "}
+    llvmtcl::LLVMInitializeNativeTarget a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMInitializeNativeTarget "}
 
 # LLVMLinkInJIT
 tcltest::test llvm-3.1 {check LLVMLinkInJIT sub command} -body {
-    llvmtcl::llvmtcl LLVMLinkInJIT
+    llvmtcl::LLVMLinkInJIT
 } -returnCodes {ok return} -match glob -result {}
 
 tcltest::test llvm-3.2 {check LLVMLinkInJIT sub command} -body {
-    llvmtcl::llvmtcl LLVMLinkInJIT a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMLinkInJIT "}
+    llvmtcl::LLVMLinkInJIT a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMLinkInJIT "}
 
 # LLVMModuleCreateWithName
 tcltest::test llvm-4.1 {check LLVMModuleCreateWithName sub command} -body {
-    llvmtcl::llvmtcl LLVMModuleCreateWithName
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
+    llvmtcl::LLVMModuleCreateWithName
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMModuleCreateWithName name"}
 
 tcltest::test llvm-4.2 {check LLVMModuleCreateWithName sub command} -body {
-    llvmtcl::llvmtcl LLVMModuleCreateWithName a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMModuleCreateWithName name"}
+    llvmtcl::LLVMModuleCreateWithName a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMModuleCreateWithName name"}
 
 tcltest::test llvm-4.3 {check LLVMModuleCreateWithName sub command} -body {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test43]
+    set m [llvmtcl::LLVMModuleCreateWithName test43]
 } -cleanup {
-    llvmtcl::llvmtcl LLVMDisposeModule $m
+    llvmtcl::LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {LLVMModuleRef_*}
 
 # LLVMDisposeModule
 tcltest::test llvm-5.1 {check LLVMDisposeModule sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeModule
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule moduleRef"}
+    llvmtcl::LLVMDisposeModule
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDisposeModule moduleRef"}
 
 tcltest::test llvm-5.2 {check LLVMDisposeModule sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeModule a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeModule moduleRef"}
+    llvmtcl::LLVMDisposeModule a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDisposeModule moduleRef"}
 
 tcltest::test llvm-5.3 {check LLVMDisposeModule sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeModule brol
+    llvmtcl::LLVMDisposeModule brol
 } -returnCodes {error} -match glob -result {expected module but got "brol"}
 
 tcltest::test llvm-5.4 {check LLVMDisposeModule sub command} -setup {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test54]
+    set m [llvmtcl::LLVMModuleCreateWithName test54]
 } -body {
-    llvmtcl::llvmtcl LLVMDisposeModule $m
+    llvmtcl::LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {}
 
 # LLVMCreateBuilder
 tcltest::test llvm-6.2 {check LLVMCreateBuilder sub command} -body {
-    llvmtcl::llvmtcl LLVMCreateBuilder a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMCreateBuilder "}
+    llvmtcl::LLVMCreateBuilder a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMCreateBuilder "}
 
 tcltest::test llvm-6.3 {check LLVMCreateBuilder sub command} -body {
-    set b [llvmtcl::llvmtcl LLVMCreateBuilder]
+    set b [llvmtcl::LLVMCreateBuilder]
 } -cleanup {
-    llvmtcl::llvmtcl LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeBuilder $b
 } -returnCodes {ok return} -match glob -result {LLVMBuilderRef_*}
 
 # LLVMDisposeBuilder
 tcltest::test llvm-7.1 {check LLVMDisposeBuilder sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeBuilder
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builderRef"}
+    llvmtcl::LLVMDisposeBuilder
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDisposeBuilder builderRef"}
 
 tcltest::test llvm-7.2 {check LLVMDisposeBuilder sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeBuilder a b c d e f g
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDisposeBuilder builderRef"}
+    llvmtcl::LLVMDisposeBuilder a b c d e f g
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDisposeBuilder builderRef"}
 
 tcltest::test llvm-7.3 {check LLVMDisposeBuilder sub command} -body {
-    llvmtcl::llvmtcl LLVMDisposeBuilder brol
+    llvmtcl::LLVMDisposeBuilder brol
 } -returnCodes {error} -match glob -result {expected builder but got "brol"}
 
 tcltest::test llvm-7.4 {check LLVMDisposeBuilder sub command} -setup {
-    set b [llvmtcl::llvmtcl LLVMCreateBuilder]
+    set b [llvmtcl::LLVMCreateBuilder]
 } -body {
-    llvmtcl::llvmtcl LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeBuilder $b
 } -returnCodes {ok return} -match glob -result {}
 
 # LLVM<type>>
 tcltest::test llvm-8.1 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMDoubleType a b c d e f g]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDoubleType "}
+    set t [llvmtcl::LLVMDoubleType a b c d e f g]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDoubleType "}
 
 tcltest::test llvm-8.2 {check LLVM type sub command} -body {
-    lappend t [llvmtcl::llvmtcl LLVMDoubleType]
-    lappend t [llvmtcl::llvmtcl LLVMFP128Type]
-    lappend t [llvmtcl::llvmtcl LLVMFloatType]
-    lappend t [llvmtcl::llvmtcl LLVMInt16Type]
-    lappend t [llvmtcl::llvmtcl LLVMInt1Type]
-    lappend t [llvmtcl::llvmtcl LLVMInt32Type]
-    lappend t [llvmtcl::llvmtcl LLVMInt64Type]
-    lappend t [llvmtcl::llvmtcl LLVMInt8Type]
-    lappend t [llvmtcl::llvmtcl LLVMIntType 43]
-    lappend t [llvmtcl::llvmtcl LLVMIntType 83]
-    lappend t [llvmtcl::llvmtcl LLVMIntType 153]
-    lappend t [llvmtcl::llvmtcl LLVMPPCFP128Type]
-    lappend t [llvmtcl::llvmtcl LLVMX86FP80Type]
-    lappend t [llvmtcl::llvmtcl LLVMArrayType [llvmtcl::llvmtcl LLVMInt32Type] 10]
-    lappend t [llvmtcl::llvmtcl LLVMPointerType [llvmtcl::llvmtcl LLVMInt32Type] 10]
-    lappend t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] 10]
-    lappend t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 10]
-    lappend t [llvmtcl::llvmtcl LLVMUnionType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]]]
-    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
-    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 1]
-    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 0]
-    lappend t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} 1]
-    lappend t [llvmtcl::llvmtcl LLVMLabelType]
-    lappend t [llvmtcl::llvmtcl LLVMOpaqueType]
-    lappend t [llvmtcl::llvmtcl LLVMVoidType]
+    lappend t [llvmtcl::LLVMDoubleType]
+    lappend t [llvmtcl::LLVMFP128Type]
+    lappend t [llvmtcl::LLVMFloatType]
+    lappend t [llvmtcl::LLVMInt16Type]
+    lappend t [llvmtcl::LLVMInt1Type]
+    lappend t [llvmtcl::LLVMInt32Type]
+    lappend t [llvmtcl::LLVMInt64Type]
+    lappend t [llvmtcl::LLVMInt8Type]
+    lappend t [llvmtcl::LLVMIntType 43]
+    lappend t [llvmtcl::LLVMIntType 83]
+    lappend t [llvmtcl::LLVMIntType 153]
+    lappend t [llvmtcl::LLVMPPCFP128Type]
+    lappend t [llvmtcl::LLVMX86FP80Type]
+    lappend t [llvmtcl::LLVMArrayType [llvmtcl::LLVMInt32Type] 10]
+    lappend t [llvmtcl::LLVMPointerType [llvmtcl::LLVMInt32Type] 10]
+    lappend t [llvmtcl::LLVMVectorType [llvmtcl::LLVMInt32Type] 10]
+    lappend t [llvmtcl::LLVMStructType [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 10]
+    lappend t [llvmtcl::LLVMUnionType [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]]]
+    lappend t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    lappend t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 1]
+    lappend t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] {} 0]
+    lappend t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] {} 1]
+    lappend t [llvmtcl::LLVMLabelType]
+    lappend t [llvmtcl::LLVMOpaqueType]
+    lappend t [llvmtcl::LLVMVoidType]
 } -returnCodes {ok return} -match glob -result {LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_* LLVMTypeRef_*}
 
 tcltest::test llvm-8.3 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMIntType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMIntType width"}
+    set t [llvmtcl::LLVMIntType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMIntType width"}
 
 tcltest::test llvm-8.4 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMIntType qwerty]
+    set t [llvmtcl::LLVMIntType qwerty]
 } -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
 
 tcltest::test llvm-8.5 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMArrayType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMArrayType elementTypeRef elementCount"}
+    set t [llvmtcl::LLVMArrayType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMArrayType elementTypeRef elementCount"}
 
 tcltest::test llvm-8.6 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMArrayType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+    set t [llvmtcl::LLVMArrayType [llvmtcl::LLVMInt32Type] qwerty]
 } -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
 
 tcltest::test llvm-8.7 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMArrayType qwerty 12]
+    set t [llvmtcl::LLVMArrayType qwerty 12]
 } -returnCodes {error} -match glob -result {expected type but got "qwerty"}
 
 tcltest::test llvm-8.8 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMPointerType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMPointerType elementTypeRef addressSpace"}
+    set t [llvmtcl::LLVMPointerType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMPointerType elementTypeRef addressSpace"}
 
 tcltest::test llvm-8.9 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMPointerType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+    set t [llvmtcl::LLVMPointerType [llvmtcl::LLVMInt32Type] qwerty]
 } -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
 
 tcltest::test llvm-8.10 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMPointerType qwerty 12]
+    set t [llvmtcl::LLVMPointerType qwerty 12]
 } -returnCodes {error} -match glob -result {expected type but got "qwerty"}
 
 tcltest::test llvm-8.11 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMVectorType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMVectorType elementTypeRef elementCount"}
+    set t [llvmtcl::LLVMVectorType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMVectorType elementTypeRef elementCount"}
 
 tcltest::test llvm-8.12 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMVectorType [llvmtcl::llvmtcl LLVMInt32Type] qwerty]
+    set t [llvmtcl::LLVMVectorType [llvmtcl::LLVMInt32Type] qwerty]
 } -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
 
 tcltest::test llvm-8.13 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMVectorType qwerty 12]
+    set t [llvmtcl::LLVMVectorType qwerty 12]
 } -returnCodes {error} -match glob -result {expected type but got "qwerty"}
 
 tcltest::test llvm-8.14 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMStructType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMStructType listOfElementTypeRefs packed"}
+    set t [llvmtcl::LLVMStructType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMStructType listOfElementTypeRefs packed"}
 
 tcltest::test llvm-8.15 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMStructType {} 0]
+    set t [llvmtcl::LLVMStructType {} 0]
 } -returnCodes {error} -match glob -result {no element types specified}
 
 tcltest::test llvm-8.16 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMStructType [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] brol]
+    set t [llvmtcl::LLVMStructType [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] brol]
 } -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
 
 tcltest::test llvm-8.17 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMStructType {a b c d e f g} 0]
+    set t [llvmtcl::LLVMStructType {a b c d e f g} 0]
 } -returnCodes {error} -match glob -result {expected type but got "a"}
 
 tcltest::test llvm-8.18 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMStructType "a b c \{ d e f g" 0]
+    set t [llvmtcl::LLVMStructType "a b c \{ d e f g" 0]
 } -returnCodes {error} -match glob -result "expected list of types but got \"a b c \{ d e f g\""
 
 tcltest::test llvm-8.19 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMUnionType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMUnionType listOfElementTypeRefs"}
+    set t [llvmtcl::LLVMUnionType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMUnionType listOfElementTypeRefs"}
 
 tcltest::test llvm-8.20 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMUnionType {}]
+    set t [llvmtcl::LLVMUnionType {}]
 } -returnCodes {error} -match glob -result {no element types specified}
 
 tcltest::test llvm-8.21 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMUnionType {a b c d e f g}]
+    set t [llvmtcl::LLVMUnionType {a b c d e f g}]
 } -returnCodes {error} -match glob -result {expected type but got "a"}
 
 tcltest::test llvm-8.22 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMUnionType "a b c \{ d e f g"]
+    set t [llvmtcl::LLVMUnionType "a b c \{ d e f g"]
 } -returnCodes {error} -match glob -result "expected list of types but got \"a b c \{ d e f g\""
 
 tcltest::test llvm-8.23 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMFunctionType]
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMFunctionType returnTypeRef listOfArgumentTypeRefs isVarArg"}
+    set t [llvmtcl::LLVMFunctionType]
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMFunctionType returnTypeRef listOfArgumentTypeRefs isVarArg"}
 
 tcltest::test llvm-8.24 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMFunctionType brol {} 0]
+    set t [llvmtcl::LLVMFunctionType brol {} 0]
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 tcltest::test llvm-8.25 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {brol} 0]
+    set t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] {brol} 0]
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 tcltest::test llvm-8.26 {check LLVM type sub command} -body {
-    set t [llvmtcl::llvmtcl LLVMFunctionType [llvmtcl::llvmtcl LLVMInt32Type] {} brol]
+    set t [llvmtcl::LLVMFunctionType [llvmtcl::LLVMInt32Type] {} brol]
 } -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
 
 # Function
 tcltest::test llvm-9.1 {check LLVM function sub command} -body {
-    llvmtcl::llvmtcl LLVMAddFunction
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMAddFunction moduleRef functionName functionTypeRef"}
+    llvmtcl::LLVMAddFunction
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMAddFunction moduleRef functionName functionTypeRef"}
 
 tcltest::test llvm-9.2 {check LLVM function sub command} -body {
-    llvmtcl::llvmtcl LLVMAddFunction module function92 type
+    llvmtcl::LLVMAddFunction module function92 type
 } -returnCodes {error} -match glob -result {expected module but got "module"}
 
 tcltest::test llvm-9.3 {check LLVM function sub command} -setup {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test93]
+    set m [llvmtcl::LLVMModuleCreateWithName test93]
 } -body {
-    llvmtcl::llvmtcl LLVMAddFunction $m function93 type
+    llvmtcl::LLVMAddFunction $m function93 type
 } -cleanup {
-    llvmtcl::llvmtcl LLVMDisposeModule $m
+    llvmtcl::LLVMDisposeModule $m
 } -returnCodes {error} -match glob -result {expected type but got "type"}
 
 tcltest::test llvm-9.4 {check LLVM function sub command} -setup {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test94]
-    set t [llvmtcl::llvmtcl LLVMFunctionType  [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
+    set m [llvmtcl::LLVMModuleCreateWithName test94]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
 } -body {
-    set f [llvmtcl::llvmtcl LLVMAddFunction $m function94 $t]
+    set f [llvmtcl::LLVMAddFunction $m function94 $t]
 } -cleanup {
-    llvmtcl::llvmtcl LLVMDeleteFunction $f
-    llvmtcl::llvmtcl LLVMDisposeModule $m
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 tcltest::test llvm-9.5 {check LLVM function sub command} -setup {
-    set m [llvmtcl::llvmtcl LLVMModuleCreateWithName test94]
-    set t [llvmtcl::llvmtcl LLVMFunctionType  [llvmtcl::llvmtcl LLVMInt32Type] [list [llvmtcl::llvmtcl LLVMInt32Type] [llvmtcl::llvmtcl LLVMInt32Type]] 0]
-    set f [llvmtcl::llvmtcl LLVMAddFunction $m function94 $t]
+    set m [llvmtcl::LLVMModuleCreateWithName test94]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function94 $t]
 } -body {
-    llvmtcl::llvmtcl LLVMDeleteFunction $f
+    llvmtcl::LLVMDeleteFunction $f
 } -cleanup {
-    llvmtcl::llvmtcl LLVMDisposeModule $m
+    llvmtcl::LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {}
 
 tcltest::test llvm-9.5 {check LLVM function sub command} -body {
-    llvmtcl::llvmtcl LLVMDeleteFunction
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMDeleteFunction functionRef"}
+    llvmtcl::LLVMDeleteFunction
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDeleteFunction functionRef"}
 
 tcltest::test llvm-9.6 {check LLVM function sub command} -body {
-    llvmtcl::llvmtcl LLVMDeleteFunction brol
+    llvmtcl::LLVMDeleteFunction brol
 } -returnCodes {error} -match glob -result {expected function but got "brol"}
 
 # Constants
 # Int
 tcltest::test llvm-10.1.1 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstInt
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMConstInt typeRef value signExtended"}
+    llvmtcl::LLVMConstInt
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMConstInt typeRef value signExtended"}
 
 tcltest::test llvm-10.1.2 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstInt brol 1 0
+    llvmtcl::LLVMConstInt brol 1 0
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 tcltest::test llvm-10.1.3 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstInt [llvmtcl::llvmtcl LLVMInt32Type]  brol 0
+    llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type]  brol 0
 } -returnCodes {error} -match glob -result {expected integer but got "brol"}
 
 tcltest::test llvm-10.1.4 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstInt [llvmtcl::llvmtcl LLVMInt32Type]  10 0
+    llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type]  10 0
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
 #tcltest::test llvm-10.1.5 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstInt [llvmtcl::llvmtcl LLVMFloatType]  10 0
+#    llvmtcl::LLVMConstInt [llvmtcl::LLVMFloatType]  10 0
 #} -returnCodes {error} -match glob -result {}
 
 tcltest::test llvm-10.1.6 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstInt [llvmtcl::llvmtcl LLVMInt32Type]  10 brol
+    llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type]  10 brol
 } -returnCodes {error} -match glob -result {expected boolean value but got "brol"}
 
 # IntOfString
 tcltest::test llvm-10.2.1 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstIntOfString
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMConstIntOfString typeRef value radix"}
+    llvmtcl::LLVMConstIntOfString
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMConstIntOfString typeRef value radix"}
 
 tcltest::test llvm-10.2.2 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstIntOfString brol 1 10
+    llvmtcl::LLVMConstIntOfString brol 1 10
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 # Can't test, LLVM has assert, would need to check digits in C
 #tcltest::test llvm-10.2.3 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMInt32Type] brol 10
+#    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] brol 10
 #} -returnCodes {error} -match glob -result {}
 
 tcltest::test llvm-10.2.4 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMInt32Type] 1 brol
+    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] 1 brol
 } -returnCodes {error} -match glob -result {expected integer but got "brol"}
 
 tcltest::test llvm-10.2.5 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMInt32Type] 1 111
+    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] 1 111
 } -returnCodes {error} -match glob -result {radix should be 2, 8, 10, or 16}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
 #tcltest::test llvm-10.2.6 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMFloatType] 111 16
+#    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMFloatType] 111 16
 #} -returnCodes {error} -match glob -result {}
 
 tcltest::test llvm-10.2.7 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstIntOfString [llvmtcl::llvmtcl LLVMInt32Type] 111 16
+    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] 111 16
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # Real
 tcltest::test llvm-10.3.1 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstReal
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMConstReal typeRef value"}
+    llvmtcl::LLVMConstReal
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMConstReal typeRef value"}
 
 tcltest::test llvm-10.3.2 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstReal brol 1
+    llvmtcl::LLVMConstReal brol 1
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 tcltest::test llvm-10.3.3 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMFloatType] brol
+    llvmtcl::LLVMConstReal [llvmtcl::LLVMFloatType] brol
 } -returnCodes {error} -match glob -result {expected floating-point number but got "brol"}
 
 tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMFloatType] 1.234
+    llvmtcl::LLVMConstReal [llvmtcl::LLVMFloatType] 1.234
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
 #tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstReal [llvmtcl::llvmtcl LLVMInt32Type] 1.234
+#    llvmtcl::LLVMConstReal [llvmtcl::LLVMInt32Type] 1.234
 #} -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # RealOfString
 tcltest::test llvm-10.4.1 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstRealOfString
-} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::llvmtcl LLVMConstRealOfString typeRef value"}
+    llvmtcl::LLVMConstRealOfString
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMConstRealOfString typeRef value"}
 
 tcltest::test llvm-10.4.2 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstRealOfString brol 1
+    llvmtcl::LLVMConstRealOfString brol 1
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
 #tcltest::test llvm-10.4.2 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstRealOfString [llvmtcl::llvmtcl LLVMInt32Type] 1.2345
+#    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMInt32Type] 1.2345
 #} -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 # Can't test, LLVM has assert, would need to check digits in C
 #tcltest::test llvm-10.4.3 {check LLVM const sub command} -body {
-#    llvmtcl::llvmtcl LLVMConstRealOfString [llvmtcl::llvmtcl LLVMFloatType] brol
+#    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] brol
 #} -returnCodes {error} -match glob -result {}
 
 tcltest::test llvm-10.4.5 {check LLVM const sub command} -body {
-    llvmtcl::llvmtcl LLVMConstRealOfString [llvmtcl::llvmtcl LLVMFloatType] 1.3579
+    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] 1.3579
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 ::tcltest::cleanupTests

@@ -443,6 +443,29 @@ int LLVMTypeObjCmd(ClientData clientData,
 	"llvmtcl::LLVMX86FP80Type",
 	NULL
     };
+    static const char *subCommands2[] = {
+	"LLVMArrayType",
+	"LLVMDoubleType",
+	"LLVMFP128Type",
+	"LLVMFloatType",
+	"LLVMFunctionType",
+	"LLVMInt16Type",
+	"LLVMInt1Type",
+	"LLVMInt32Type",
+	"LLVMInt64Type",
+	"LLVMInt8Type",
+	"LLVMIntType",
+	"LLVMLabelType",
+	"LLVMOpaqueType",
+	"LLVMPPCFP128Type",
+	"LLVMPointerType",
+	"LLVMStructType",
+	"LLVMUnionType",
+	"LLVMVectorType",
+	"LLVMVoidType",
+	"LLVMX86FP80Type",
+	NULL
+    };
     enum SubCmds {
 	eLLVMArrayType,
 	eLLVMDoubleType,
@@ -467,7 +490,8 @@ int LLVMTypeObjCmd(ClientData clientData,
     };
     int index = -1;
     if (Tcl_GetIndexFromObj(interp, objv[0], subCommands, "type", 0, &index) != TCL_OK)
-        return TCL_ERROR;
+	if (Tcl_GetIndexFromObj(interp, objv[0], subCommands2, "type", 0, &index) != TCL_OK)
+	    return TCL_ERROR;
     // Check number of arguments
     switch ((enum SubCmds) index) {
     // 2 arguments

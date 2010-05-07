@@ -425,9 +425,15 @@ tcltest::test llvm-11.3.3 {check LLVM basic block sub command} -setup {
 } -returnCodes {ok return} -match glob -result {}
 
 ::tcltest::cleanupTests
-return
+#return
 
 #puts [brol qwerty] ; exit
+
+namespace eval llvmtcl {
+    namespace export *
+}
+
+namespace import llvmtcl::*
 
 set m [LLVMModuleCreateWithName "testmodule"]
 set bld [LLVMCreateBuilder]

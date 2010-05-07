@@ -415,6 +415,65 @@ int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
+int LLVMPositionBuilderObjCmd(ClientData clientData,
+			      Tcl_Interp* interp,
+			      int objc,
+			      Tcl_Obj* const objv[])
+{
+    if (objc != 4) {
+	Tcl_WrongNumArgs(interp, 1, objv, "builderRef basicBlockRef instrRef");
+	return TCL_ERROR;
+    }
+    LLVMBuilderRef builderRef = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMBasicBlockRef basicBlockRef = 0;
+    if (GetLLVMBasicBlockRefFromObj(interp, objv[2], basicBlockRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMValueRef instrRef = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[3], instrRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMPositionBuilder(builderRef, basicBlockRef, instrRef);
+    return TCL_OK;
+}
+
+int LLVMPositionBuilderAtEndObjCmd(ClientData clientData,
+				   Tcl_Interp* interp,
+				   int objc,
+				   Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "builderRef basicBlockRef");
+	return TCL_ERROR;
+    }
+    LLVMBuilderRef builderRef = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMBasicBlockRef basicBlockRef = 0;
+    if (GetLLVMBasicBlockRefFromObj(interp, objv[2], basicBlockRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMPositionBuilderAtEnd(builderRef, basicBlockRef);
+    return TCL_OK;
+}
+
+int LLVMPositionBuilderBeforeObjCmd(ClientData clientData,
+				    Tcl_Interp* interp,
+				    int objc,
+				    Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "builderRef instrRef");
+	return TCL_ERROR;
+    }
+    LLVMBuilderRef builderRef = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMValueRef instrRef = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[2], instrRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMPositionBuilderBefore(builderRef, instrRef);
+}
+
 int LLVMTypeObjCmd(ClientData clientData,
 		   Tcl_Interp* interp,
 		   int objc,
@@ -713,16 +772,15 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 	return TCL_ERROR;
     }
     std::map<std::string, LLVMObjCmdPtr> subObjCmds;
-    subObjCmds["llvmtcl::LLVMAppendBasicBlock"] = &LLVMAppendBasicBlockObjCmd;
-    subObjCmds["llvmtcl::LLVMInsertBasicBlock"] = &LLVMInsertBasicBlockObjCmd;
-    subObjCmds["llvmtcl::LLVMDeleteBasicBlock"] = &LLVMDeleteBasicBlockObjCmd;
     subObjCmds["llvmtcl::LLVMAddFunction"] = &LLVMAddFunctionObjCmd;
+    subObjCmds["llvmtcl::LLVMAppendBasicBlock"] = &LLVMAppendBasicBlockObjCmd;
     subObjCmds["llvmtcl::LLVMArrayType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMConstInt"] = &LLVMConstIntObjCmd;
     subObjCmds["llvmtcl::LLVMConstIntOfString"] = &LLVMConstIntOfStringObjCmd;
     subObjCmds["llvmtcl::LLVMConstReal"] = &LLVMConstRealObjCmd;
     subObjCmds["llvmtcl::LLVMConstRealOfString"] = &LLVMConstRealOfStringObjCmd;
     subObjCmds["llvmtcl::LLVMCreateBuilder"] = &LLVMCreateBuilderObjCmd;
+    subObjCmds["llvmtcl::LLVMDeleteBasicBlock"] = &LLVMDeleteBasicBlockObjCmd;
     subObjCmds["llvmtcl::LLVMDeleteFunction"] = &LLVMDeleteFunctionObjCmd;
     subObjCmds["llvmtcl::LLVMDisposeBuilder"] = &LLVMDisposeBuilderObjCmd;
     subObjCmds["llvmtcl::LLVMDisposeModule"] = &LLVMDisposeModuleObjCmd;
@@ -731,6 +789,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     subObjCmds["llvmtcl::LLVMFloatType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMFunctionType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMInitializeNativeTarget"] = &LLVMInitializeNativeTargetObjCmd;
+    subObjCmds["llvmtcl::LLVMInsertBasicBlock"] = &LLVMInsertBasicBlockObjCmd;
     subObjCmds["llvmtcl::LLVMInt16Type"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMInt1Type"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMInt32Type"] = &LLVMTypeObjCmd;
@@ -743,6 +802,9 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     subObjCmds["llvmtcl::LLVMOpaqueType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMPPCFP128Type"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMPointerType"] = &LLVMTypeObjCmd;
+    subObjCmds["llvmtcl::LLVMPositionBuilder"] = &LLVMPositionBuilderObjCmd;
+    subObjCmds["llvmtcl::LLVMPositionBuilderAtEnd"] = &LLVMPositionBuilderAtEndObjCmd;
+    subObjCmds["llvmtcl::LLVMPositionBuilderBefore"] = &LLVMPositionBuilderBeforeObjCmd;
     subObjCmds["llvmtcl::LLVMStructType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMUnionType"] = &LLVMTypeObjCmd;
     subObjCmds["llvmtcl::LLVMVectorType"] = &LLVMTypeObjCmd;

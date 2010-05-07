@@ -424,8 +424,122 @@ tcltest::test llvm-11.3.3 {check LLVM basic block sub command} -setup {
     llvmtcl::LLVMDisposeModule $m
 } -returnCodes {ok return} -match glob -result {}
 
+# Position builder
+tcltest::test llvm-12.1.1 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilder
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMPositionBuilder builderRef basicBlockRef instrRef"}
+
+tcltest::test llvm-12.1.2 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilder builder block instr
+} -returnCodes {error} -match glob -result {expected builder but got "builder"}
+
+tcltest::test llvm-12.1.3 {check LLVM position builder sub command} -setup {
+    set b [llvmtcl::LLVMCreateBuilder]
+} -body {
+    llvmtcl::LLVMPositionBuilder $b block instr
+} -cleanup {
+    llvmtcl::LLVMDisposeBuilder $b
+} -returnCodes {error} -match glob -result {expected basic block but got "block"}
+
+tcltest::test llvm-12.1.4 {check LLVM position builder sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set bb [llvmtcl::LLVMAppendBasicBlock $f name]
+    set b [llvmtcl::LLVMCreateBuilder]
+} -body {
+    llvmtcl::LLVMPositionBuilder $b $bb instr
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $bb
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {error} -match glob -result {expected value but got "instr"}
+
+# Can't run until instructions can be generated
+puts "Complete test llvm-12.1.5"
+# tcltest::test llvm-12.1.5 {check LLVM position builder sub command} -setup {
+#     set m [llvmtcl::LLVMModuleCreateWithName test113]
+#     set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+#     set f [llvmtcl::LLVMAddFunction $m function113 $t]
+#     set bb [llvmtcl::LLVMAppendBasicBlock $f name]
+#     set b [llvmtcl::LLVMCreateBuilder]
+#     set i [?????]
+# } -body {
+#     llvmtcl::LLVMPositionBuilder $b $bb $i
+# } -cleanup {
+#     llvmtcl::LLVMDeleteBasicBlock $bb
+#     llvmtcl::LLVMDeleteFunction $f
+#     llvmtcl::LLVMDisposeBuilder $b
+#     llvmtcl::LLVMDisposeModule $m
+# } -returnCodes {op return} -match glob -result {}
+
+tcltest::test llvm-12.2.1 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilderAtEnd
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMPositionBuilderAtEnd builderRef basicBlockRef"}
+
+tcltest::test llvm-12.2.2 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilderAtEnd builder block
+} -returnCodes {error} -match glob -result {expected builder but got "builder"}
+
+tcltest::test llvm-12.2.3 {check LLVM position builder sub command} -setup {
+    set b [llvmtcl::LLVMCreateBuilder]
+} -body {
+    llvmtcl::LLVMPositionBuilderAtEnd $b block
+} -cleanup {
+    llvmtcl::LLVMDisposeBuilder $b
+} -returnCodes {error} -match glob -result {expected basic block but got "block"}
+
+tcltest::test llvm-12.2.4 {check LLVM position builder sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set bb [llvmtcl::LLVMAppendBasicBlock $f name]
+    set b [llvmtcl::LLVMCreateBuilder]
+} -body {
+    llvmtcl::LLVMPositionBuilderAtEnd $b $bb
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $bb
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {}
+
+tcltest::test llvm-12.3.1 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilderBefore
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMPositionBuilderBefore builderRef instrRef"}
+
+tcltest::test llvm-12.3.2 {check LLVM position builder sub command} -body {
+    llvmtcl::LLVMPositionBuilderBefore builder instr
+} -returnCodes {error} -match glob -result {expected builder but got "builder"}
+
+tcltest::test llvm-12.3.3 {check LLVM position builder sub command} -setup {
+    set b [llvmtcl::LLVMCreateBuilder]
+} -body {
+    llvmtcl::LLVMPositionBuilderBefore $b instr
+} -cleanup {
+    llvmtcl::LLVMDisposeBuilder $b
+} -returnCodes {error} -match glob -result {expected value but got "instr"}
+
+# Can't run until instructions can be generated
+puts "Complete test llvm-12.3.4"
+# tcltest::test llvm-12.3.4 {check LLVM position builder sub command} -setup {
+#     set m [llvmtcl::LLVMModuleCreateWithName test113]
+#     set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+#     set f [llvmtcl::LLVMAddFunction $m function113 $t]
+#     set b [llvmtcl::LLVMCreateBuilder]
+#     set i [????]
+# } -body {
+#     llvmtcl::LLVMPositionBuilderBefore $b $i
+# } -cleanup {
+#     llvmtcl::LLVMDeleteBasicBlock $bb
+#     llvmtcl::LLVMDeleteFunction $f
+#     llvmtcl::LLVMDisposeBuilder $b
+#     llvmtcl::LLVMDisposeModule $m
+# } -returnCodes {ok return} -match glob -result {}
+
 ::tcltest::cleanupTests
-#return
+return
 
 #puts [brol qwerty] ; exit
 

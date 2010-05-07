@@ -107,7 +107,7 @@ static int GetLLVMBasicBlockRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMBas
     std::string basicBlockName = Tcl_GetStringFromObj(obj, 0);
     if (LLVMBasicBlockRef_map.find(basicBlockName) == LLVMBasicBlockRef_map.end()) {
 	std::ostringstream os;
-	os << "expected basic but got \"" << basicBlockName << "\"";
+	os << "expected basic block but got \"" << basicBlockName << "\"";
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
 	return TCL_ERROR;
     }

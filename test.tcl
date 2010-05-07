@@ -361,6 +361,69 @@ tcltest::test llvm-10.4.5 {check LLVM const sub command} -body {
     llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] 1.3579
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
+# Basic blocks
+tcltest::test llvm-11.1.1 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMAppendBasicBlock
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMAppendBasicBlock functionRef name"}
+
+tcltest::test llvm-11.1.2 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMAppendBasicBlock function name
+} -returnCodes {error} -match glob -result {expected value but got "function"}
+
+tcltest::test llvm-11.1.3 {check LLVM basic block sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+} -body {
+    set b [llvmtcl::LLVMAppendBasicBlock $f name]
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $b
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {LLVMBasicBlockRef_*}
+
+tcltest::test llvm-11.2.1 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMInsertBasicBlock
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMInsertBasicBlock beforeBasicBlockRef name"}
+
+tcltest::test llvm-11.2.2 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMInsertBasicBlock basicBlock name
+} -returnCodes {error} -match glob -result {expected basic block but got "basicBlock"}
+
+tcltest::test llvm-11.2.3 {check LLVM basic block sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set bb [llvmtcl::LLVMAppendBasicBlock $f name]
+} -body {
+    set b [llvmtcl::LLVMInsertBasicBlock $bb name]
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $b
+    llvmtcl::LLVMDeleteBasicBlock $bb
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {LLVMBasicBlockRef_*}
+
+tcltest::test llvm-11.3.1 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMDeleteBasicBlock
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMDeleteBasicBlock basicBlockRef"}
+
+tcltest::test llvm-11.3.2 {check LLVM basic block sub command} -body {
+    llvmtcl::LLVMDeleteBasicBlock basicBlock
+} -returnCodes {error} -match glob -result {expected basic block but got "basicBlock"}
+
+tcltest::test llvm-11.3.3 {check LLVM basic block sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set b [llvmtcl::LLVMAppendBasicBlock $f name]
+} -body {
+    llvmtcl::LLVMDeleteBasicBlock $b
+} -cleanup {
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {}
+
 ::tcltest::cleanupTests
 return
 

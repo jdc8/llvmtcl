@@ -9,7 +9,7 @@ LLVMCFLAGS = `$(LLVMDIR)/bin/llvm-config --cflags`
 LLVMLFLAGS = `$(LLVMDIR)/bin/llvm-config --ldflags`
 LLVMLIBS = `$(LLVMDIR)/bin/llvm-config --libs`
 
-CFLAGS = -fprofile-arcs -ftest-coverage
+#CFLAGS = -fprofile-arcs -ftest-coverage
 
 all: llvmtcl.so
 

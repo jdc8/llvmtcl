@@ -277,9 +277,9 @@ tcltest::test llvm-10.1.4 {check LLVM const sub command} -body {
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
-#tcltest::test llvm-10.1.5 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstInt [llvmtcl::LLVMFloatType]  10 0
-#} -returnCodes {error} -match glob -result {}
+tcltest::test llvm-10.1.5 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstInt [llvmtcl::LLVMFloatType]  10 0
+} -returnCodes {error} -match glob -result {} -constraints {internalAssert}
 
 tcltest::test llvm-10.1.6 {check LLVM const sub command} -body {
     llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type]  10 brol
@@ -295,9 +295,9 @@ tcltest::test llvm-10.2.2 {check LLVM const sub command} -body {
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 # Can't test, LLVM has assert, would need to check digits in C
-#tcltest::test llvm-10.2.3 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] brol 10
-#} -returnCodes {error} -match glob -result {}
+tcltest::test llvm-10.2.3 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] brol 10
+} -returnCodes {error} -match glob -result {} -constraints {internalAssert}
 
 tcltest::test llvm-10.2.4 {check LLVM const sub command} -body {
     llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] 1 brol
@@ -308,9 +308,9 @@ tcltest::test llvm-10.2.5 {check LLVM const sub command} -body {
 } -returnCodes {error} -match glob -result {radix should be 2, 8, 10, or 16}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
-#tcltest::test llvm-10.2.6 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMFloatType] 111 16
-#} -returnCodes {error} -match glob -result {}
+tcltest::test llvm-10.2.6 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMFloatType] 111 16
+} -returnCodes {error} -match glob -result {} -constraints {internalAssert}
 
 tcltest::test llvm-10.2.7 {check LLVM const sub command} -body {
     llvmtcl::LLVMConstIntOfString [llvmtcl::LLVMInt32Type] 111 16
@@ -334,9 +334,9 @@ tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
 } -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
-#tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstReal [llvmtcl::LLVMInt32Type] 1.234
-#} -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
+tcltest::test llvm-10.3.4 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstReal [llvmtcl::LLVMInt32Type] 1.234
+} -returnCodes {ok return} -match glob -result {LLVMValueRef_*} -constraints {internalAssert}
 
 # RealOfString
 tcltest::test llvm-10.4.1 {check LLVM const sub command} -body {
@@ -348,14 +348,14 @@ tcltest::test llvm-10.4.2 {check LLVM const sub command} -body {
 } -returnCodes {error} -match glob -result {expected type but got "brol"}
 
 # Can't test, LLVM has assert, would need to check type compatibility in C
-#tcltest::test llvm-10.4.2 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMInt32Type] 1.2345
-#} -returnCodes {error} -match glob -result {expected type but got "brol"}
+tcltest::test llvm-10.4.2 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMInt32Type] 1.2345
+} -returnCodes {error} -match glob -result {expected type but got "brol"} -constraints {internalAssert}
 
 # Can't test, LLVM has assert, would need to check digits in C
-#tcltest::test llvm-10.4.3 {check LLVM const sub command} -body {
-#    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] brol
-#} -returnCodes {error} -match glob -result {}
+tcltest::test llvm-10.4.3 {check LLVM const sub command} -body {
+    llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] brol
+} -returnCodes {error} -match glob -result {} -constraints {internalAssert}
 
 tcltest::test llvm-10.4.5 {check LLVM const sub command} -body {
     llvmtcl::LLVMConstRealOfString [llvmtcl::LLVMFloatType] 1.3579
@@ -457,22 +457,21 @@ tcltest::test llvm-12.1.4 {check LLVM position builder sub command} -setup {
 } -returnCodes {error} -match glob -result {expected value but got "instr"}
 
 # Can't run until instructions can be generated
-puts "Complete test llvm-12.1.5"
-# tcltest::test llvm-12.1.5 {check LLVM position builder sub command} -setup {
-#     set m [llvmtcl::LLVMModuleCreateWithName test113]
-#     set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
-#     set f [llvmtcl::LLVMAddFunction $m function113 $t]
-#     set bb [llvmtcl::LLVMAppendBasicBlock $f name]
-#     set b [llvmtcl::LLVMCreateBuilder]
-#     set i [?????]
-# } -body {
-#     llvmtcl::LLVMPositionBuilder $b $bb $i
-# } -cleanup {
-#     llvmtcl::LLVMDeleteBasicBlock $bb
-#     llvmtcl::LLVMDeleteFunction $f
-#     llvmtcl::LLVMDisposeBuilder $b
-#     llvmtcl::LLVMDisposeModule $m
-# } -returnCodes {op return} -match glob -result {}
+tcltest::test llvm-12.1.5 {check LLVM position builder sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set bb [llvmtcl::LLVMAppendBasicBlock $f name]
+    set b [llvmtcl::LLVMCreateBuilder]
+    set i [?????]
+} -body {
+    llvmtcl::LLVMPositionBuilder $b $bb $i
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $bb
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {op return} -match glob -result {} -constraints {incompleteAPI}
 
 tcltest::test llvm-12.2.1 {check LLVM position builder sub command} -body {
     llvmtcl::LLVMPositionBuilderAtEnd
@@ -522,24 +521,81 @@ tcltest::test llvm-12.3.3 {check LLVM position builder sub command} -setup {
 } -returnCodes {error} -match glob -result {expected value but got "instr"}
 
 # Can't run until instructions can be generated
-puts "Complete test llvm-12.3.4"
-# tcltest::test llvm-12.3.4 {check LLVM position builder sub command} -setup {
-#     set m [llvmtcl::LLVMModuleCreateWithName test113]
-#     set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
-#     set f [llvmtcl::LLVMAddFunction $m function113 $t]
-#     set b [llvmtcl::LLVMCreateBuilder]
-#     set i [????]
-# } -body {
-#     llvmtcl::LLVMPositionBuilderBefore $b $i
-# } -cleanup {
-#     llvmtcl::LLVMDeleteBasicBlock $bb
-#     llvmtcl::LLVMDeleteFunction $f
-#     llvmtcl::LLVMDisposeBuilder $b
-#     llvmtcl::LLVMDisposeModule $m
-# } -returnCodes {ok return} -match glob -result {}
+tcltest::test llvm-12.3.4 {check LLVM position builder sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+    set b [llvmtcl::LLVMCreateBuilder]
+    set i [????]
+} -body {
+    llvmtcl::LLVMPositionBuilderBefore $b $i
+} -cleanup {
+    llvmtcl::LLVMDeleteBasicBlock $bb
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeBuilder $b
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {} -constraints {incompleteAPI}
+
+# Parameters
+tcltest::test llvm-13.1.1 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMCountParams
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMCountParams functionRef"}
+
+tcltest::test llvm-13.1.2 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMCountParams function
+} -returnCodes {error} -match glob -result {expected value but got "function"}
+
+tcltest::test llvm-13.1.3 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMCountParams [llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type] 10 0]
+} -returnCodes {ok return} -match glob -result {2} -constraints {internalAssert}
+
+tcltest::test llvm-13.1.4 {check LLVM parameter sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+} -body {
+    llvmtcl::LLVMCountParams $f
+} -cleanup {
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {2}
+
+tcltest::test llvm-13.2.1 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMGetParam
+} -returnCodes {error} -match glob -result {wrong # args: should be "llvmtcl::LLVMGetParam functionRef index"}
+
+tcltest::test llvm-13.2.2 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMGetParam function qwerty
+} -returnCodes {error} -match glob -result {expected value but got "function"}
+
+tcltest::test llvm-13.2.3 {check LLVM parameter sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+} -body {
+    llvmtcl::LLVMGetParam $f qwerty
+} -cleanup {
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {error} -match glob -result {expected integer but got "qwerty"}
+
+tcltest::test llvm-13.2.4 {check LLVM parameter sub command} -setup {
+    set m [llvmtcl::LLVMModuleCreateWithName test113]
+    set t [llvmtcl::LLVMFunctionType  [llvmtcl::LLVMInt32Type] [list [llvmtcl::LLVMInt32Type] [llvmtcl::LLVMInt32Type]] 0]
+    set f [llvmtcl::LLVMAddFunction $m function113 $t]
+} -body {
+    llvmtcl::LLVMGetParam $f 0
+} -cleanup {
+    llvmtcl::LLVMDeleteFunction $f
+    llvmtcl::LLVMDisposeModule $m
+} -returnCodes {ok return} -match glob -result {LLVMValueRef_*}
+
+tcltest::test llvm-13.2.5 {check LLVM parameter sub command} -body {
+    llvmtcl::LLVMGetParam [llvmtcl::LLVMConstInt [llvmtcl::LLVMInt32Type] 10 0] 0
+} -returnCodes {error} -match glob -result {} -constraints {internalAssert}
 
 ::tcltest::cleanupTests
-return
+#return
 
 #puts [brol qwerty] ; exit
 

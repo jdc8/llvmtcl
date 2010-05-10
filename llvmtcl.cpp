@@ -11,6 +11,7 @@ static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
 static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
 static std::map<std::string, LLVMTypeRef> LLVMTypeRef_map;
 static std::map<std::string, LLVMValueRef> LLVMValueRef_map;
+static std::map<LLVMValueRef, std::string> LLVMValueRef_ref_map;
 static std::map<std::string, LLVMBasicBlockRef> LLVMBasicBlockRef_map;
 
 static std::string GetRefName(std::string prefix)
@@ -235,6 +236,7 @@ int LLVMAddFunctionObjCmd(ClientData clientData,
     LLVMValueRef functionRef = LLVMAddFunction(moduleRef, functionName.c_str(), functionType);
     std::string functionRefName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[functionRefName] = functionRef;
+    LLVMValueRef_ref_map[functionRef] = functionRefName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(functionRefName.c_str(), -1));
     return TCL_OK;
 }
@@ -253,6 +255,7 @@ int LLVMDeleteFunctionObjCmd(ClientData clientData,
 	return TCL_ERROR;
     LLVMDeleteFunction(functionRef);
     LLVMValueRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMValueRef_ref_map.erase(functionRef);
     return TCL_OK;
 }
 
@@ -277,6 +280,7 @@ int LLVMConstIntObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstInt(constType, value, signExtend);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
+    LLVMValueRef_ref_map[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -304,6 +308,7 @@ int LLVMConstIntOfStringObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstIntOfString(constType, value.c_str(), radix);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
+    LLVMValueRef_ref_map[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -326,6 +331,7 @@ int LLVMConstRealObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstReal(constType, value);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
+    LLVMValueRef_ref_map[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -346,6 +352,7 @@ int LLVMConstRealOfStringObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstRealOfString(constType, value.c_str());
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
+    LLVMValueRef_ref_map[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -472,6 +479,50 @@ int LLVMPositionBuilderBeforeObjCmd(ClientData clientData,
     if (GetLLVMValueRefFromObj(interp, objv[2], instrRef) != TCL_OK)
 	return TCL_ERROR;
     LLVMPositionBuilderBefore(builderRef, instrRef);
+}
+
+int LLVMCountParamsObjCmd(ClientData clientData,
+			  Tcl_Interp* interp,
+			  int objc,
+			  Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "functionRef");
+	return TCL_ERROR;
+    }
+    LLVMValueRef functionRef = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], functionRef) != TCL_OK)
+	return TCL_ERROR;
+    unsigned count = LLVMCountParams(functionRef);
+    int icount = count;
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(icount));
+    return TCL_OK;
+}
+
+int LLVMGetParamObjCmd(ClientData clientData,
+		       Tcl_Interp* interp,
+		       int objc,
+		       Tcl_Obj* const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "functionRef index");
+	return TCL_ERROR;
+    }
+    LLVMValueRef functionRef = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], functionRef) != TCL_OK)
+	return TCL_ERROR;
+    int iindex = 0;
+    if (Tcl_GetIntFromObj(interp, objv[2], &iindex) != TCL_OK)
+	return TCL_ERROR;
+    unsigned index = iindex;
+    LLVMValueRef paramRef = LLVMGetParam(functionRef, index);
+    if (LLVMValueRef_ref_map.find(paramRef) == LLVMValueRef_ref_map.end()) {
+	std::string paramRefName = GetRefName("LLVMValueRef_");
+	LLVMValueRef_map[paramRefName] = paramRef;
+	LLVMValueRef_ref_map[paramRef] = paramRefName;
+    }
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMValueRef_ref_map[paramRef].c_str(), -1));
+    return TCL_OK;
 }
 
 int LLVMTypeObjCmd(ClientData clientData,
@@ -755,10 +806,7 @@ int LLVMTypeObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-typedef int (*LLVMObjCmdPtr)(ClientData clientData,
-			     Tcl_Interp* interp,
-			     int objc,
-			     Tcl_Obj* const objv[]);
+#define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 {
@@ -771,49 +819,45 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     if (Tcl_PkgProvide(interp, "llvmtcl", "0.1") != TCL_OK) {
 	return TCL_ERROR;
     }
-    std::map<std::string, LLVMObjCmdPtr> subObjCmds;
-    subObjCmds["llvmtcl::LLVMAddFunction"] = &LLVMAddFunctionObjCmd;
-    subObjCmds["llvmtcl::LLVMAppendBasicBlock"] = &LLVMAppendBasicBlockObjCmd;
-    subObjCmds["llvmtcl::LLVMArrayType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMConstInt"] = &LLVMConstIntObjCmd;
-    subObjCmds["llvmtcl::LLVMConstIntOfString"] = &LLVMConstIntOfStringObjCmd;
-    subObjCmds["llvmtcl::LLVMConstReal"] = &LLVMConstRealObjCmd;
-    subObjCmds["llvmtcl::LLVMConstRealOfString"] = &LLVMConstRealOfStringObjCmd;
-    subObjCmds["llvmtcl::LLVMCreateBuilder"] = &LLVMCreateBuilderObjCmd;
-    subObjCmds["llvmtcl::LLVMDeleteBasicBlock"] = &LLVMDeleteBasicBlockObjCmd;
-    subObjCmds["llvmtcl::LLVMDeleteFunction"] = &LLVMDeleteFunctionObjCmd;
-    subObjCmds["llvmtcl::LLVMDisposeBuilder"] = &LLVMDisposeBuilderObjCmd;
-    subObjCmds["llvmtcl::LLVMDisposeModule"] = &LLVMDisposeModuleObjCmd;
-    subObjCmds["llvmtcl::LLVMDoubleType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMFP128Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMFloatType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMFunctionType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMInitializeNativeTarget"] = &LLVMInitializeNativeTargetObjCmd;
-    subObjCmds["llvmtcl::LLVMInsertBasicBlock"] = &LLVMInsertBasicBlockObjCmd;
-    subObjCmds["llvmtcl::LLVMInt16Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMInt1Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMInt32Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMInt64Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMInt8Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMIntType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMLabelType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMLinkInJIT"] = &LLVMLinkInJITObjCmd;
-    subObjCmds["llvmtcl::LLVMModuleCreateWithName"] = &LLVMModuleCreateWithNameObjCmd;
-    subObjCmds["llvmtcl::LLVMOpaqueType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMPPCFP128Type"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMPointerType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMPositionBuilder"] = &LLVMPositionBuilderObjCmd;
-    subObjCmds["llvmtcl::LLVMPositionBuilderAtEnd"] = &LLVMPositionBuilderAtEndObjCmd;
-    subObjCmds["llvmtcl::LLVMPositionBuilderBefore"] = &LLVMPositionBuilderBeforeObjCmd;
-    subObjCmds["llvmtcl::LLVMStructType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMUnionType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMVectorType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMVoidType"] = &LLVMTypeObjCmd;
-    subObjCmds["llvmtcl::LLVMX86FP80Type"] = &LLVMTypeObjCmd;
-    for(std::map<std::string, LLVMObjCmdPtr>::const_iterator i = subObjCmds.begin(); i !=  subObjCmds.end(); i++)
-	Tcl_CreateObjCommand(interp, i->first.c_str() ,
-			     (Tcl_ObjCmdProc*)i->second,
-			     (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
-
+    LLVMObjCmd("llvmtcl::LLVMAddFunction", LLVMAddFunctionObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMAppendBasicBlock", LLVMAppendBasicBlockObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMArrayType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMConstInt", LLVMConstIntObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMConstIntOfString", LLVMConstIntOfStringObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMConstReal", LLVMConstRealObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMConstRealOfString", LLVMConstRealOfStringObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMCreateBuilder", LLVMCreateBuilderObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDeleteBasicBlock", LLVMDeleteBasicBlockObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDeleteFunction", LLVMDeleteFunctionObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDisposeBuilder", LLVMDisposeBuilderObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDisposeModule", LLVMDisposeModuleObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDoubleType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMFP128Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMFloatType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMFunctionType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInitializeNativeTarget", LLVMInitializeNativeTargetObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInsertBasicBlock", LLVMInsertBasicBlockObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInt16Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInt1Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInt32Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInt64Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMInt8Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMIntType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMLabelType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMLinkInJIT", LLVMLinkInJITObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMModuleCreateWithName", LLVMModuleCreateWithNameObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMOpaqueType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMPPCFP128Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMPointerType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMPositionBuilder", LLVMPositionBuilderObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMPositionBuilderAtEnd", LLVMPositionBuilderAtEndObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMPositionBuilderBefore", LLVMPositionBuilderBeforeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMStructType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMUnionType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMVectorType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMVoidType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMX86FP80Type", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMCountParams", LLVMCountParamsObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMGetParam", LLVMGetParamObjCmd);
     return TCL_OK;
 }

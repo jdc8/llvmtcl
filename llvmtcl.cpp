@@ -9,10 +9,12 @@
 
 static std::map<std::string, LLVMModuleRef> LLVMModuleRef_map;
 static std::map<std::string, LLVMBuilderRef> LLVMBuilderRef_map;
+static std::map<LLVMBuilderRef, std::string> LLVMBuilderRef_refmap;
 static std::map<std::string, LLVMTypeRef> LLVMTypeRef_map;
 static std::map<std::string, LLVMValueRef> LLVMValueRef_map;
-static std::map<LLVMValueRef, std::string> LLVMValueRef_ref_map;
+static std::map<LLVMValueRef, std::string> LLVMValueRef_refmap;
 static std::map<std::string, LLVMBasicBlockRef> LLVMBasicBlockRef_map;
+static std::map<LLVMBasicBlockRef, std::string> LLVMBasicBlockRef_refmap;
 
 static std::string GetRefName(std::string prefix)
 {
@@ -88,6 +90,16 @@ static int GetLLVMValueRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMValueRef
     return TCL_OK;
 }
 
+static void SetLLVMValueRefAsResultObj(Tcl_Interp* interp, LLVMValueRef valueRef)
+{
+    if (LLVMValueRef_refmap.find(valueRef) == LLVMValueRef_refmap.end()) {
+	std::string nm = GetRefName("LLVMValueRef_");
+	LLVMValueRef_map[nm] = valueRef;
+	LLVMValueRef_refmap[valueRef] = nm;
+    }
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMValueRef_refmap[valueRef].c_str(), -1));
+}
+
 static int GetLLVMBuilderRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMBuilderRef& builderRef)
 {
     builderRef = 0;
@@ -100,6 +112,16 @@ static int GetLLVMBuilderRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMBuilde
     }
     builderRef = LLVMBuilderRef_map[builderName];
     return TCL_OK;
+}
+
+static void SetLLVMBuilderRefAsResultObj(Tcl_Interp* interp, LLVMBuilderRef builderRef)
+{
+    if (LLVMBuilderRef_refmap.find(builderRef) == LLVMBuilderRef_refmap.end()) {
+	std::string nm = GetRefName("LLVMBuilderRef_");
+	LLVMBuilderRef_map[nm] = builderRef;
+	LLVMBuilderRef_refmap[builderRef] = nm;
+    }
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMBuilderRef_refmap[builderRef].c_str(), -1));
 }
 
 static int GetLLVMBasicBlockRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMBasicBlockRef& basicBlockRef)
@@ -116,24 +138,14 @@ static int GetLLVMBasicBlockRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMBas
     return TCL_OK;
 }
 
-int LLVMCreateBuilderObjCmd(ClientData clientData,
-			    Tcl_Interp* interp,
-			    int objc,
-			    Tcl_Obj* const objv[])
+static void SetLLVMBasicBlockRefAsResultObj(Tcl_Interp* interp, LLVMBasicBlockRef basicBlockRef)
 {
-    if (objc != 1) {
-	Tcl_WrongNumArgs(interp, 1, objv, "");
-	return TCL_ERROR;
+    if (LLVMBasicBlockRef_refmap.find(basicBlockRef) == LLVMBasicBlockRef_refmap.end()) {
+	std::string nm = GetRefName("LLVMBasicBlockRef_");
+	LLVMBasicBlockRef_map[nm] = basicBlockRef;
+	LLVMBasicBlockRef_refmap[basicBlockRef] = nm;
     }
-    LLVMBuilderRef builder = LLVMCreateBuilder();
-    if (!builder) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to create new builder", -1));
-	return TCL_ERROR;
-    }
-    std::string builderName = GetRefName("LLVMBuilderRef_");
-    LLVMBuilderRef_map[builderName] = builder;
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(builderName.c_str(), -1));
-    return TCL_OK;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMBasicBlockRef_refmap[basicBlockRef].c_str(), -1));
 }
 
 int LLVMDisposeBuilderObjCmd(ClientData clientData,
@@ -150,6 +162,7 @@ int LLVMDisposeBuilderObjCmd(ClientData clientData,
 	return TCL_ERROR;
     LLVMDisposeBuilder(builderRef);
     LLVMBuilderRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMBuilderRef_refmap.erase(builderRef);
     return TCL_OK;
 }
 
@@ -236,7 +249,7 @@ int LLVMAddFunctionObjCmd(ClientData clientData,
     LLVMValueRef functionRef = LLVMAddFunction(moduleRef, functionName.c_str(), functionType);
     std::string functionRefName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[functionRefName] = functionRef;
-    LLVMValueRef_ref_map[functionRef] = functionRefName;
+    LLVMValueRef_refmap[functionRef] = functionRefName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(functionRefName.c_str(), -1));
     return TCL_OK;
 }
@@ -255,7 +268,7 @@ int LLVMDeleteFunctionObjCmd(ClientData clientData,
 	return TCL_ERROR;
     LLVMDeleteFunction(functionRef);
     LLVMValueRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
-    LLVMValueRef_ref_map.erase(functionRef);
+    LLVMValueRef_refmap.erase(functionRef);
     return TCL_OK;
 }
 
@@ -280,7 +293,7 @@ int LLVMConstIntObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstInt(constType, value, signExtend);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
-    LLVMValueRef_ref_map[valueRef] = valueName;
+    LLVMValueRef_refmap[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -308,7 +321,7 @@ int LLVMConstIntOfStringObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstIntOfString(constType, value.c_str(), radix);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
-    LLVMValueRef_ref_map[valueRef] = valueName;
+    LLVMValueRef_refmap[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -331,7 +344,7 @@ int LLVMConstRealObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstReal(constType, value);
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
-    LLVMValueRef_ref_map[valueRef] = valueName;
+    LLVMValueRef_refmap[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -352,7 +365,7 @@ int LLVMConstRealOfStringObjCmd(ClientData clientData,
     LLVMValueRef valueRef = LLVMConstRealOfString(constType, value.c_str());
     std::string valueName = GetRefName("LLVMValueRef_");
     LLVMValueRef_map[valueName] = valueRef;
-    LLVMValueRef_ref_map[valueRef] = valueName;
+    LLVMValueRef_refmap[valueRef] = valueName;
     Tcl_SetObjResult(interp, Tcl_NewStringObj(valueName.c_str(), -1));
     return TCL_OK;
 }
@@ -422,65 +435,6 @@ int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int LLVMPositionBuilderObjCmd(ClientData clientData,
-			      Tcl_Interp* interp,
-			      int objc,
-			      Tcl_Obj* const objv[])
-{
-    if (objc != 4) {
-	Tcl_WrongNumArgs(interp, 1, objv, "builderRef basicBlockRef instrRef");
-	return TCL_ERROR;
-    }
-    LLVMBuilderRef builderRef = 0;
-    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMBasicBlockRef basicBlockRef = 0;
-    if (GetLLVMBasicBlockRefFromObj(interp, objv[2], basicBlockRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMValueRef instrRef = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[3], instrRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMPositionBuilder(builderRef, basicBlockRef, instrRef);
-    return TCL_OK;
-}
-
-int LLVMPositionBuilderAtEndObjCmd(ClientData clientData,
-				   Tcl_Interp* interp,
-				   int objc,
-				   Tcl_Obj* const objv[])
-{
-    if (objc != 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "builderRef basicBlockRef");
-	return TCL_ERROR;
-    }
-    LLVMBuilderRef builderRef = 0;
-    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMBasicBlockRef basicBlockRef = 0;
-    if (GetLLVMBasicBlockRefFromObj(interp, objv[2], basicBlockRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMPositionBuilderAtEnd(builderRef, basicBlockRef);
-    return TCL_OK;
-}
-
-int LLVMPositionBuilderBeforeObjCmd(ClientData clientData,
-				    Tcl_Interp* interp,
-				    int objc,
-				    Tcl_Obj* const objv[])
-{
-    if (objc != 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "builderRef instrRef");
-	return TCL_ERROR;
-    }
-    LLVMBuilderRef builderRef = 0;
-    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMValueRef instrRef = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[2], instrRef) != TCL_OK)
-	return TCL_ERROR;
-    LLVMPositionBuilderBefore(builderRef, instrRef);
-}
-
 int LLVMCountParamsObjCmd(ClientData clientData,
 			  Tcl_Interp* interp,
 			  int objc,
@@ -516,12 +470,12 @@ int LLVMGetParamObjCmd(ClientData clientData,
 	return TCL_ERROR;
     unsigned index = iindex;
     LLVMValueRef paramRef = LLVMGetParam(functionRef, index);
-    if (LLVMValueRef_ref_map.find(paramRef) == LLVMValueRef_ref_map.end()) {
+    if (LLVMValueRef_refmap.find(paramRef) == LLVMValueRef_refmap.end()) {
 	std::string paramRefName = GetRefName("LLVMValueRef_");
 	LLVMValueRef_map[paramRefName] = paramRef;
-	LLVMValueRef_ref_map[paramRef] = paramRefName;
+	LLVMValueRef_refmap[paramRef] = paramRefName;
     }
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMValueRef_ref_map[paramRef].c_str(), -1));
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(LLVMValueRef_refmap[paramRef].c_str(), -1));
     return TCL_OK;
 }
 
@@ -806,6 +760,8 @@ int LLVMTypeObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
+#include "llvmtcl-gen.cpp"
+
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
@@ -826,7 +782,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::LLVMConstIntOfString", LLVMConstIntOfStringObjCmd);
     LLVMObjCmd("llvmtcl::LLVMConstReal", LLVMConstRealObjCmd);
     LLVMObjCmd("llvmtcl::LLVMConstRealOfString", LLVMConstRealOfStringObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMCreateBuilder", LLVMCreateBuilderObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMCountParams", LLVMCountParamsObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDeleteBasicBlock", LLVMDeleteBasicBlockObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDeleteFunction", LLVMDeleteFunctionObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDisposeBuilder", LLVMDisposeBuilderObjCmd);
@@ -835,6 +791,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::LLVMFP128Type", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMFloatType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMFunctionType", LLVMTypeObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMGetParam", LLVMGetParamObjCmd);
     LLVMObjCmd("llvmtcl::LLVMInitializeNativeTarget", LLVMInitializeNativeTargetObjCmd);
     LLVMObjCmd("llvmtcl::LLVMInsertBasicBlock", LLVMInsertBasicBlockObjCmd);
     LLVMObjCmd("llvmtcl::LLVMInt16Type", LLVMTypeObjCmd);
@@ -849,15 +806,11 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::LLVMOpaqueType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMPPCFP128Type", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMPointerType", LLVMTypeObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMPositionBuilder", LLVMPositionBuilderObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMPositionBuilderAtEnd", LLVMPositionBuilderAtEndObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMPositionBuilderBefore", LLVMPositionBuilderBeforeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMStructType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMUnionType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMVectorType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMVoidType", LLVMTypeObjCmd);
     LLVMObjCmd("llvmtcl::LLVMX86FP80Type", LLVMTypeObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMCountParams", LLVMCountParamsObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMGetParam", LLVMGetParamObjCmd);
+#include "llvmtcl-gen-cmddef.cpp"  
     return TCL_OK;
 }

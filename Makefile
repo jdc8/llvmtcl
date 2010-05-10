@@ -16,11 +16,14 @@ all: llvmtcl.so
 llvmtcl.so : llvmtcl.o
 	g++ -shared $(CFLAGS) -o llvmtcl.so llvmtcl.o $(TCLLIB) $(LLVMLFLAGS) $(LLVMLIBS)
 
-llvmtcl.o : llvmtcl.cpp
+llvmtcl.o : llvmtcl.cpp llvmtcl-gen.cpp llvmtcl-gen-cmddef.cpp
 	g++ -fPIC $(CFLAGS) -I$(TCLINCDIR) $(LLVMCFLAGS) llvmtcl.cpp -c -o llvmtcl.o
 
+llvmtcl-gen.cpp llvmtcl-gen-cmddef.cpp : llvmtcl-gen.tcl llvmtcl-gen.inp
+	$(TCLSH) llvmtcl-gen.tcl
+
 clean:
-	- rm llvmtcl.o
+	- rm llvmtcl.o llvmtcl-gen.cpp llvmtcl-gen-cmddef.cpp
 
 distclean: clean
 	- rm llvmtcl.so

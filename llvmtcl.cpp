@@ -18,29 +18,6 @@ static std::string GetRefName(std::string prefix)
 
 #include "llvmtcl-gen-map.cpp"
 
-static int GetListOfLLVMTypeRefFromObj(Tcl_Interp* interp, Tcl_Obj* obj, LLVMTypeRef*& typeList, int& typeCount)
-{
-    typeCount = 0;
-    typeList = 0;
-    Tcl_Obj** typeObjs = 0;
-    if (Tcl_ListObjGetElements(interp, obj, &typeCount, &typeObjs) != TCL_OK) {
-	std::ostringstream os;
-	os << "expected list of types but got \"" << Tcl_GetStringFromObj(obj, 0) << "\"";
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
-	return TCL_ERROR;
-    }
-    if (typeCount == 0)
-	return TCL_OK;
-    typeList = new LLVMTypeRef[typeCount];
-    for(int i = 0; i < typeCount; i++) {
-	if (GetLLVMTypeRefFromObj(interp, typeObjs[i], typeList[i]) != TCL_OK) {
-	    delete [] typeList;
-	    return TCL_ERROR;
-	}
-    }
-    return TCL_OK;
-}
-
 int LLVMDisposeBuilderObjCmd(ClientData clientData,
 			     Tcl_Interp* interp,
 			     int objc,
@@ -109,6 +86,11 @@ int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
     LLVMDeleteBasicBlock(basicBlockRef);
     LLVMBasicBlockRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
     return TCL_OK;
+}
+
+LLVMGenericValueRef LLVMRunFunction_Tcl(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
+{
+    return LLVMRunFunction(EE, F, NumArgs, Args);
 }
 
 #include "llvmtcl-gen.cpp"

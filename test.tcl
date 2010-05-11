@@ -7,6 +7,9 @@ namespace eval llvmtcl {
 
 namespace import llvmtcl::*
 
+LLVMLinkInJIT
+LLVMInitializeNativeTarget
+
 set m [LLVMModuleCreateWithName "testmodule"]
 set bld [LLVMCreateBuilder]
 
@@ -29,7 +32,7 @@ set arg0_2 [LLVMBuildAlloca $bld [LLVMInt32Type] arg0]
 set arg0_3 [LLVMBuildStore $bld $arg0_1 $arg0_2]
 # Compare input < 2
 set arg0_4 [LLVMBuildLoad $bld $arg0_2 "n"]
-set cc [LLVMBuildICmp $bld $LLVMIntSLT $arg0_4 $two "cc"]
+set cc [LLVMBuildICmp $bld LLVMIntSLT $arg0_4 $two "cc"]
 # Branch
 LLVMBuildCondBr $bld $cc $exit_lt_2 $recurse
 # If n < 2, return 1
@@ -56,10 +59,10 @@ LLVMBuildRet $bld $rt
 
 
 
-set vrt [LLVMTclVerifyModule $m $LLVMPrintMessageAction]
-puts "Verify: $vrt"
-puts "Input"
-puts [LLVMModuleText $m]
+#set vrt [LLVMTclVerifyModule $m LLVMPrintMessageAction]
+#puts "Verify: $vrt"
+#puts "Input"
+#puts [LLVMModuleText $m]
 #LLVMWriteBitcodeToFile $m fac.bc
 
 
@@ -90,9 +93,9 @@ puts [LLVMModuleText $m]
 # puts "exit"
 # exit
 
-set EE [LLVMCreateJITCompilerForModule $m 0]
+lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 puts "EE=$EE"
-set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 10 0]
+set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
 puts "i=$i"
-set res [LLVMRunFunction $EE $fac $i]
-puts "res=$res"
+set res [LLVMRunFunction_Tcl $EE $fac $i]
+puts "res=$res=[LLVMGenericValueToInt $res 0]"

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include "llvm/Support/raw_ostream.h"
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
@@ -72,9 +73,9 @@ int LLVMDeleteFunctionObjCmd(ClientData clientData,
 }
 
 int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
-				Tcl_Interp* interp,
-				int objc,
-				Tcl_Obj* const objv[])
+			       Tcl_Interp* interp,
+			       int objc,
+			       Tcl_Obj* const objv[])
 {
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "basicBlockRef");
@@ -85,6 +86,25 @@ int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
 	return TCL_ERROR;
     LLVMDeleteBasicBlock(basicBlockRef);
     LLVMBasicBlockRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    return TCL_OK;
+}
+
+int LLVMModuleDumpObjCmd(ClientData clientData,
+			       Tcl_Interp* interp,
+			       int objc,
+			       Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "moduleRef");
+	return TCL_ERROR;
+    }
+    LLVMModuleRef moduleRef = 0;
+    if (GetLLVMModuleRefFromObj(interp, objv[1], moduleRef) != TCL_OK)
+	return TCL_ERROR;
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    os << *(reinterpret_cast<llvm::Module*>(moduleRef));
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(s.c_str(), -1));
     return TCL_OK;
 }
 
@@ -112,6 +132,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::LLVMDeleteFunction", LLVMDeleteFunctionObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDisposeBuilder", LLVMDisposeBuilderObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDisposeModule", LLVMDisposeModuleObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMModuleDump", LLVMModuleDumpObjCmd);
 #include "llvmtcl-gen-cmddef.cpp"  
     return TCL_OK;
 }

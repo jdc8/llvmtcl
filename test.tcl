@@ -57,6 +57,8 @@ set rt [LLVMBuildCall $bld $fac [list $ten] "rec"]
 LLVMBuildRet $bld $rt
 
 
+puts [LLVMModuleDump $m]
+
 
 
 #set vrt [LLVMTclVerifyModule $m LLVMPrintMessageAction]

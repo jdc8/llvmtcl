@@ -4,7 +4,7 @@ package require llvmtcl
 namespace import llvmtcl::*
 
 proc test {a b c d e} {
-    if {$a <= 66} {
+    if {$a <= 66 && $a > 50} {
 	set rt 100
     } else {
 	set rt 0
@@ -82,11 +82,11 @@ proc tcl2llvm {nm} {
 	    set arg_1 [LLVMGetParam $func $n]
 	    set arg_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
 	    set arg_3 [LLVMBuildStore $bld $arg_1 $arg_2]
-	    set vars($n) [list $arg_2 LLVMInt32Type]
+	    set vars($n) $arg_2
 	    incr n
 	} elseif {[string match "slot *" $l]} {
 	    set arg_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
-	    set vars($n) [list $arg_2 LLVMInt32Type]
+	    set vars($n) $arg_2
 	}
     }
 
@@ -130,33 +130,30 @@ proc tcl2llvm {nm} {
 	    set tgt [expr {$pc + $offset}]
 	}
 	if {[info exists LLVMBuilder1($opcode)]} {
-	    set rt [$LLVMBuilder1($opcode) $bld [lindex $tcl_stack end 0] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] [list $rt LLVMInt32Type]]
+	    set rt [$LLVMBuilder1($opcode) $bld [lindex $tcl_stack end] ""]
+	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
 	} elseif {[info exists LLVMBuilder2($opcode)]} {
-	    set rt [$LLVMBuilder2($opcode) $bld [lindex $tcl_stack end-1 0] [lindex $tcl_stack end 0] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] [list $rt LLVMInt32Type]]
+	    set rt [$LLVMBuilder2($opcode) $bld [lindex $tcl_stack end-1] [lindex $tcl_stack end] ""]
+	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] $rt]
 	} elseif {[info exists LLVMBuilderICmp($opcode)]} {
-	    puts "$opcode [lindex $tcl_stack end-1 0] [lindex $tcl_stack end 0]"
-	    puts "tcl_stack = $tcl_stack"
-	    set rt [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) [lindex $tcl_stack end-1 0] [lindex $tcl_stack end 0] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] [list $rt LLVMInt1Type]]
+	    set rt [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) [lindex $tcl_stack end-1] [lindex $tcl_stack end] ""]
+	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] $rt]
 	} else {
 	    switch -exact -- $opcode {
 		"loadScalar1" {
-		    lassign $vars([string range [lindex $l 2] 2 end]) var tp
-		    lappend tcl_stack [list [LLVMBuildLoad $bld $var ""] $tp]
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    lappend tcl_stack [LLVMBuildLoad $bld $var ""]
 		}
 		"storeScalar1" {
-		    set var_1 [lindex $tcl_stack end 0]
+		    set var_1 [lindex $tcl_stack end]
 		    set idx [string range [lindex $l 2] 2 end]
 		    if {[info exists vars($idx)]} {
-			lassign $vars($idx) var_2 tp_2
+			set var_2 $vars($idx)
 		    } else {
 			set var_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
-			set tp_2 LLVMInt32Type
 		    }
 		    set var_3 [LLVMBuildStore $bld $var_1 $var_2]
-		    set vars($idx) [list $var_2 $tp_2]
+		    set vars($idx) $var_2
 		    set tcl_stack [lrange $tcl_stack 0 end-1]
 		}
 		"push1" {
@@ -164,18 +161,26 @@ proc tcl2llvm {nm} {
 		    if {![string is integer -strict $val]} {
 			set val 0
 		    }
-		    lappend tcl_stack [list [LLVMConstInt [LLVMInt32Type] $val 0] LLVMInt32Type]
+		    lappend tcl_stack [LLVMConstInt [LLVMInt32Type] $val 0]
 		}
 		"jumpTrue1" {
-		    puts "tgt=$tgt, ipath=$ipath($pc)"
-		    LLVMBuildCondBr $bld [lindex $tcl_stack end 0] $block($tgt) $block($ipath($pc))
-		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] [list $rt LLVMInt32Type]]
+		    if {[LLVMGetIntTypeWidth [LLVMTypeOf [lindex $tcl_stack end]]] == 1} {
+			set cond [lindex $tcl_stack end]
+		    } else {
+			set cond [LLVMBuildICmp $bld LLVMIntNE [lindex $tcl_stack end] [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+		    }
+		    LLVMBuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
+		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
 		    set ends_with_jump($curr_block) 1
 		}
 		"jumpFalse1" {
-		    puts "tgt=$tgt, ipath=$ipath($pc)"
-		    LLVMBuildCondBr $bld [lindex $tcl_stack end 0] $block($ipath($pc)) $block($tgt)
-		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] [list $rt LLVMInt32Type]]
+		    if {[LLVMGetIntTypeWidth [LLVMTypeOf [lindex $tcl_stack end]]] == 1} {
+			set cond [lindex $tcl_stack end]
+		    } else {
+			set cond [LLVMBuildICmp $bld LLVMIntNE [lindex $tcl_stack end] [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+		    }
+		    LLVMBuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
+		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
 		    set ends_with_jump($curr_block) 1
 		}
 		"startCommand" {
@@ -189,7 +194,7 @@ proc tcl2llvm {nm} {
 		    set tcl_stack [lrange $tcl_stack 0 end-1]
 		}
 		"done" {
-		    LLVMBuildRet $bld [lindex $tcl_stack end 0]
+		    LLVMBuildRet $bld [lindex $tcl_stack end]
 		    set ends_with_jump($curr_block) 1
 		}
 		default {
@@ -225,7 +230,7 @@ proc tcl2llvm {nm} {
 
 lassign [tcl2llvm test] m func
 
-set tclArgs {40 2 3 4 5}
+set tclArgs {10 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {
     lappend llvmArgs [LLVMCreateGenericValueOfInt [LLVMInt32Type] $v 0]

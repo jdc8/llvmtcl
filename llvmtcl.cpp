@@ -7,6 +7,9 @@
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm-c/Target.h"
+#include "llvm-c/BitWriter.h"
+#include "llvm-c/Transforms/IPO.h"
+#include "llvm-c/Transforms/Scalar.h"
 
 static std::string GetRefName(std::string prefix)
 {
@@ -51,6 +54,25 @@ int LLVMDisposeModuleObjCmd(ClientData clientData,
 	return TCL_ERROR;
     LLVMDisposeModule(moduleRef);
     LLVMModuleRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMModuleRef_refmap.erase(moduleRef);
+    return TCL_OK;
+}
+
+int LLVMDisposePassManagerObjCmd(ClientData clientData,
+				 Tcl_Interp* interp,
+				 int objc,
+				 Tcl_Obj* const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "passManagerRef");
+	return TCL_ERROR;
+    }
+    LLVMPassManagerRef passManagerRef = 0;
+    if (GetLLVMPassManagerRefFromObj(interp, objv[1], passManagerRef) != TCL_OK)
+	return TCL_ERROR;
+    LLVMDisposePassManager(passManagerRef);
+    LLVMPassManagerRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMPassManagerRef_refmap.erase(passManagerRef);
     return TCL_OK;
 }
 
@@ -132,6 +154,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::LLVMDeleteFunction", LLVMDeleteFunctionObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDisposeBuilder", LLVMDisposeBuilderObjCmd);
     LLVMObjCmd("llvmtcl::LLVMDisposeModule", LLVMDisposeModuleObjCmd);
+    LLVMObjCmd("llvmtcl::LLVMDisposePassManager", LLVMDisposePassManagerObjCmd);
     LLVMObjCmd("llvmtcl::LLVMModuleDump", LLVMModuleDumpObjCmd);
 #include "llvmtcl-gen-cmddef.cpp"  
     return TCL_OK;

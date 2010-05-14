@@ -1,10 +1,6 @@
 lappend auto_path .
 package require llvmtcl
 
-namespace eval llvmtcl {
-    namespace export *
-}
-
 namespace import llvmtcl::*
 
 LLVMLinkInJIT
@@ -57,47 +53,31 @@ set rt [LLVMBuildCall $bld $fac [list $ten] "rec"]
 LLVMBuildRet $bld $rt
 
 
-puts [LLVMModuleDump $m]
+#puts "Input"
+#puts [LLVMModuleDump $m]
+LLVMWriteBitcodeToFile $m fac.bc
+
+
+
 
 
 
 #set vrt [LLVMTclVerifyModule $m LLVMPrintMessageAction]
 #puts "Verify: $vrt"
-#puts "Input"
-#puts [LLVMModuleText $m]
-#LLVMWriteBitcodeToFile $m fac.bc
-
-
-
-
-
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#LLVMOptimizeModule $m
-#puts "Optimized"
-#puts [LLVMModuleText $m]
-
-
-# puts "provider"
-# set provider [LLVMCreateModuleProviderForExistingModule $m]
-# puts "engine"
-# set engine [LLVMCreateJITCompiler $provider 0]
-# puts "int"
-# set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 10 0]
-# puts "run"
-# set res [LLVMRunFunction $engine $fac [list $i]]
-# puts "result"
-# puts fac=[LLVMGenericValueToInt $res 0]
-# puts "exit"
-# exit
 
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
-puts "EE=$EE"
 set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
-puts "i=$i"
 set res [LLVMRunFunction_Tcl $EE $fac $i]
 puts "res=$res=[LLVMGenericValueToInt $res 0]"
+set res [LLVMRunFunction_Tcl $EE $fac10 {}]
+puts "res=$res=[LLVMGenericValueToInt $res 0]"
+
+puts [time {LLVMRunFunction_Tcl $EE $fac10 {}} 100]
+
+LLVMOptimizeModule $m
+
+#puts "Optimized"
+#puts [LLVMModuleDump $m]
+LLVMWriteBitcodeToFile $m fac-optimized.bc
+
+puts [time {LLVMRunFunction_Tcl $EE $fac10 {}} 100]

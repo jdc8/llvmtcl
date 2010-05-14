@@ -8,6 +8,7 @@ map LLVMModuleRef
 map LLVMUseRef
 map LLVMExecutionEngineRef
 map LLVMGenericValueRef
+map LLVMPassManagerRef
 
 enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMOpaqueTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind, LLVMUnionTypeKind} LLVMTypeKind;
 enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment} LLVMAttribute;
@@ -382,3 +383,47 @@ LLVMGenericValueRef LLVMCreateGenericValueOfInt(LLVMTypeRef Ty, unsigned long lo
 LLVMGenericValueRef LLVMRunFunction_Tcl(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs);
 
 unsigned long long LLVMGenericValueToInt(LLVMGenericValueRef GenVal, LLVMBool IsSigned);
+
+LLVMPassManagerRef LLVMCreatePassManager(void);
+LLVMPassManagerRef LLVMCreateFunctionPassManagerForModule(LLVMModuleRef M);
+LLVMBool LLVMRunPassManager(LLVMPassManagerRef PM, LLVMModuleRef M);
+LLVMBool LLVMInitializeFunctionPassManager(LLVMPassManagerRef FPM);
+LLVMBool LLVMRunFunctionPassManager(LLVMPassManagerRef FPM, LLVMValueRef F);
+LLVMBool LLVMFinalizeFunctionPassManager(LLVMPassManagerRef FPM);
+
+int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);
+void LLVMAddAggressiveDCEPass(LLVMPassManagerRef PM);
+void LLVMAddCFGSimplificationPass(LLVMPassManagerRef PM);
+void LLVMAddDeadStoreEliminationPass(LLVMPassManagerRef PM);
+void LLVMAddGVNPass(LLVMPassManagerRef PM);
+void LLVMAddIndVarSimplifyPass(LLVMPassManagerRef PM);
+void LLVMAddInstructionCombiningPass(LLVMPassManagerRef PM);
+void LLVMAddJumpThreadingPass(LLVMPassManagerRef PM);
+void LLVMAddLICMPass(LLVMPassManagerRef PM);
+void LLVMAddLoopDeletionPass(LLVMPassManagerRef PM);
+void LLVMAddLoopIndexSplitPass(LLVMPassManagerRef PM);
+void LLVMAddLoopRotatePass(LLVMPassManagerRef PM);
+void LLVMAddLoopUnrollPass(LLVMPassManagerRef PM);
+void LLVMAddLoopUnswitchPass(LLVMPassManagerRef PM);
+void LLVMAddMemCpyOptPass(LLVMPassManagerRef PM);
+void LLVMAddPromoteMemoryToRegisterPass(LLVMPassManagerRef PM);
+void LLVMAddReassociatePass(LLVMPassManagerRef PM);
+void LLVMAddSCCPPass(LLVMPassManagerRef PM);
+void LLVMAddScalarReplAggregatesPass(LLVMPassManagerRef PM);
+void LLVMAddSimplifyLibCallsPass(LLVMPassManagerRef PM);
+void LLVMAddTailCallEliminationPass(LLVMPassManagerRef PM);
+void LLVMAddConstantPropagationPass(LLVMPassManagerRef PM);
+void LLVMAddDemoteMemoryToRegisterPass(LLVMPassManagerRef PM);
+void LLVMAddArgumentPromotionPass(LLVMPassManagerRef PM);
+void LLVMAddConstantMergePass(LLVMPassManagerRef PM);
+void LLVMAddDeadArgEliminationPass(LLVMPassManagerRef PM);
+void LLVMAddDeadTypeEliminationPass(LLVMPassManagerRef PM);
+void LLVMAddFunctionAttrsPass(LLVMPassManagerRef PM);
+void LLVMAddFunctionInliningPass(LLVMPassManagerRef PM);
+void LLVMAddGlobalDCEPass(LLVMPassManagerRef PM);
+void LLVMAddGlobalOptimizerPass(LLVMPassManagerRef PM);
+void LLVMAddIPConstantPropagationPass(LLVMPassManagerRef PM);
+void LLVMAddLowerSetJmpPass(LLVMPassManagerRef PM);
+void LLVMAddPruneEHPass(LLVMPassManagerRef PM);
+void LLVMAddStripDeadPrototypesPass(LLVMPassManagerRef PM);
+void LLVMAddStripSymbolsPass(LLVMPassManagerRef PM);

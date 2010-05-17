@@ -16,17 +16,20 @@ proc test2 {a b c d e} {
     return [expr {222*($a+444)}]
 }
 
-proc tcl2llvm {nm} {
+proc test3 {a b c d e} {
+    set rt 0
+    while {$rt < a} {
+	incr rt $b
+    }
+    return $rt
+}
+
+proc tcl2llvm {m nm} {
     puts "--------------------------------------------------------------"
     set dasm [split [tcl::unsupported::disassemble proc $nm] \n]
     puts "----- Tcl Disassemble ----------------------------------------"
     puts [join $dasm \n]
-    # Initialize the JIT
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
 
-    # Create a module and builder
-    set m [LLVMModuleCreateWithName "test"]
     set bld [LLVMCreateBuilder]
 
     # Create function
@@ -39,7 +42,7 @@ proc tcl2llvm {nm} {
     }
 
     set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
-    set func [LLVMAddFunction $m "test" $ft]
+    set func [LLVMAddFunction $m $nm $ft]
 
     # Create basic blocks
     puts "----- Creating basic blocks ----------------------------------"
@@ -112,7 +115,7 @@ proc tcl2llvm {nm} {
     set LLVMBuilderICmp(le) LLVMIntSLE
     set LLVMBuilderICmp(ge) LLVMIntGE
 
-    set tcl_stack {}
+    set ::tcl_stack {}
     foreach l $dasm {
 	set l [string trim $l]
 	if {![string match "(*" $l]} { continue }
@@ -130,22 +133,23 @@ proc tcl2llvm {nm} {
 	    set tgt [expr {$pc + $offset}]
 	}
 	if {[info exists LLVMBuilder1($opcode)]} {
-	    set rt [$LLVMBuilder1($opcode) $bld [lindex $tcl_stack end] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
+	    push $bld [$LLVMBuilder1($opcode) $bld [pop $bld] ""]
 	} elseif {[info exists LLVMBuilder2($opcode)]} {
-	    set rt [$LLVMBuilder2($opcode) $bld [lindex $tcl_stack end-1] [lindex $tcl_stack end] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] $rt]
+	    set top0 [pop $bld]
+	    set top1 [pop $bld]
+	    push $bld [$LLVMBuilder2($opcode) $bld $top1 $top0 ""]
 	} elseif {[info exists LLVMBuilderICmp($opcode)]} {
-	    set rt [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) [lindex $tcl_stack end-1] [lindex $tcl_stack end] ""]
-	    set tcl_stack [list {*}[lrange $tcl_stack 0 end-2] $rt]
+	    set top0 [pop $bld]
+	    set top1 [pop $bld]
+	    push $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""]
 	} else {
 	    switch -exact -- $opcode {
 		"loadScalar1" {
 		    set var $vars([string range [lindex $l 2] 2 end])
-		    lappend tcl_stack [LLVMBuildLoad $bld $var ""]
+		    push $bld [LLVMBuildLoad $bld $var ""]
 		}
 		"storeScalar1" {
-		    set var_1 [lindex $tcl_stack end]
+		    set var_1 [pop $bld]
 		    set idx [string range [lindex $l 2] 2 end]
 		    if {[info exists vars($idx)]} {
 			set var_2 $vars($idx)
@@ -154,33 +158,32 @@ proc tcl2llvm {nm} {
 		    }
 		    set var_3 [LLVMBuildStore $bld $var_1 $var_2]
 		    set vars($idx) $var_2
-		    set tcl_stack [lrange $tcl_stack 0 end-1]
 		}
 		"push1" {
 		    set val [lindex $l 4]
 		    if {![string is integer -strict $val]} {
 			set val 0
 		    }
-		    lappend tcl_stack [LLVMConstInt [LLVMInt32Type] $val 0]
+		    push $bld [LLVMConstInt [LLVMInt32Type] $val 0]
 		}
 		"jumpTrue1" {
-		    if {[LLVMGetIntTypeWidth [LLVMTypeOf [lindex $tcl_stack end]]] == 1} {
-			set cond [lindex $tcl_stack end]
+		    set top [pop $bld]
+		    if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
+			set cond $top
 		    } else {
-			set cond [LLVMBuildICmp $bld LLVMIntNE [lindex $tcl_stack end] [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+			set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
 		    }
 		    LLVMBuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
-		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
 		    set ends_with_jump($curr_block) 1
 		}
 		"jumpFalse1" {
-		    if {[LLVMGetIntTypeWidth [LLVMTypeOf [lindex $tcl_stack end]]] == 1} {
-			set cond [lindex $tcl_stack end]
+		    set top [pop $bld]
+		    if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
+			set cond $top
 		    } else {
-			set cond [LLVMBuildICmp $bld LLVMIntNE [lindex $tcl_stack end] [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+			set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
 		    }
 		    LLVMBuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
-		    set tcl_stack [list {*}[lrange $tcl_stack 0 end-1] $rt]
 		    set ends_with_jump($curr_block) 1
 		}
 		"startCommand" {
@@ -191,10 +194,10 @@ proc tcl2llvm {nm} {
 		    set ends_with_jump($curr_block) 1
 		}
 		"pop" {
-		    set tcl_stack [lrange $tcl_stack 0 end-1]
+		    pop $bld
 		}
 		"done" {
-		    LLVMBuildRet $bld [lindex $tcl_stack end]
+		    LLVMBuildRet $bld [top $bld]
 		    set ends_with_jump($curr_block) 1
 		}
 		default {
@@ -204,7 +207,7 @@ proc tcl2llvm {nm} {
 	}
     }
 
-    puts "Fix increment paths"
+    # Fix increment paths
     foreach {pc b} [array get block] {
 	LLVMPositionBuilderAtEnd $bld $block($pc)
 	if {![info exists ends_with_jump($block($pc))] || !$ends_with_jump($block($pc))} {
@@ -219,26 +222,67 @@ proc tcl2llvm {nm} {
 	}
     }
 
-    puts "----- Input --------------------------------------------------"
-    puts [LLVMModuleDump $m]
-    puts "----- Optimized ----------------------------------------------"
-    LLVMOptimizeModule $m
-    puts [LLVMModuleDump $m]
     puts "--------------------------------------------------------------"
-    return [list $m $func]
+
+    return $func
 }
 
-lassign [tcl2llvm test] m func
+proc push {bld var_1} {
+    global tcl_stack
+    set var_2 [LLVMBuildAlloca $bld [LLVMTypeOf $var_1] ""]
+    set var_3 [LLVMBuildStore $bld $var_1 $var_2]
+    lappend tcl_stack $var_2
+}
 
-set tclArgs {10 2 3 4 5}
+proc pop {bld} {
+    global tcl_stack
+    if {[llength $tcl_stack] == 0} {
+	error "Stack empty"
+    }
+    set top [lindex $tcl_stack end]
+    set tcl_stack [lrange $tcl_stack 0 end-1]
+    return [LLVMBuildLoad $bld $top ""]
+}
+
+proc top {bld} {
+    global tcl_stack
+    if {[llength $tcl_stack] == 0} {
+	error "Stack empty"
+    }
+    set top [lindex $tcl_stack end]
+    return [LLVMBuildLoad $bld $top ""]
+}
+
+# Initialize the JIT
+LLVMLinkInJIT
+LLVMInitializeNativeTarget
+
+# Create a module and builder
+set m [LLVMModuleCreateWithName "atest"]
+
+# Convert Tcl to LLVM
+set func(test) [tcl2llvm $m test]
+set func(test2) [tcl2llvm $m test2]
+#set func(test3) [tcl2llvm $m test3]
+
+puts "----- Input --------------------------------------------------"
+puts [LLVMModuleDump $m]
+
+puts "----- Optimized ----------------------------------------------"
+LLVMOptimizeModule $m
+puts [LLVMModuleDump $m]
+
+puts "----- Test ---------------------------------------------------"
+set tclArgs {55 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {
     lappend llvmArgs [LLVMCreateGenericValueOfInt [LLVMInt32Type] $v 0]
 }
 
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
-set res [LLVMRunFunction_Tcl $EE $func $llvmArgs]
-puts "test = [test {*}$tclArgs] = [expr {int([LLVMGenericValueToInt $res 0])}]\n"
 
-#puts [time {test 1 2 3 4 5} 1000]
-#puts [time {LLVMRunFunction_Tcl $EE $func [list $i0 $i1 $i2 $i3 $i4]} 1000]
+foreach {nm f} [array get func] {
+    set res [LLVMRunFunction_Tcl $EE $f $llvmArgs]
+    puts "$nm = [$nm {*}$tclArgs] = [expr {int([LLVMGenericValueToInt $res 0])}]\n"
+}
+

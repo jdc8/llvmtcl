@@ -17,14 +17,23 @@ proc test2 {a b c d e} {
 }
 
 proc test3 {a b c d e} {
-    set rt 0
-    while {$rt < a} {
-	incr rt $b
+    set rt 1
+    for {set i 1} {$i < $a} {incr i} {
+	set rt [expr {$rt*$i}]
     }
     return $rt
 }
 
-proc tcl2llvm {m nm} {
+proc test4 {a b c d e} {
+    return [expr {$a+$b}]
+}
+
+proc test5 {a b c d e} {
+    return [expr {12+[test4 $a $b $c $d $e]+34}]
+}
+
+proc tcl2llvm {m nm funcarnm} {
+    upvar $funcarnm funcar
     puts "--------------------------------------------------------------"
     set dasm [split [tcl::unsupported::disassemble proc $nm] \n]
     puts "----- Tcl Disassemble ----------------------------------------"
@@ -149,7 +158,7 @@ proc tcl2llvm {m nm} {
 		    push $bld [LLVMBuildLoad $bld $var ""]
 		}
 		"storeScalar1" {
-		    set var_1 [pop $bld]
+		    set var_1 [top $bld]
 		    set idx [string range [lindex $l 2] 2 end]
 		    if {[info exists vars($idx)]} {
 			set var_2 $vars($idx)
@@ -159,12 +168,23 @@ proc tcl2llvm {m nm} {
 		    set var_3 [LLVMBuildStore $bld $var_1 $var_2]
 		    set vars($idx) $var_2
 		}
+		"incrScalar1" {
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    LLVMBuildStore $bld [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [top $bld] "$l"] $var
+		}
+		"incrScalar1Imm" {
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    set i [lindex $l 3]
+		    set s [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [LLVMConstInt [LLVMInt32Type] $i 0] ""]
+		    push $bld $s
+		    LLVMBuildStore $bld $s $var
+		}
 		"push1" {
 		    set val [lindex $l 4]
 		    if {![string is integer -strict $val]} {
 			set val 0
 		    }
-		    push $bld [LLVMConstInt [LLVMInt32Type] $val 0]
+		    push $bld [LLVMConstInt [LLVMInt32Type] $val 0] [lindex $l 4]
 		}
 		"jumpTrue1" {
 		    set top [pop $bld]
@@ -189,9 +209,18 @@ proc tcl2llvm {m nm} {
 		"startCommand" {
 		}
 		"jump1" {
-		    puts "tgt=$tgt"
 		    LLVMBuildBr $bld $block($tgt)
 		    set ends_with_jump($curr_block) 1
+		}
+		"invokeStk1" {
+		    set objc [lindex $l 2]
+		    set objv {}
+		    for {set i 0} {$i < ($objc-1)} {incr i} {
+			lappend objv [pop $bld]
+		    }
+		    set objv [lreverse $objv]
+		    set f $funcar([popv $bld])
+		    push $bld [LLVMBuildCall $bld $f $objv ""]
 		}
 		"pop" {
 		    pop $bld
@@ -227,11 +256,12 @@ proc tcl2llvm {m nm} {
     return $func
 }
 
-proc push {bld var_1} {
+proc push {bld var_1 {val 0}} {
     global tcl_stack
+    puts "push $var_1 $val"
     set var_2 [LLVMBuildAlloca $bld [LLVMTypeOf $var_1] ""]
     set var_3 [LLVMBuildStore $bld $var_1 $var_2]
-    lappend tcl_stack $var_2
+    lappend tcl_stack [list $var_2 $val]
 }
 
 proc pop {bld} {
@@ -239,18 +269,36 @@ proc pop {bld} {
     if {[llength $tcl_stack] == 0} {
 	error "Stack empty"
     }
-    set top [lindex $tcl_stack end]
+    set top [lindex $tcl_stack end 0]
     set tcl_stack [lrange $tcl_stack 0 end-1]
     return [LLVMBuildLoad $bld $top ""]
 }
 
-proc top {bld} {
+proc popv {bld} {
     global tcl_stack
     if {[llength $tcl_stack] == 0} {
 	error "Stack empty"
     }
-    set top [lindex $tcl_stack end]
+    set top [lindex $tcl_stack end 1]
+    set tcl_stack [lrange $tcl_stack 0 end-1]
+    return $top
+}
+
+proc top {bld {offset 0}} {
+    global tcl_stack
+    if {[llength $tcl_stack] == 0} {
+	error "Stack empty"
+    }
+    set top [lindex $tcl_stack end-$offset 0]
     return [LLVMBuildLoad $bld $top ""]
+}
+
+proc topv {bld {offset 0}} {
+    global tcl_stack
+    if {[llength $tcl_stack] == 0} {
+	error "Stack empty"
+    }
+    return [lindex $tcl_stack end-$offset 1]
 }
 
 # Initialize the JIT
@@ -261,9 +309,9 @@ LLVMInitializeNativeTarget
 set m [LLVMModuleCreateWithName "atest"]
 
 # Convert Tcl to LLVM
-set func(test) [tcl2llvm $m test]
-set func(test2) [tcl2llvm $m test2]
-#set func(test3) [tcl2llvm $m test3]
+foreach nm {test test2 test3 test4 test5} {
+    set func($nm) [tcl2llvm $m $nm func]
+}
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMModuleDump $m]
@@ -273,7 +321,7 @@ LLVMOptimizeModule $m
 puts [LLVMModuleDump $m]
 
 puts "----- Test ---------------------------------------------------"
-set tclArgs {55 2 3 4 5}
+set tclArgs {5 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {
     lappend llvmArgs [LLVMCreateGenericValueOfInt [LLVMInt32Type] $v 0]

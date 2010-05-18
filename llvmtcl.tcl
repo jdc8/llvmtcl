@@ -1,48 +1,20 @@
 namespace eval llvmtcl {
     namespace export *
 
-    proc LLVMOptimizeModule {m} {
+    proc LLVMOptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions} {
 	set pm [LLVMCreatePassManager]
-	
-	LLVMAddAggressiveDCEPass $pm
-	LLVMAddCFGSimplificationPass $pm
-	LLVMAddDeadStoreEliminationPass $pm
-	LLVMAddGVNPass $pm
-	LLVMAddIndVarSimplifyPass $pm
-	LLVMAddInstructionCombiningPass $pm
-	LLVMAddJumpThreadingPass $pm
-	LLVMAddLICMPass $pm
-	LLVMAddLoopDeletionPass $pm
-	LLVMAddLoopIndexSplitPass $pm
-	LLVMAddLoopRotatePass $pm
-	LLVMAddLoopUnrollPass $pm
-	LLVMAddLoopUnswitchPass $pm
-	LLVMAddMemCpyOptPass $pm
-	LLVMAddPromoteMemoryToRegisterPass $pm
-	LLVMAddReassociatePass $pm
-	LLVMAddSCCPPass $pm
-	LLVMAddScalarReplAggregatesPass $pm
-	LLVMAddSimplifyLibCallsPass $pm
-	LLVMAddTailCallEliminationPass $pm
-	LLVMAddConstantPropagationPass $pm
-	LLVMAddDemoteMemoryToRegisterPass $pm
-	
-	LLVMAddArgumentPromotionPass $pm
-	LLVMAddConstantMergePass $pm
-	LLVMAddDeadArgEliminationPass $pm
-	LLVMAddDeadTypeEliminationPass $pm
-	LLVMAddFunctionAttrsPass $pm
-	LLVMAddFunctionInliningPass $pm
-	LLVMAddGlobalDCEPass $pm
-	LLVMAddGlobalOptimizerPass $pm
-	LLVMAddIPConstantPropagationPass $pm
-	LLVMAddLowerSetJmpPass $pm
-	LLVMAddPruneEHPass $pm
-	LLVMAddStripDeadPrototypesPass $pm
-	LLVMAddStripSymbolsPass $pm
-	
+	LLVMCreateStandardModulePasses $pm $optimizeLevel $optimizeSize $unitAtATime $unrollLoops $simplifyLibCalls $haveExceptions
 	LLVMRunPassManager $pm $m
 	LLVMDisposePassManager $pm
+    }
+
+    proc LLVMOptimizeFunction {m f optimizeLevel} {
+	set fpm [LLVMCreateFunctionPassManagerForModule $m]
+	LLVMCreateStandardFunctionPasses $fpm $optimizeLevel
+	LLVMInitializeFunctionPassManager $fpm
+	LLVMRunFunctionPassManager $fpm $f
+	LLVMFinalizeFunctionPassManager $fpm
+	LLVMDisposePassManager $fpm
     }
 
     proc Tcl2LLVM {m procName} {

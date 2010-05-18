@@ -427,3 +427,7 @@ void LLVMAddLowerSetJmpPass(LLVMPassManagerRef PM);
 void LLVMAddPruneEHPass(LLVMPassManagerRef PM);
 void LLVMAddStripDeadPrototypesPass(LLVMPassManagerRef PM);
 void LLVMAddStripSymbolsPass(LLVMPassManagerRef PM);
+void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel);
+void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM, unsigned OptimizationLevel, bool OptimizeSize, bool UnitAtATime, bool UnrollLoops, bool SimplifyLibCalls, bool HaveExceptions);
+void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM, bool Internalize, bool RunInliner, bool VerifyEach);
+

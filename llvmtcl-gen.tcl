@@ -156,6 +156,7 @@ proc gen_api_call {cf of l} {
 			puts $cf "    std::string arg$n = Tcl_GetStringFromObj(objv\[$on\], 0);"
 		    }
 		    "LLVMBool" -
+		    "bool" -
 		    "int" {
 			puts $cf "    int arg$n = 0;"
 			puts $cf "    if (Tcl_GetIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
@@ -213,6 +214,7 @@ proc gen_api_call {cf of l} {
 	"LLVMTypeHandleRef" -
 	"LLVMTypeRef" -
 	"LLVMBool" -
+	"bool" -
 	"LLVMModuleRef" -
 	"LLVMGenericValueRef" -
 	"LLVMPassManagerRef" -
@@ -291,6 +293,7 @@ proc gen_api_call {cf of l} {
 		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewStringObj($rnm, -1));"
 		}
 		"LLVMBool" -
+		"bool" -
 		"int" -
 		"unsigned" {
 		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewIntObj($rnm));"
@@ -331,6 +334,7 @@ proc gen_api_call {cf of l} {
 	    }
 	    "LLVMBool" -
 	    "int" -
+	    "bool" -
 	    "unsigned" {
 		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewIntObj(rt));"
 	    }

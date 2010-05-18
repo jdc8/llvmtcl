@@ -3,6 +3,7 @@
 #include <sstream>
 #include <map>
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/StandardPasses.h"
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
@@ -133,6 +134,41 @@ int LLVMModuleDumpObjCmd(ClientData clientData,
 LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
+}
+
+void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel)
+{
+    llvm::createStandardFunctionPasses(dynamic_cast<llvm::FunctionPassManager*>(llvm::unwrap(PM)),
+				       OptimizationLevel);
+}
+
+void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM,
+				    unsigned OptimizationLevel,
+				    bool OptimizeSize,
+				    bool UnitAtATime,
+				    bool UnrollLoops,
+				    bool SimplifyLibCalls,
+				    bool HaveExceptions)
+{
+    llvm::createStandardModulePasses(dynamic_cast<llvm::PassManager*>(llvm::unwrap(PM)),
+				     OptimizationLevel,
+				     OptimizeSize,
+				     UnitAtATime,
+				     UnrollLoops,
+				     SimplifyLibCalls,
+				     HaveExceptions,
+				     llvm::createFunctionInliningPass());
+}
+
+void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM,
+				 bool Internalize,
+				 bool RunInliner,
+				 bool VerifyEach)
+{
+    llvm::createStandardLTOPasses(dynamic_cast<llvm::PassManager*>(llvm::unwrap(PM)),
+				  Internalize,
+				  RunInliner,
+				  VerifyEach);
 }
 
 #include "llvmtcl-gen.cpp"

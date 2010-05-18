@@ -46,11 +46,16 @@ foreach nm {test test2 test3 test4 test5} {
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMModuleDump $m]
-puts "----- Optimized ----------------------------------------------"
-LLVMOptimizeModule $m
-puts [LLVMModuleDump $m]
-puts "--------------------------------------------------------------"
 
+puts "----- Optimized ----------------------------------------------"
+foreach {nm f} [array get func] {
+    LLVMOptimizeFunction $m $f 3
+}
+LLVMOptimizeModule $m 3 0 1 1 1 0
+
+puts [LLVMModuleDump $m]
+
+puts "--------------------------------------------------------------"
 set tclArgs {5 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {

@@ -30,3 +30,6 @@ distclean: clean
 
 test: llvmtcl.so
 	$(TCLSH) test.tcl
+
+tebc: llvmtcl.so
+	$(TCLSH) tebc.tcl

@@ -67,17 +67,17 @@ LLVMWriteBitcodeToFile $m fac.bc
 
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
-set res [LLVMRunFunction_Tcl $EE $fac $i]
+set res [LLVMRunFunction $EE $fac $i]
 puts "res=$res=[LLVMGenericValueToInt $res 0]"
-set res [LLVMRunFunction_Tcl $EE $fac10 {}]
+set res [LLVMRunFunction $EE $fac10 {}]
 puts "res=$res=[LLVMGenericValueToInt $res 0]"
 
-puts [time {LLVMRunFunction_Tcl $EE $fac10 {}} 100]
+puts [time {LLVMRunFunction $EE $fac10 {}} 100]
 
-LLVMOptimizeModule $m
+LLVMOptimizeModule $m 3 0 1 1 1 0
 
 #puts "Optimized"
 #puts [LLVMModuleDump $m]
 LLVMWriteBitcodeToFile $m fac-optimized.bc
 
-puts [time {LLVMRunFunction_Tcl $EE $fac10 {}} 100]
+puts [time {LLVMRunFunction $EE $fac10 {}} 100]

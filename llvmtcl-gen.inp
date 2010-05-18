@@ -25,7 +25,10 @@ void LLVMLinkInInterpreter(void);
 
 LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);
 LLVMModuleRef LLVMModuleCreateWithNameInContext(const char *ModuleID, LLVMContextRef C);
-
+rename LLVMDisposeModule LLVMDisposeModuleTcl
+void LLVMDisposeModule(LLVMModuleRef M);
+rename LLVMDumpModule LLVMDumpModuleTcl
+std::string LLVMDumpModule(LLVMModuleRef M);
 // Builder
 LLVMBuilderRef LLVMCreateBuilder(void);
 void LLVMPositionBuilder(LLVMBuilderRef Builder, LLVMBasicBlockRef Block, LLVMValueRef Instr);
@@ -35,7 +38,8 @@ LLVMBasicBlockRef LLVMGetInsertBlock(LLVMBuilderRef Builder);
 void LLVMClearInsertionPosition(LLVMBuilderRef Builder);
 void LLVMInsertIntoBuilder(LLVMBuilderRef Builder, LLVMValueRef Instr);
 void LLVMInsertIntoBuilderWithName(LLVMBuilderRef Builder, LLVMValueRef Instr, const char * Name);
-//void LLVMDisposeBuilder(LLVMBuilderRef Builder);
+rename LLVMDisposeBuilder LLVMDisposeBuilderTcl
+void LLVMDisposeBuilder(LLVMBuilderRef Builder);
 void LLVMSetCurrentDebugLocation(LLVMBuilderRef Builder, LLVMValueRef L);
 LLVMValueRef LLVMGetCurrentDebugLocation(LLVMBuilderRef Builder);
 void LLVMSetInstDebugLocation(LLVMBuilderRef Builder, LLVMValueRef Inst);
@@ -192,7 +196,8 @@ LLVMValueRef LLVMGetFirstFunction(LLVMModuleRef M);
 LLVMValueRef LLVMGetLastFunction(LLVMModuleRef M);
 LLVMValueRef LLVMGetNextFunction(LLVMValueRef Fn);
 LLVMValueRef LLVMGetPreviousFunction(LLVMValueRef Fn);
-//void LLVMDeleteFunction(LLVMValueRef Fn);
+rename LLVMDeleteFunction LLVMDeleteFunctionTcl
+void LLVMDeleteFunction(LLVMValueRef Fn);
 unsigned LLVMGetIntrinsicID(LLVMValueRef Fn);
 unsigned LLVMGetFunctionCallConv(LLVMValueRef Fn);
 void LLVMSetFunctionCallConv(LLVMValueRef Fn, unsigned CC);
@@ -356,7 +361,8 @@ LLVMBasicBlockRef LLVMAppendBasicBlockInContext(LLVMContextRef C, LLVMValueRef F
 LLVMBasicBlockRef LLVMInsertBasicBlockInContext(LLVMContextRef C, LLVMBasicBlockRef BB, const char *Name);
 LLVMBasicBlockRef LLVMAppendBasicBlock(LLVMValueRef Fn, const char *Name);
 LLVMBasicBlockRef LLVMInsertBasicBlock(LLVMBasicBlockRef InsertBeforeBB, const char *Name);
-//void LLVMDeleteBasicBlock(LLVMBasicBlockRef BB);
+rename LLVMDeleteBasicBlock LLVMDeleteBasicBlockTcl
+void LLVMDeleteBasicBlock(LLVMBasicBlockRef BB);
 LLVMBasicBlockRef LLVMGetInstructionParent(LLVMValueRef Inst);
 LLVMValueRef LLVMGetFirstInstruction(LLVMBasicBlockRef BB);
 LLVMValueRef LLVMGetLastInstruction(LLVMBasicBlockRef BB);
@@ -390,6 +396,8 @@ LLVMBool LLVMRunPassManager(LLVMPassManagerRef PM, LLVMModuleRef M);
 LLVMBool LLVMInitializeFunctionPassManager(LLVMPassManagerRef FPM);
 LLVMBool LLVMRunFunctionPassManager(LLVMPassManagerRef FPM, LLVMValueRef F);
 LLVMBool LLVMFinalizeFunctionPassManager(LLVMPassManagerRef FPM);
+rename LLVMDisposePassManager LLVMDisposePassManagerTcl
+void LLVMDisposePassManager(LLVMPassManagerRef PM);
 
 int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);
 void LLVMAddAggressiveDCEPass(LLVMPassManagerRef PM);

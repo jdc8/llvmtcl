@@ -23,112 +23,48 @@ static std::string GetRefName(std::string prefix)
 
 #include "llvmtcl-gen-map.cpp"
 
-int LLVMDisposeBuilderObjCmd(ClientData clientData,
-			     Tcl_Interp* interp,
-			     int objc,
-			     Tcl_Obj* const objv[])
+void LLVMDisposeBuilderTcl(LLVMBuilderRef builderRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "builderRef");
-	return TCL_ERROR;
-    }
-    LLVMBuilderRef builderRef = 0;
-    if (GetLLVMBuilderRefFromObj(interp, objv[1], builderRef) != TCL_OK)
-	return TCL_ERROR;
     LLVMDisposeBuilder(builderRef);
-    LLVMBuilderRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMBuilderRef_map.erase(LLVMBuilderRef_refmap[builderRef]);
     LLVMBuilderRef_refmap.erase(builderRef);
-    return TCL_OK;
 }
 
-int LLVMDisposeModuleObjCmd(ClientData clientData,
-			    Tcl_Interp* interp,
-			    int objc,
-			    Tcl_Obj* const objv[])
+void LLVMDisposeModuleTcl(LLVMModuleRef moduleRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "moduleRef");
-	return TCL_ERROR;
-    }
-    LLVMModuleRef moduleRef = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], moduleRef) != TCL_OK)
-	return TCL_ERROR;
     LLVMDisposeModule(moduleRef);
-    LLVMModuleRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMModuleRef_map.erase(LLVMModuleRef_refmap[moduleRef]);
     LLVMModuleRef_refmap.erase(moduleRef);
-    return TCL_OK;
 }
 
-int LLVMDisposePassManagerObjCmd(ClientData clientData,
-				 Tcl_Interp* interp,
-				 int objc,
-				 Tcl_Obj* const objv[])
+void LLVMDisposePassManagerTcl(LLVMPassManagerRef passManagerRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "passManagerRef");
-	return TCL_ERROR;
-    }
-    LLVMPassManagerRef passManagerRef = 0;
-    if (GetLLVMPassManagerRefFromObj(interp, objv[1], passManagerRef) != TCL_OK)
-	return TCL_ERROR;
     LLVMDisposePassManager(passManagerRef);
-    LLVMPassManagerRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMPassManagerRef_map.erase(LLVMPassManagerRef_refmap[passManagerRef]);
     LLVMPassManagerRef_refmap.erase(passManagerRef);
-    return TCL_OK;
 }
 
-int LLVMDeleteFunctionObjCmd(ClientData clientData,
-			     Tcl_Interp* interp,
-			     int objc,
-			     Tcl_Obj* const objv[])
+int LLVMDeleteFunctionTcl(LLVMValueRef functionRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "functionRef");
-	return TCL_ERROR;
-    }
-    LLVMValueRef functionRef = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], functionRef) != TCL_OK)
-	return TCL_ERROR;
     LLVMDeleteFunction(functionRef);
-    LLVMValueRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
+    LLVMValueRef_map.erase(LLVMValueRef_refmap[functionRef]);
     LLVMValueRef_refmap.erase(functionRef);
     return TCL_OK;
 }
 
-int LLVMDeleteBasicBlockObjCmd(ClientData clientData,
-			       Tcl_Interp* interp,
-			       int objc,
-			       Tcl_Obj* const objv[])
+void LLVMDeleteBasicBlockTcl(LLVMBasicBlockRef basicBlockRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "basicBlockRef");
-	return TCL_ERROR;
-    }
-    LLVMBasicBlockRef basicBlockRef = 0;
-    if (GetLLVMBasicBlockRefFromObj(interp, objv[1], basicBlockRef) != TCL_OK)
-	return TCL_ERROR;
     LLVMDeleteBasicBlock(basicBlockRef);
-    LLVMBasicBlockRef_map.erase(Tcl_GetStringFromObj(objv[1], 0));
-    return TCL_OK;
+    LLVMBasicBlockRef_map.erase( LLVMBasicBlockRef_refmap[basicBlockRef]);
+    LLVMBasicBlockRef_refmap.erase(basicBlockRef);
 }
 
-int LLVMModuleDumpObjCmd(ClientData clientData,
-			       Tcl_Interp* interp,
-			       int objc,
-			       Tcl_Obj* const objv[])
+std::string LLVMDumpModuleTcl(LLVMModuleRef moduleRef)
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "moduleRef");
-	return TCL_ERROR;
-    }
-    LLVMModuleRef moduleRef = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], moduleRef) != TCL_OK)
-	return TCL_ERROR;
     std::string s;
     llvm::raw_string_ostream os(s);
     os << *(reinterpret_cast<llvm::Module*>(moduleRef));
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(s.c_str(), -1));
-    return TCL_OK;
+    return s;
 }
 
 LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
@@ -186,12 +122,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     if (Tcl_PkgProvide(interp, "llvmtcl", "0.1") != TCL_OK) {
 	return TCL_ERROR;
     }
-    LLVMObjCmd("llvmtcl::LLVMDeleteBasicBlock", LLVMDeleteBasicBlockObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMDeleteFunction", LLVMDeleteFunctionObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMDisposeBuilder", LLVMDisposeBuilderObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMDisposeModule", LLVMDisposeModuleObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMDisposePassManager", LLVMDisposePassManagerObjCmd);
-    LLVMObjCmd("llvmtcl::LLVMModuleDump", LLVMModuleDumpObjCmd);
 #include "llvmtcl-gen-cmddef.cpp"  
     return TCL_OK;
 }

@@ -152,6 +152,7 @@ proc gen_api_call {cf of l} {
 			    error "Unknown type '$fargtype' in '$l'"
 			}
 		    }
+		    "std::string" -
 		    "const char *" {
 			puts $cf "    std::string arg$n = Tcl_GetStringFromObj(objv\[$on\], 0);"
 		    }
@@ -222,7 +223,8 @@ proc gen_api_call {cf of l} {
 	"int" -
 	"long long" -
 	"unsigned" -
-	"unsigned long long" {
+	"unsigned long long" -
+	"std::string" {
 	    puts -nonewline $cf "$rt rt = "
 	}
 	"void" {
@@ -232,7 +234,11 @@ proc gen_api_call {cf of l} {
 	}
     }
     # Call function
-    puts -nonewline $cf "$nm ("
+    if {[info exists ::rename($nm)]} {
+	puts -nonewline $cf "$::rename($nm) ("
+    } else {
+	puts -nonewline $cf "$nm ("
+    }
     set n 1
     foreach {fargtype fargname} $fargsl {
 	if {$n > 1} {
@@ -341,6 +347,9 @@ proc gen_api_call {cf of l} {
 	    "long long" -
 	    "unsigned long long" {
 		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(rt));"
+	    }
+	    "std::string" {
+		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewStringObj(rt.c_str(), -1));"
 	    }
 	    "void" {
 	    }
@@ -456,6 +465,7 @@ foreach l $ll {
     if {[llength $l] == 0} continue
     switch -glob -- $l {
 	"//*" { continue }
+	"rename *" { set rename([lindex $l 1]) [lindex $l 2] }
 	"enum *" { gen_enum $cf $l }
 	"typedef *" { gen_map $mf $l }
 	default { gen_api_call $cf $of $l }

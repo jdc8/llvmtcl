@@ -453,7 +453,7 @@ foreach l $ll {
     switch -glob -- $l {
 	"//*" { continue }
 	"enum *" { gen_enum $cf $l }
-	"map *" { gen_map $mf $l }
+	"typedef *" { gen_map $mf $l }
 	default { gen_api_call $cf $of $l }
     }
 }

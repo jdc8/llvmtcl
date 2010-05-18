@@ -250,6 +250,8 @@ namespace eval llvmtcl {
 		}
 	    }
 	}
+	# Cleanup and return
+	LLVMDisposeBuilder $bld
 	set funcar($m,$procName) $func
 	return $func
     }

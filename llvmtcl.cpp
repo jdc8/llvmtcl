@@ -130,7 +130,7 @@ int LLVMModuleDumpObjCmd(ClientData clientData,
     return TCL_OK;
 }
 
-LLVMGenericValueRef LLVMRunFunction_Tcl(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
+LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }

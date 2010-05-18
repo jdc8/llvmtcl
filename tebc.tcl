@@ -62,7 +62,7 @@ lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 puts "OK? Tcl        LLVM       Function"
 puts "--- ---------- ---------- ------------------------------------"
 foreach {nm f} [array get func] {
-    set res [LLVMRunFunction_Tcl $EE $f $llvmArgs]
+    set res [LLVMRunFunction $EE $f $llvmArgs]
     set tr [$nm {*}$tclArgs]
     set lr [expr {int([LLVMGenericValueToInt $res 0])}]
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"

@@ -17,23 +17,31 @@ namespace eval llvmtcl {
 	LLVMDisposePassManager $fpm
     }
 
-    proc Tcl2LLVM {m procName} {
-	variable tcl_stack
+    proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
+	variable ts
+	variable tsp
 	variable funcar
 	# Disassemble the proc
 	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
 	set bld [LLVMCreateBuilder]
 	# Create function
-	set argl {}
-	foreach l $dasm {
-	    set l [string trim $l]
-	    if {[regexp {slot \d+, .*arg, \"} $l]} {
-		lappend argl [LLVMInt32Type]
+	if {![info exists funcar($m,$procName)]} {
+	    set argl {}
+	    foreach l $dasm {
+		set l [string trim $l]
+		if {[regexp {slot \d+, .*arg, \"} $l]} {
+		    lappend argl [LLVMInt32Type]
+		}
 	    }
+	    set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
+	    set func [LLVMAddFunction $m $procName $ft]
+	    set funcar($m,$procName) $func
 	}
-	set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
-	set func [LLVMAddFunction $m $procName $ft]
+	if {$functionDeclarationOnly} {
+	    return $funcar($m,$procName)
+	}
+	set func $funcar($m,$procName)
 	# Create basic blocks
 	set block(0) [LLVMAppendBasicBlock $func "block0"]
 	set next_is_ipath -1
@@ -61,7 +69,12 @@ namespace eval llvmtcl {
 	}
 	LLVMPositionBuilderAtEnd $bld $block(0)
 	set curr_block $block(0)
-	# Load arguments into llvm stack, allocate space for slots
+	# Create stack and stack pointer
+	set at [LLVMArrayType [LLVMInt32Type] 100]
+	set ts [LLVMBuildArrayAlloca $bld $at [LLVMConstInt [LLVMInt32Type] 1 0] ""]
+	set tsp [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
+	LLVMBuildStore $bld [LLVMConstInt [LLVMInt32Type] 0 0] $tsp
+	# Load arguments into llvm, allocate space for slots
 	set n 0
 	foreach l $dasm {
 	    set l [string trim $l]
@@ -98,9 +111,8 @@ namespace eval llvmtcl {
 	set LLVMBuilderICmp(le) LLVMIntSLE
 	set LLVMBuilderICmp(ge) LLVMIntGE
 
-	set tcl_stack {}
-
 	foreach l $dasm {
+	    puts $l
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
@@ -123,7 +135,7 @@ namespace eval llvmtcl {
 	    } elseif {[info exists LLVMBuilderICmp($opcode)]} {
 		set top0 [pop $bld]
 		set top1 [pop $bld]
-		push $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""]
+		push $bld [LLVMBuildIntCast $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""] [LLVMInt32Type] ""]
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
@@ -192,7 +204,7 @@ namespace eval llvmtcl {
 			    lappend objv [pop $bld]
 			}
 			set objv [lreverse $objv]
-			set f $funcar($m,[popv $bld])
+			set f $funcar($m,[pop $bld])
 			push $bld [LLVMBuildCall $bld $f $objv ""]
 		    }
 		    "pop" {
@@ -224,52 +236,35 @@ namespace eval llvmtcl {
 	}
 	# Cleanup and return
 	LLVMDisposeBuilder $bld
-	set funcar($m,$procName) $func
 	return $func
     }
 
     proc push {bld var_1 {val 0}} {
-	variable tcl_stack
-	puts "push $var_1 $val"
-	set var_2 [LLVMBuildAlloca $bld [LLVMTypeOf $var_1] ""]
-	set var_3 [LLVMBuildStore $bld $var_1 $var_2]
-	lappend tcl_stack [list $var_2 $val]
+	variable ts
+	variable tsp
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	LLVMBuildStore $bld $var_1 $tsl
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] ""]
+	LLVMBuildStore $bld $tspv $tsp
     }
     
     proc pop {bld} {
-	variable tcl_stack
-	if {[llength $tcl_stack] == 0} {
-	    error "Stack empty"
-	}
-	set top [lindex $tcl_stack end 0]
-	set tcl_stack [lrange $tcl_stack 0 end-1]
-	return [LLVMBuildLoad $bld $top ""]
-    }
-    
-    proc popv {bld} {
-	variable tcl_stack
-	if {[llength $tcl_stack] == 0} {
-	    error "Stack empty"
-	}
-	set top [lindex $tcl_stack end 1]
-	set tcl_stack [lrange $tcl_stack 0 end-1]
-	return $top
+	variable ts
+	variable tsp
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
+	LLVMBuildStore $bld $tspv $tsp
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	return [LLVMBuildLoad $bld $tsl ""]
     }
     
     proc top {bld {offset 0}} {
-	variable tcl_stack
-	if {[llength $tcl_stack] == 0} {
-	    error "Stack empty"
-	}
-	set top [lindex $tcl_stack end-$offset 0]
-	return [LLVMBuildLoad $bld $top ""]
-    }
-    
-    proc topv {bld {offset 0}} {
-	variable tcl_stack
-	if {[llength $tcl_stack] == 0} {
-	    error "Stack empty"
-	}
-	return [lindex $tcl_stack end-$offset 1]
+	variable ts
+	variable tsp
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	return [LLVMBuildLoad $bld $tsl ""]
     }
 }

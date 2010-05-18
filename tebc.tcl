@@ -32,6 +32,8 @@ proc test5 {a b c d e} {
     return [expr {12+[test4 $a $b $c $d $e]+34}]
 }
 
+proc fact n {expr {$n<2? 1: $n * [fact [incr n -1]]}}
+
 # Initialize the JIT
 LLVMLinkInJIT
 LLVMInitializeNativeTarget
@@ -40,14 +42,17 @@ LLVMInitializeNativeTarget
 set m [LLVMModuleCreateWithName "atest"]
 
 # Convert Tcl to LLVM
-foreach nm {test test2 test3 test4 test5} {
+foreach nm {test2 test test3 test4 test5} { ;# test2 test test3 test4 test5 fact
+    set func($nm) [Tcl2LLVM $m $nm 1]
+}
+foreach nm {test2 test test3 test4 test5} { ;# test2 test test3 test4 test5 fact
     set func($nm) [Tcl2LLVM $m $nm]
 }
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMDumpModule $m]
 
-puts "----- Optimized ----------------------------------------------"
+# puts "----- Optimized ----------------------------------------------"
 foreach {nm f} [array get func] {
     LLVMOptimizeFunction $m $f 3
 }
@@ -67,8 +72,18 @@ lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 puts "OK? Tcl        LLVM       Function"
 puts "--- ---------- ---------- ------------------------------------"
 foreach {nm f} [array get func] {
-    set res [LLVMRunFunction $EE $f $llvmArgs]
-    set tr [$nm {*}$tclArgs]
+    switch -glob -- $nm {
+	"test*" {
+	    set la $llvmArgs
+	    set ta $tclArgs
+	}
+	"fact" {
+	    set la [lindex $llvmArgs 0]
+	    set ta [lindex $tclArgs 0]
+	}
+    }
+    set res [LLVMRunFunction $EE $f $la]
+    set tr [$nm {*}$ta]
     set lr [expr {int([LLVMGenericValueToInt $res 0])}]
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
 }

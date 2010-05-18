@@ -34,10 +34,7 @@ proc test5 {a b c d e} {
 
 proc tcl2llvm {m nm funcarnm} {
     upvar $funcarnm funcar
-    puts "--------------------------------------------------------------"
     set dasm [split [tcl::unsupported::disassemble proc $nm] \n]
-    puts "----- Tcl Disassemble ----------------------------------------"
-    puts [join $dasm \n]
 
     set bld [LLVMCreateBuilder]
 
@@ -54,7 +51,6 @@ proc tcl2llvm {m nm funcarnm} {
     set func [LLVMAddFunction $m $nm $ft]
 
     # Create basic blocks
-    puts "----- Creating basic blocks ----------------------------------"
     set block(0) [LLVMAppendBasicBlock $func "block0"]
     set next_is_ipath -1
     foreach l $dasm {
@@ -63,7 +59,6 @@ proc tcl2llvm {m nm funcarnm} {
 	set opcode [lindex $l 1]
 	if {$next_is_ipath >= 0} {
 	    regexp {\((\d+)\) } $l -> pc
-	    puts "Basic block as increment path: $next_is_ipath->$pc"
 	    if {![info exists block($pc)]} {
 		set block($pc) [LLVMAppendBasicBlock $func "block$pc"]
 	    }
@@ -74,7 +69,6 @@ proc tcl2llvm {m nm funcarnm} {
 	    # (pc) opcode offset
 	    regexp {\((\d+)\) (jump\S*1|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
 	    set tgt [expr {$pc + $offset}]
-	    puts "Basic block as target: ???->$tgt"
 	    if {![info exists block($tgt)]} {
 		set block($tgt) [LLVMAppendBasicBlock $func "block$tgt"]
 	    }
@@ -85,12 +79,10 @@ proc tcl2llvm {m nm funcarnm} {
     set curr_block $block(0)
 
     # Load arguments into llvm stack, allocate space for slots
-    puts "----- Putting arguments on stack -----------------------------"
     set n 0
     foreach l $dasm {
 	set l [string trim $l]
 	if {[regexp {slot \d+, .*arg, \"} $l]} {
-	    puts $l
 	    set arg_1 [LLVMGetParam $func $n]
 	    set arg_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
 	    set arg_3 [LLVMBuildStore $bld $arg_1 $arg_2]
@@ -103,7 +95,6 @@ proc tcl2llvm {m nm funcarnm} {
     }
 
     # Convert Tcl parse output
-    puts "----- Converting Tcl Disassemble -----------------------------"
     set LLVMBuilder2(bitor) LLVMBuildXor
     set LLVMBuilder2(bitxor) LLVMBuildOr
     set LLVMBuilder2(bitand) LLVMBuildAnd
@@ -128,10 +119,8 @@ proc tcl2llvm {m nm funcarnm} {
     foreach l $dasm {
 	set l [string trim $l]
 	if {![string match "(*" $l]} { continue }
-	puts $l
 	regexp {\((\d+)\) (\S+)} $l -> pc opcode
 	if {[info exists block($pc)]} {
-	    puts "Position builder at end of $pc"
 	    LLVMPositionBuilderAtEnd $bld $block($pc)
 	    set curr_block $block($pc)
 	}
@@ -251,8 +240,6 @@ proc tcl2llvm {m nm funcarnm} {
 	}
     }
 
-    puts "--------------------------------------------------------------"
-
     return $func
 }
 
@@ -315,12 +302,11 @@ foreach nm {test test2 test3 test4 test5} {
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMModuleDump $m]
-
 puts "----- Optimized ----------------------------------------------"
 LLVMOptimizeModule $m
 puts [LLVMModuleDump $m]
+puts "--------------------------------------------------------------"
 
-puts "----- Test ---------------------------------------------------"
 set tclArgs {5 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {
@@ -329,10 +315,12 @@ foreach v $tclArgs {
 
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 
+puts "OK? Tcl        LLVM       Function"
+puts "--- ---------- ---------- ------------------------------------"
 foreach {nm f} [array get func] {
     set res [LLVMRunFunction_Tcl $EE $f $llvmArgs]
     set tr [$nm {*}$tclArgs]
     set lr [expr {int([LLVMGenericValueToInt $res 0])}]
-    puts "[expr {$tr==$lr?"OK ":"ERR"}] $nm = $tr = $lr\n"
+    puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
 }
 

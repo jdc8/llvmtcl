@@ -42,7 +42,7 @@ LLVMBuildRet $bld $add4
 
 # Show input
 puts "----- Input --------------------------------------------------"
-puts [LLVMModuleDump $m]
+puts [LLVMDumpModule $m]
 
 # Write function as bit code
 LLVMWriteBitcodeToFile $m plus10.bc
@@ -53,16 +53,13 @@ LLVMWriteBitcodeToFile $m plus10.bc
 # Execute
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
-set res [LLVMRunFunction_Tcl $EE $plus10 $i]
+set res [LLVMRunFunction $EE $plus10 $i]
 puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"
-
-LLVMOptimizeModule $m
-LLVMOptimizeModule $m
-LLVMOptimizeModule $m
-LLVMOptimizeModule $m
+LLVMOptimizeFunction $m $plus10 3
+LLVMOptimizeModule $m 3 0 1 1 1 0
 puts "----- Optimized ----------------------------------------------"
-puts [LLVMModuleDump $m]
+puts [LLVMDumpModule $m]
 LLVMWriteBitcodeToFile $m plus10-optimized.bc
 
-set res [LLVMRunFunction_Tcl $EE $plus10 $i]
+set res [LLVMRunFunction $EE $plus10 $i]
 puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"

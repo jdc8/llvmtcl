@@ -1,10 +1,12 @@
-TCLDIR = /home/decoster/tcltk
+TCLDIR = ~/tcltk
+
 TCLINCDIR = $(TCLDIR)/include
 TCLLIBDIR = $(TCLDIR)/lib
 TCLLIB = $(TCLLIBDIR)/libtcl8.6.so
 TCLSH = $(TCLDIR)/bin/tclsh8.6
 
-LLVMDIR = /home/decoster/llvm
+LLVMDIR = ~/llvm
+
 LLVMCFLAGS = `$(LLVMDIR)/bin/llvm-config --cflags`
 LLVMLFLAGS = `$(LLVMDIR)/bin/llvm-config --ldflags`
 LLVMLIBS = `$(LLVMDIR)/bin/llvm-config --libs`
@@ -30,6 +32,9 @@ distclean: clean
 
 test: llvmtcl.so
 	$(TCLSH) test.tcl
+
+test2: llvmtcl.so
+	$(TCLSH) test2.tcl
 
 tebc: llvmtcl.so
 	$(TCLSH) tebc.tcl

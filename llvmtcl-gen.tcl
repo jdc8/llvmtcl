@@ -1,12 +1,12 @@
 proc gen_api_call {cf of l} {
     lassign [split $l (] rtnm fargs
-	     set rtnm [string trim $rtnm]
-	     set fargs [string trim $fargs]
-	     set rt [join [lrange [split $rtnm] 0 end-1] " "]
-	     set nm [lindex [split $rtnm] end]
-	     set fargs [string range $fargs 0 [expr {[string first ")" $fargs]-1}]]
 	     # \
 		 )
+    set rtnm [string trim $rtnm]
+    set fargs [string trim $fargs]
+    set rt [join [lrange [split $rtnm] 0 end-1] " "]
+    set nm [lindex [split $rtnm] end]
+    set fargs [string range $fargs 0 [expr {[string first ")" $fargs]-1}]]
     puts $cf "int ${nm}ObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv\[\]) \{"
     set fargsl {}
     if {[string trim $fargs] ne "void"} {

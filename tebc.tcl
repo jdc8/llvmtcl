@@ -40,19 +40,25 @@ LLVMInitializeNativeTarget
 
 # Create a module and builder
 set m [LLVMModuleCreateWithName "atest"]
+puts [LLVMGetDataLayout $m]
+LLVMSetDataLayout $m "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64"
+LLVMTclAddFunctionTable $m
 
 # Convert Tcl to LLVM
-foreach nm {test2 test test3 test4 test5} { ;# test2 test test3 test4 test5 fact
+set fl {test2 test test3 test4 test5} ;# test2 test test3 test4 test5 fact
+foreach nm $fl {
     set func($nm) [Tcl2LLVM $m $nm 1]
 }
-foreach nm {test2 test test3 test4 test5} { ;# test2 test test3 test4 test5 fact
+foreach nm $fl {
     set func($nm) [Tcl2LLVM $m $nm]
 }
+
+set func(init) [LLVMTclInitFunctionTable $m]
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMDumpModule $m]
 
-# puts "----- Optimized ----------------------------------------------"
+puts "----- Optimized ----------------------------------------------"
 foreach {nm f} [array get func] {
     LLVMOptimizeFunction $m $f 3
 }
@@ -69,9 +75,11 @@ foreach v $tclArgs {
 
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 
+LLVMRunFunction $EE $func(init) {}
+
 puts "OK? Tcl        LLVM       Function"
 puts "--- ---------- ---------- ------------------------------------"
-foreach {nm f} [array get func] {
+foreach nm $fl {
     switch -glob -- $nm {
 	"test*" {
 	    set la $llvmArgs
@@ -82,7 +90,7 @@ foreach {nm f} [array get func] {
 	    set ta [lindex $tclArgs 0]
 	}
     }
-    set res [LLVMRunFunction $EE $f $la]
+    set res [LLVMRunFunction $EE $func($nm) $la]
     set tr [$nm {*}$ta]
     set lr [expr {int([LLVMGenericValueToInt $res 0])}]
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"

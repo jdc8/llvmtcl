@@ -1,6 +1,8 @@
 namespace eval llvmtcl {
     namespace export *
 
+    variable funcid -1
+
     proc LLVMOptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions} {
 	set pm [LLVMCreatePassManager]
 	LLVMCreateStandardModulePasses $pm $optimizeLevel $optimizeSize $unitAtATime $unrollLoops $simplifyLibCalls $haveExceptions
@@ -17,10 +19,56 @@ namespace eval llvmtcl {
 	LLVMDisposePassManager $fpm
     }
 
+    proc LLVMTclAddFunctionTable {m} {
+	variable funcid
+	variable funcar
+	variable funcidar
+	set t [LLVMPointerType [LLVMInt8Type] 0]
+	set at [LLVMArrayType $t 100]
+	set ft [LLVMAddGlobal $m $at "__tclftable"]
+	set v [LLVMConstIntToPtr [LLVMConstInt [LLVMInt32Type] 0 0] $t]
+	set va [LLVMConstArray $t [lrepeat 100 $v]]
+	LLVMSetInitializer $ft $va
+	set bld [LLVMCreateBuilder]
+	set fpt [LLVMPointerType [LLVMInt8Type] 0]
+	set func [LLVMAddFunction $m "__get_functionpointer" [LLVMFunctionType $fpt [list [LLVMInt32Type]] 0]]
+	set block [LLVMAppendBasicBlock $func ""]
+	LLVMPositionBuilderAtEnd $bld $block
+	set ft [LLVMGetNamedGlobal $m "__tclftable"]
+	set tsl [LLVMBuildGEP $bld $ft [list [LLVMConstInt [LLVMInt32Type] 0 0] [LLVMGetParam $func 0]] ""]
+	LLVMBuildRet $bld [LLVMBuildLoad $bld $tsl ""]
+	LLVMDisposeBuilder $bld
+	set funcar($m,__get_functionpointer) $func
+	set funcidar($m,__get_functionpointer) [incr funcid]
+	return $func
+    }
+
+    proc LLVMTclInitFunctionTable {m} {
+	variable funcid
+	variable funcar
+	variable funcidar
+	set bld [LLVMCreateBuilder]
+	set func [LLVMAddFunction $m "__init_tcltable" [LLVMFunctionType [LLVMVoidType] {} 0]]
+	set funcar($m,__init_tcltable) $func
+	set funcidar($m,__init_tcltable) [incr funcid]
+	set block [LLVMAppendBasicBlock $func ""]
+	LLVMPositionBuilderAtEnd $bld $block
+	set ft [LLVMGetNamedGlobal $m "__tclftable"]
+	foreach {k v} [array get funcidar "$m,*"] {
+	    set tsl [LLVMBuildGEP $bld $ft [list [LLVMConstInt [LLVMInt32Type] 0 0] [LLVMConstInt [LLVMInt32Type] $v 0]] ""]
+	    LLVMBuildStore $bld [LLVMBuildPointerCast $bld $funcar($k) [LLVMPointerType [LLVMInt8Type] 0] ""] $tsl
+	}
+	LLVMBuildRetVoid $bld
+	LLVMDisposeBuilder $bld
+	return $func
+    }
+
     proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
 	variable ts
 	variable tsp
 	variable funcar
+	variable funcidar
+	variable funcid
 	# Disassemble the proc
 	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
@@ -37,6 +85,7 @@ namespace eval llvmtcl {
 	    set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
 	    set func [LLVMAddFunction $m $procName $ft]
 	    set funcar($m,$procName) $func
+	    set funcidar($m,$procName) [incr funcid]
 	}
 	if {$functionDeclarationOnly} {
 	    return $funcar($m,$procName)
@@ -167,7 +216,12 @@ namespace eval llvmtcl {
 		    "push1" {
 			set val [lindex $l 4]
 			if {![string is integer -strict $val]} {
-			    set val 0
+			    if {[info exists funcidar($m,$val)]} {
+				set val $funcidar($m,$val)
+				puts "push function [lindex $l 4] as $val"
+			    } else {
+				set val 0
+			    }
 			}
 			push $bld [LLVMConstInt [LLVMInt32Type] $val 0] [lindex $l 4]
 		    }
@@ -200,12 +254,20 @@ namespace eval llvmtcl {
 		    "invokeStk1" {
 			set objc [lindex $l 2]
 			set objv {}
+			set argl {}
 			for {set i 0} {$i < ($objc-1)} {incr i} {
 			    lappend objv [pop $bld]
+			    lappend argl [LLVMInt32Type]
 			}
 			set objv [lreverse $objv]
-			set f $funcar($m,[pop $bld])
-			push $bld [LLVMBuildCall $bld $f $objv ""]
+			set f [pop $bld] ;# id of function to be called
+			# Lookup f in array of function pointer (as void*)
+			set vfptr [LLVMBuildCall $bld $funcar($m,__get_functionpointer) $f ""]
+			# convert the type and call
+			set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
+			set fptr [LLVMBuildPointerCast $bld $vfptr [LLVMPointerType $ft 0] ""]
+			# call the function
+			push $bld [LLVMBuildCall $bld $fptr $objv ""]
 		    }
 		    "pop" {
 			pop $bld

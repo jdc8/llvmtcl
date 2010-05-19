@@ -43,6 +43,10 @@ proc facti n {
     return $rt
 }
 
+proc fact10 { } {
+    return [fact 10]
+}
+
 # Initialize the JIT
 LLVMLinkInJIT
 LLVMInitializeNativeTarget
@@ -54,7 +58,7 @@ LLVMSetDataLayout $m "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f
 LLVMTclAddFunctionTable $m
 
 # Convert Tcl to LLVM
-set fl {test2 test test3 test4 test5 fact facti} ;# test2 test test3 test4 test5 fact
+set fl {test2 test test3 test4 test5 fact facti fact10} ;# test2 test test3 test4 test5 fact
 foreach nm $fl {
     set func($nm) [Tcl2LLVM $m $nm 1]
 }
@@ -63,6 +67,16 @@ foreach nm $fl {
 }
 
 set func(init) [LLVMTclInitFunctionTable $m]
+
+
+set ft [LLVMFunctionType [LLVMInt32Type] {} 0]
+set w [LLVMAddFunction $m "wrapper" $ft]
+set block [LLVMAppendBasicBlock $w ""]
+set bld [LLVMCreateBuilder]
+LLVMPositionBuilderAtEnd $bld $block
+set rt [LLVMBuildCall $bld $func(fact10) {} ""]
+LLVMBuildRet $bld $rt
+
 
 puts "----- Input --------------------------------------------------"
 puts [LLVMDumpModule $m]
@@ -94,6 +108,10 @@ foreach nm $fl {
 	    set la $llvmArgs
 	    set ta $tclArgs
 	}
+	"fact10" {
+	    set la {}
+	    set ta {}
+	}
 	"fact*" {
 	    set la [lindex $llvmArgs 0]
 	    set ta [lindex $tclArgs 0]
@@ -105,3 +123,15 @@ foreach nm $fl {
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
 }
 
+set res [LLVMRunFunction $EE $w {}]
+set lr [expr {int([LLVMGenericValueToInt $res 0])}]
+set tr [fact 10]
+puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] wrapper"
+
+while 1 {
+    puts tcl1\ :[time {fact 10} 10000]
+    puts tcl2\ :[time {fact10} 10000]
+    puts llvm1:[time {LLVMRunFunction $EE $func(fact10) {}} 10000]
+    puts llvm2:[time {LLVMRunFunction $EE $w {}} 10000]
+    puts ""
+}

@@ -34,6 +34,15 @@ proc test5 {a b c d e} {
 
 proc fact n {expr {$n<2? 1: $n * [fact [incr n -1]]}}
 
+proc facti n {
+    set rt 1
+    while {$n > 1} {
+	set rt [expr {$rt*$n}]
+	incr n -1
+    }
+    return $rt
+}
+
 # Initialize the JIT
 LLVMLinkInJIT
 LLVMInitializeNativeTarget
@@ -45,7 +54,7 @@ LLVMSetDataLayout $m "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f
 LLVMTclAddFunctionTable $m
 
 # Convert Tcl to LLVM
-set fl {test2 test test3 test4 test5} ;# test2 test test3 test4 test5 fact
+set fl {test2 test test3 test4 test5 fact facti} ;# test2 test test3 test4 test5 fact
 foreach nm $fl {
     set func($nm) [Tcl2LLVM $m $nm 1]
 }
@@ -85,7 +94,7 @@ foreach nm $fl {
 	    set la $llvmArgs
 	    set ta $tclArgs
 	}
-	"fact" {
+	"fact*" {
 	    set la [lindex $llvmArgs 0]
 	    set ta [lindex $tclArgs 0]
 	}

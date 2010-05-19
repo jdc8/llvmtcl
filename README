@@ -1,0 +1,49 @@
+'llvmtcl' is a Tcl extension making the LLVM C API available from Tcl.
+
+Requirements:
+
+- tcl 8.5
+- llvm 2.7
+
+Supported platfroms:
+
+- Linux
+
+Building llvmtcl: 
+
+- Adjust the following settings in the Makefile:
+
+  TCLDIR = Directory in which Tcl was installed
+  TCLLIB = Path of Tcl library to be linked against
+  TCLSH = Path to Tcl shell
+
+  LLVMDIR = Directory in which LLVM was installed
+
+  CFLAGS = Optional compiler flags
+
+- Run make to generate the extension
+
+  % make
+
+- Add the LLVM lib directory containing the LLVM shared object files to the
+  LD_LIBRARY_PATH environment variable
+
+Using llvmtcl:
+
+- to load the extension into a Tcl interpreter:
+
+  package require llvmtcl
+
+- all commands are added to the llvmtcl namespace and can be imported:
+
+  namespace import llvmtcl::*
+
+- llvmtcl command names and arguments are taken from the C API as found in the
+  llvm include file llvm-c/Core.h. Commands taking a pointer and a number of
+  elements as arguments have been converter taking a Tcl list as argument.
+
+Examples:
+
+- test.tcl
+- test2.tcl
+- tebc.tcl

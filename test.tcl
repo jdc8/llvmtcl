@@ -74,7 +74,9 @@ puts "res=$res=[LLVMGenericValueToInt $res 0]"
 
 puts [time {LLVMRunFunction $EE $fac10 {}} 100]
 
-LLVMOptimizeModule $m 3 0 1 1 1 0
+set td [LLVMCreateTargetData ""]
+LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
+LLVMOptimizeModule $m 3 0 1 1 1 0  $td
 
 #puts "Optimized"
 #puts [LLVMModuleDump $m]

@@ -55,8 +55,10 @@ lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
 set res [LLVMRunFunction $EE $plus10 $i]
 puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"
-LLVMOptimizeFunction $m $plus10 3
-LLVMOptimizeModule $m 3 0 1 1 1 0
+set td [LLVMCreateTargetData ""]
+LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
+LLVMOptimizeFunction $m $plus10 3 $td
+LLVMOptimizeModule $m 3 0 1 1 1 0 $td
 puts "----- Optimized ----------------------------------------------"
 puts [LLVMDumpModule $m]
 LLVMWriteBitcodeToFile $m plus10-optimized.bc

@@ -115,6 +115,7 @@ proc gen_api_call {cf of l} {
 		    "LLVMContextRef" -
 		    "LLVMGenericValueRef" -
 		    "LLVMValueRef" -
+		    "LLVMTargetDataRef" -
 		    "LLVMBasicBlockRef" -
 		    "LLVMTypeHandleRef" -
 		    "LLVMTypeRef" -
@@ -204,6 +205,7 @@ proc gen_api_call {cf of l} {
 	"LLVMBuilderRef" -
 	"LLVMBasicBlockRef" -
 	"LLVMValueRef" -
+	"LLVMTargetDataRef" -
 	"LLVMContextRef" -
 	"LLVMTypeKind" -
 	"LLVMVisibility" -
@@ -278,6 +280,7 @@ proc gen_api_call {cf of l} {
 		"LLVMContextRef" -
 		"LLVMBasicBlockRef" -
 		"LLVMValueRef" -
+		"LLVMTargetDataRef" -
 		"LLVMTypeKind" -
 		"LLVMVisibility" -
 		"LLVMCallConv" -
@@ -325,6 +328,7 @@ proc gen_api_call {cf of l} {
 	    "LLVMContextRef" -
 	    "LLVMBasicBlockRef" -
 	    "LLVMValueRef" -
+	    "LLVMTargetDataRef" -
 	    "LLVMTypeKind" -
 	    "LLVMVisibility" -
 	    "LLVMCallConv" -

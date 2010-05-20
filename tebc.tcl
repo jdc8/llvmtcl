@@ -57,8 +57,8 @@ LLVMInitializeNativeTarget
 
 # Create a module and builder
 set m [LLVMModuleCreateWithName "atest"]
-LLVMSetDataLayout $m  "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64"
-LLVMSetTarget $m "i386-pc-linux-gnu"
+set td [LLVMCreateTargetData ""]
+LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
 
 # Convert Tcl to LLVM
 foreach nm $procs {
@@ -87,15 +87,17 @@ puts $f [LLVMDumpModule $m]
 close $f
 
 puts "----- Verify -------------------------------------------------"
-LLVMVerifyModule $m LLVMPrintMessageAction
-
+lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+if {$rt} {
+    error $msg
+}
 
 if {$optimize} {
     puts "----- Optimized ----------------------------------------------"
     foreach {nm f} [array get func] {
-	LLVMOptimizeFunction $m $f 3
+	LLVMOptimizeFunction $m $f 3 $td
     }
-    LLVMOptimizeModule $m 3 0 1 1 1 0
+    LLVMOptimizeModule $m 3 0 1 1 1 0 $td
     puts [LLVMDumpModule $m]
 }
 

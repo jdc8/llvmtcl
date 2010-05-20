@@ -9,6 +9,7 @@ typedef LLVMUseRef
 typedef LLVMExecutionEngineRef
 typedef LLVMGenericValueRef
 typedef LLVMPassManagerRef
+typedef LLVMTargetDataRef
 
 enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMOpaqueTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind, LLVMUnionTypeKind} LLVMTypeKind;
 enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment} LLVMAttribute;
@@ -451,3 +452,7 @@ LLVMBool LLVMVerifyFunction(LLVMValueRef Fn, LLVMVerifierFailureAction Action);
 
 void LLVMViewFunctionCFG(LLVMValueRef Fn);
 void LLVMViewFunctionCFGOnly(LLVMValueRef Fn);
+
+LLVMTargetDataRef LLVMCreateTargetData(const char *StringRep);
+void LLVMAddTargetData(LLVMTargetDataRef, LLVMPassManagerRef);
+std::string LLVMCopyStringRepOfTargetData(LLVMTargetDataRef);

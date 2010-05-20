@@ -1,15 +1,17 @@
 namespace eval llvmtcl {
     namespace export *
 
-    proc LLVMOptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions} {
+    proc LLVMOptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions targetDataRef} {
 	set pm [LLVMCreatePassManager]
+	LLVMAddTargetData $targetDataRef $pm
 	LLVMCreateStandardModulePasses $pm $optimizeLevel $optimizeSize $unitAtATime $unrollLoops $simplifyLibCalls $haveExceptions
 	LLVMRunPassManager $pm $m
 	LLVMDisposePassManager $pm
     }
 
-    proc LLVMOptimizeFunction {m f optimizeLevel} {
+    proc LLVMOptimizeFunction {m f optimizeLevel targetDataRef} {
 	set fpm [LLVMCreateFunctionPassManagerForModule $m]
+	LLVMAddTargetData $targetDataRef $fpm
 	LLVMCreateStandardFunctionPasses $fpm $optimizeLevel
 	LLVMInitializeFunctionPassManager $fpm
 	LLVMRunFunctionPassManager $fpm $f

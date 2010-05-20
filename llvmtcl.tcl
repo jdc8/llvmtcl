@@ -113,6 +113,7 @@ namespace eval llvmtcl {
 	set LLVMBuilderICmp(le) LLVMIntSLE
 	set LLVMBuilderICmp(ge) LLVMIntGE
 
+	set done_done 0
 	foreach l $dasm {
 	    #puts $l
 	    set l [string trim $l]
@@ -121,6 +122,7 @@ namespace eval llvmtcl {
 	    if {[info exists block($pc)]} {
 		LLVMPositionBuilderAtEnd $bld $block($pc)
 		set curr_block $block($pc)
+		set done_done 0
 	    }
 	    set ends_with_jump($curr_block) 0
 	    unset -nocomplain tgt
@@ -129,20 +131,20 @@ namespace eval llvmtcl {
 		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
-		push $bld [$LLVMBuilder1($opcode) $bld [pop $bld [LLVMInt32Type]] "$opcode"]
+		push $bld [$LLVMBuilder1($opcode) $bld [pop $bld [LLVMInt32Type]] ""]
 	    } elseif {[info exists LLVMBuilder2($opcode)]} {
 		set top0 [pop $bld [LLVMInt32Type]]
 		set top1 [pop $bld [LLVMInt32Type]]
-		push $bld [$LLVMBuilder2($opcode) $bld $top1 $top0 "$opcode"]
+		push $bld [$LLVMBuilder2($opcode) $bld $top1 $top0 ""]
 	    } elseif {[info exists LLVMBuilderICmp($opcode)]} {
 		set top0 [pop $bld [LLVMInt32Type]]
 		set top1 [pop $bld [LLVMInt32Type]]
-		push $bld [LLVMBuildIntCast $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 "$opcode"] [LLVMInt32Type] "$opcode"]
+		push $bld [LLVMBuildIntCast $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""] [LLVMInt32Type] ""]
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			push $bld [LLVMBuildLoad $bld $var "$opcode"]
+			push $bld [LLVMBuildLoad $bld $var ""]
 		    }
 		    "storeScalar1" {
 			set var_1 [top $bld [LLVMInt32Type]]
@@ -150,19 +152,19 @@ namespace eval llvmtcl {
 			if {[info exists vars($idx)]} {
 			    set var_2 $vars($idx)
 			} else {
-			    set var_2 [LLVMBuildAlloca $bld [LLVMInt32Type] "$opcode"]
+			    set var_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
 			}
 			set var_3 [LLVMBuildStore $bld $var_1 $var_2]
 			set vars($idx) $var_2
 		    }
 		    "incrScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			LLVMBuildStore $bld [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var "$opcode"] [top $bld [LLVMInt32Type]] "$opcode"] $var
+			LLVMBuildStore $bld [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [top $bld [LLVMInt32Type]] ""] $var
 		    }
 		    "incrScalar1Imm" {
 			set var $vars([string range [lindex $l 2] 2 end])
 			set i [lindex $l 3]
-			set s [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var "$opcode"] [LLVMConstInt [LLVMInt32Type] $i 0] "$opcode"]
+			set s [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [LLVMConstInt [LLVMInt32Type] $i 0] ""]
 			push $bld $s
 			LLVMBuildStore $bld $s $var
 		    }
@@ -182,7 +184,7 @@ namespace eval llvmtcl {
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
 			    set cond $top
 			} else {
-			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] "$opcode"]
+			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
 			}
 			LLVMBuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
 			set ends_with_jump($curr_block) 1
@@ -192,7 +194,7 @@ namespace eval llvmtcl {
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
 			    set cond $top
 			} else {
-			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] "$opcode"]
+			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
 			}
 			LLVMBuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
 			set ends_with_jump($curr_block) 1
@@ -214,14 +216,17 @@ namespace eval llvmtcl {
 			set objv [lreverse $objv]
 			set ft [LLVMPointerType [LLVMFunctionType [LLVMInt32Type] $argl 0] 0]
 			set fptr [pop $bld $ft]
-			push $bld [LLVMBuildCall $bld $fptr $objv "$opcode"]
+			push $bld [LLVMBuildCall $bld $fptr $objv ""]
 		    }
 		    "pop" {
 			pop $bld [LLVMInt32Type]
 		    }
 		    "done" {
-			LLVMBuildRet $bld [top $bld [LLVMInt32Type]]
-			set ends_with_jump($curr_block) 1
+			if {!$done_done} {
+			    LLVMBuildRet $bld [top $bld [LLVMInt32Type]]
+			    set ends_with_jump($curr_block) 1
+			    set done_done 1
+			}
 		    }
 		    default {
 			error "unknown bytecode '$opcode' in '$l'"
@@ -254,14 +259,14 @@ namespace eval llvmtcl {
 	variable tsp
 	# Allocate space for value
 	set valt [LLVMTypeOf $val]
-	set valp [LLVMBuildAlloca $bld $valt "push"]
+	set valp [LLVMBuildAlloca $bld $valt ""]
 	LLVMBuildStore $bld $val $valp
 	# Store location on stack
-	set tspv [LLVMBuildLoad $bld $tsp "push"]
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "push"]
-	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp "push"] $tsl
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp ""] $tsl
 	# Update stack pointer
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] "push"]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] ""]
 	LLVMBuildStore $bld $tspv $tsp
     }
     
@@ -269,14 +274,14 @@ namespace eval llvmtcl {
 	variable ts
 	variable tsp
 	# Get location from stack and decrement the stack pointer
-	set tspv [LLVMBuildLoad $bld $tsp "pop"]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "pop"]
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
 	LLVMBuildStore $bld $tspv $tsp
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "pop"]
-	set valp [LLVMBuildLoad $bld $tsl "pop"]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	set valp [LLVMBuildLoad $bld $tsl ""]
 	# Load value
-	set pc [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "pop"]
-	set rt [LLVMBuildLoad $bld $pc "pop"]
+	set pc [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] ""]
+	set rt [LLVMBuildLoad $bld $pc ""]
 	return $rt
     }
     
@@ -284,11 +289,11 @@ namespace eval llvmtcl {
 	variable ts
 	variable tsp
 	# Get location from stack
-	set tspv [LLVMBuildLoad $bld $tsp "top"]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "top"]
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "top"]
-	set valp [LLVMBuildLoad $bld $tsl "top"]
+	set tspv [LLVMBuildLoad $bld $tsp ""]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	set valp [LLVMBuildLoad $bld $tsl ""]
 	# Load value
-	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "top"] "top"]
+	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] ""] ""]
     }
 }

@@ -86,6 +86,10 @@ set f [open tebc.ll w]
 puts $f [LLVMDumpModule $m]
 close $f
 
+puts "----- Verify -------------------------------------------------"
+LLVMVerifyModule $m LLVMPrintMessageAction
+
+
 if {$optimize} {
     puts "----- Optimized ----------------------------------------------"
     foreach {nm f} [array get func] {

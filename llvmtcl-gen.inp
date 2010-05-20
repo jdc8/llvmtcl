@@ -18,6 +18,7 @@ enum {LLVMRealPredicateFalse,LLVMRealOEQ,LLVMRealOGT,LLVMRealOGE,LLVMRealOLT,LLV
 enum {LLVMExternalLinkage, LLVMAvailableExternallyLinkage, LLVMLinkOnceAnyLinkage, LLVMLinkOnceODRLinkage, LLVMWeakAnyLinkage, LLVMWeakODRLinkage, LLVMAppendingLinkage, LLVMInternalLinkage, LLVMPrivateLinkage, LLVMDLLImportLinkage, LLVMDLLExportLinkage, LLVMExternalWeakLinkage, LLVMGhostLinkage, LLVMCommonLinkage, LLVMLinkerPrivateLinkage} LLVMLinkage;
 enum { LLVMDefaultVisibility, LLVMHiddenVisibility, LLVMProtectedVisibility} LLVMVisibility;
 enum { LLVMCCallConv, LLVMFastCallConv, LLVMColdCallConv, LLVMX86StdcallCallConv, LLVMX86FastcallCallConv} LLVMCallConv;
+enum { LLVMAbortProcessAction, LLVMPrintMessageAction, LLVMReturnStatusAction } LLVMVerifierFailureAction;
 
 LLVMBool LLVMInitializeNativeTarget();
 void LLVMLinkInJIT(void);
@@ -444,3 +445,9 @@ void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);
 
 std::string LLVMGetTarget(LLVMModuleRef M);
 void LLVMSetTarget(LLVMModuleRef M, const char *Triple);
+
+LLVMBool LLVMVerifyModule(LLVMModuleRef M, LLVMVerifierFailureAction Action, char **OutMessage);
+LLVMBool LLVMVerifyFunction(LLVMValueRef Fn, LLVMVerifierFailureAction Action);
+
+void LLVMViewFunctionCFG(LLVMValueRef Fn);
+void LLVMViewFunctionCFGOnly(LLVMValueRef Fn);

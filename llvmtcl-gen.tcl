@@ -132,6 +132,7 @@ proc gen_api_call {cf of l} {
 		    "LLVMIntPredicate" -
 		    "LLVMRealPredicate" -
 		    "LLVMLinkage" -
+		    "LLVMVerifierFailureAction" -
 		    "LLVMAttribute" {
 			puts $cf "    $fargtype arg$n;"
 			puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
@@ -209,6 +210,7 @@ proc gen_api_call {cf of l} {
 	"LLVMCallConv" -
 	"LLVMOpcode" -
 	"LLVMLinkage" -
+	"LLVMVerifierFailureAction" -
 	"LLVMIntPredicate" -
 	"LLVMRealPredicate" -
 	"LLVMAttribute" -
@@ -281,6 +283,7 @@ proc gen_api_call {cf of l} {
 		"LLVMCallConv" -
 		"LLVMOpcode" -
 		"LLVMLinkage" -
+		"LLVMVerifierFailureAction" -
 		"LLVMIntPredicate" -
 		"LLVMRealPredicate" -
 		"LLVMAttribute" -
@@ -327,6 +330,7 @@ proc gen_api_call {cf of l} {
 	    "LLVMCallConv" -
 	    "LLVMOpcode" -
 	    "LLVMLinkage" -
+	    "LLVMVerifierFailureAction" -
 	    "LLVMIntPredicate" -
 	    "LLVMRealPredicate" -
 	    "LLVMAttribute" -

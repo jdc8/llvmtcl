@@ -64,6 +64,7 @@ namespace eval llvmtcl {
     }
 
     proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
+	variable tstp
 	variable ts
 	variable tsp
 	variable funcar
@@ -119,7 +120,8 @@ namespace eval llvmtcl {
 	LLVMPositionBuilderAtEnd $bld $block(0)
 	set curr_block $block(0)
 	# Create stack and stack pointer
-	set at [LLVMArrayType [LLVMInt32Type] 100]
+	set tstp [LLVMPointerType [LLVMInt8Type] 0]
+	set at [LLVMArrayType [LLVMPointerType [LLVMInt8Type] 0] 100]
 	set ts [LLVMBuildArrayAlloca $bld $at [LLVMConstInt [LLVMInt32Type] 1 0] ""]
 	set tsp [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
 	LLVMBuildStore $bld [LLVMConstInt [LLVMInt32Type] 0 0] $tsp
@@ -223,7 +225,7 @@ namespace eval llvmtcl {
 				set val 0
 			    }
 			}
-			push $bld [LLVMConstInt [LLVMInt32Type] $val 0] [lindex $l 4]
+			push $bld [LLVMConstInt [LLVMInt32Type] $val 0]
 		    }
 		    "jumpTrue1" {
 			set top [pop $bld]
@@ -301,32 +303,52 @@ namespace eval llvmtcl {
 	return $func
     }
 
-    proc push {bld var_1 {val 0}} {
+    proc push {bld val} {
+	variable tstp
 	variable ts
 	variable tsp
+	# Allocate space for value
+	puts 1
+	set valp [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
+	puts 2
+	LLVMBuildStore $bld $val $valp
+	# Store location on stack
+	puts 3
 	set tspv [LLVMBuildLoad $bld $tsp ""]
+	puts 4
 	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	LLVMBuildStore $bld $var_1 $tsl
+	puts 4.5
+	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp ""] $tsl
+	# Update stack pointer
+	puts 5
 	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] ""]
+	puts 6
 	LLVMBuildStore $bld $tspv $tsp
+	puts 7
     }
     
     proc pop {bld} {
 	variable ts
 	variable tsp
+	# Get location from stack and decrement the stack pointer
 	set tspv [LLVMBuildLoad $bld $tsp ""]
 	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
 	LLVMBuildStore $bld $tspv $tsp
 	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	return [LLVMBuildLoad $bld $tsl ""]
+	set valp [LLVMBuildLoad $bld $tsl ""]
+	# Load value
+	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType [LLVMInt32Type] 0] ""] ""]
     }
     
     proc top {bld {offset 0}} {
 	variable ts
 	variable tsp
+	# Get location from stack
 	set tspv [LLVMBuildLoad $bld $tsp ""]
 	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
 	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	return [LLVMBuildLoad $bld $tsl ""]
+	set valp [LLVMBuildLoad $bld $tsl ""]
+	# Load value
+	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType [LLVMInt32Type] 0] ""] ""]
     }
 }

@@ -1,4 +1,4 @@
-TCLDIR = ~/tcltk
+TCLDIR = /home/decoster/tcltk
 
 TCLINCDIR = $(TCLDIR)/include
 TCLLIBDIR = $(TCLDIR)/lib

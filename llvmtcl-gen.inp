@@ -441,3 +441,6 @@ void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM, bool Internalize, bool R
 
 std::string LLVMGetDataLayout(LLVMModuleRef M);
 void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);
+
+std::string LLVMGetTarget(LLVMModuleRef M);
+void LLVMSetTarget(LLVMModuleRef M, const char *Triple);

@@ -1,8 +1,6 @@
 namespace eval llvmtcl {
     namespace export *
 
-    variable funcid -1
-
     proc LLVMOptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions} {
 	set pm [LLVMCreatePassManager]
 	LLVMCreateStandardModulePasses $pm $optimizeLevel $optimizeSize $unitAtATime $unrollLoops $simplifyLibCalls $haveExceptions
@@ -19,57 +17,11 @@ namespace eval llvmtcl {
 	LLVMDisposePassManager $fpm
     }
 
-    proc LLVMTclAddFunctionTable {m} {
-	variable funcid
-	variable funcar
-	variable funcidar
-	set t [LLVMPointerType [LLVMInt8Type] 0]
-	set at [LLVMArrayType $t 100]
-	set ft [LLVMAddGlobal $m $at "__tclftable"]
-	set v [LLVMConstIntToPtr [LLVMConstInt [LLVMInt32Type] 0 0] $t]
-	set va [LLVMConstArray $t [lrepeat 100 $v]]
-	LLVMSetInitializer $ft $va
-	set bld [LLVMCreateBuilder]
-	set fpt [LLVMPointerType [LLVMInt8Type] 0]
-	set func [LLVMAddFunction $m "__get_functionpointer" [LLVMFunctionType $fpt [list [LLVMInt32Type]] 0]]
-	set block [LLVMAppendBasicBlock $func ""]
-	LLVMPositionBuilderAtEnd $bld $block
-	set ft [LLVMGetNamedGlobal $m "__tclftable"]
-	set tsl [LLVMBuildGEP $bld $ft [list [LLVMConstInt [LLVMInt32Type] 0 0] [LLVMGetParam $func 0]] ""]
-	LLVMBuildRet $bld [LLVMBuildLoad $bld $tsl ""]
-	LLVMDisposeBuilder $bld
-	set funcar($m,__get_functionpointer) $func
-	set funcidar($m,__get_functionpointer) [incr funcid]
-	return $func
-    }
-
-    proc LLVMTclInitFunctionTable {m} {
-	variable funcid
-	variable funcar
-	variable funcidar
-	set bld [LLVMCreateBuilder]
-	set func [LLVMAddFunction $m "__init_tcltable" [LLVMFunctionType [LLVMVoidType] {} 0]]
-	set funcar($m,__init_tcltable) $func
-	set funcidar($m,__init_tcltable) [incr funcid]
-	set block [LLVMAppendBasicBlock $func ""]
-	LLVMPositionBuilderAtEnd $bld $block
-	set ft [LLVMGetNamedGlobal $m "__tclftable"]
-	foreach {k v} [array get funcidar "$m,*"] {
-	    set tsl [LLVMBuildGEP $bld $ft [list [LLVMConstInt [LLVMInt32Type] 0 0] [LLVMConstInt [LLVMInt32Type] $v 0]] ""]
-	    LLVMBuildStore $bld [LLVMBuildPointerCast $bld $funcar($k) [LLVMPointerType [LLVMInt8Type] 0] ""] $tsl
-	}
-	LLVMBuildRetVoid $bld
-	LLVMDisposeBuilder $bld
-	return $func
-    }
-
     proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
 	variable tstp
 	variable ts
 	variable tsp
 	variable funcar
-	variable funcidar
-	variable funcid
 	# Disassemble the proc
 	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
@@ -86,7 +38,6 @@ namespace eval llvmtcl {
 	    set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
 	    set func [LLVMAddFunction $m $procName $ft]
 	    set funcar($m,$procName) $func
-	    set funcidar($m,$procName) [incr funcid]
 	}
 	if {$functionDeclarationOnly} {
 	    return $funcar($m,$procName)
@@ -163,7 +114,7 @@ namespace eval llvmtcl {
 	set LLVMBuilderICmp(ge) LLVMIntGE
 
 	foreach l $dasm {
-	    puts $l
+	    #puts $l
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
@@ -178,71 +129,70 @@ namespace eval llvmtcl {
 		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
-		push $bld [$LLVMBuilder1($opcode) $bld [pop $bld] ""]
+		push $bld [$LLVMBuilder1($opcode) $bld [pop $bld [LLVMInt32Type]] "$opcode"]
 	    } elseif {[info exists LLVMBuilder2($opcode)]} {
-		set top0 [pop $bld]
-		set top1 [pop $bld]
-		push $bld [$LLVMBuilder2($opcode) $bld $top1 $top0 ""]
+		set top0 [pop $bld [LLVMInt32Type]]
+		set top1 [pop $bld [LLVMInt32Type]]
+		push $bld [$LLVMBuilder2($opcode) $bld $top1 $top0 "$opcode"]
 	    } elseif {[info exists LLVMBuilderICmp($opcode)]} {
-		set top0 [pop $bld]
-		set top1 [pop $bld]
-		push $bld [LLVMBuildIntCast $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""] [LLVMInt32Type] ""]
+		set top0 [pop $bld [LLVMInt32Type]]
+		set top1 [pop $bld [LLVMInt32Type]]
+		push $bld [LLVMBuildIntCast $bld [LLVMBuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 "$opcode"] [LLVMInt32Type] "$opcode"]
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			push $bld [LLVMBuildLoad $bld $var ""]
+			push $bld [LLVMBuildLoad $bld $var "$opcode"]
 		    }
 		    "storeScalar1" {
-			set var_1 [top $bld]
+			set var_1 [top $bld [LLVMInt32Type]]
 			set idx [string range [lindex $l 2] 2 end]
 			if {[info exists vars($idx)]} {
 			    set var_2 $vars($idx)
 			} else {
-			    set var_2 [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
+			    set var_2 [LLVMBuildAlloca $bld [LLVMInt32Type] "$opcode"]
 			}
 			set var_3 [LLVMBuildStore $bld $var_1 $var_2]
 			set vars($idx) $var_2
 		    }
 		    "incrScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			LLVMBuildStore $bld [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [top $bld] "$l"] $var
+			LLVMBuildStore $bld [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var "$opcode"] [top $bld [LLVMInt32Type]] "$opcode"] $var
 		    }
 		    "incrScalar1Imm" {
 			set var $vars([string range [lindex $l 2] 2 end])
 			set i [lindex $l 3]
-			set s [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var ""] [LLVMConstInt [LLVMInt32Type] $i 0] ""]
+			set s [LLVMBuildAdd $bld [LLVMBuildLoad $bld $var "$opcode"] [LLVMConstInt [LLVMInt32Type] $i 0] "$opcode"]
 			push $bld $s
 			LLVMBuildStore $bld $s $var
 		    }
 		    "push1" {
-			set val [lindex $l 4]
-			if {![string is integer -strict $val]} {
-			    if {[info exists funcidar($m,$val)]} {
-				set val $funcidar($m,$val)
-				puts "push function [lindex $l 4] as $val"
-			    } else {
-				set val 0
-			    }
+			set tval [lindex $l 4]
+			if {[string is integer -strict $tval]} {
+			    set val [LLVMConstInt [LLVMInt32Type] $tval 0]
+			} elseif {[info exists funcar($m,$tval)]} {
+			    set val $funcar($m,$tval)
+			} else {
+			    set val [LLVMConstInt [LLVMInt32Type] 0 0]
 			}
-			push $bld [LLVMConstInt [LLVMInt32Type] $val 0]
+			push $bld $val
 		    }
 		    "jumpTrue1" {
-			set top [pop $bld]
+			set top [pop $bld [LLVMInt32Type]]
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
 			    set cond $top
 			} else {
-			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] "$opcode"]
 			}
 			LLVMBuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
 			set ends_with_jump($curr_block) 1
 		    }
 		    "jumpFalse1" {
-			set top [pop $bld]
+			set top [pop $bld [LLVMInt32Type]]
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
 			    set cond $top
 			} else {
-			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] ""]
+			    set cond [LLVMBuildICmp $bld LLVMIntNE $top [LLVMConstInt [LLVMInt32Type] 0 0] "$opcode"]
 			}
 			LLVMBuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
 			set ends_with_jump($curr_block) 1
@@ -258,24 +208,19 @@ namespace eval llvmtcl {
 			set objv {}
 			set argl {}
 			for {set i 0} {$i < ($objc-1)} {incr i} {
-			    lappend objv [pop $bld]
+			    lappend objv [pop $bld [LLVMInt32Type]]
 			    lappend argl [LLVMInt32Type]
 			}
 			set objv [lreverse $objv]
-			set f [pop $bld] ;# id of function to be called
-			# Lookup f in array of function pointer (as void*)
-			set vfptr [LLVMBuildCall $bld $funcar($m,__get_functionpointer) $f ""]
-			# convert the type and call
-			set ft [LLVMFunctionType [LLVMInt32Type] $argl 0]
-			set fptr [LLVMBuildPointerCast $bld $vfptr [LLVMPointerType $ft 0] ""]
-			# call the function
-			push $bld [LLVMBuildCall $bld $fptr $objv ""]
+			set ft [LLVMPointerType [LLVMFunctionType [LLVMInt32Type] $argl 0] 0]
+			set fptr [pop $bld $ft]
+			push $bld [LLVMBuildCall $bld $fptr $objv "$opcode"]
 		    }
 		    "pop" {
-			pop $bld
+			pop $bld [LLVMInt32Type]
 		    }
 		    "done" {
-			LLVMBuildRet $bld [top $bld]
+			LLVMBuildRet $bld [top $bld [LLVMInt32Type]]
 			set ends_with_jump($curr_block) 1
 		    }
 		    default {
@@ -308,47 +253,42 @@ namespace eval llvmtcl {
 	variable ts
 	variable tsp
 	# Allocate space for value
-	puts 1
-	set valp [LLVMBuildAlloca $bld [LLVMInt32Type] ""]
-	puts 2
+	set valt [LLVMTypeOf $val]
+	set valp [LLVMBuildAlloca $bld $valt "push"]
 	LLVMBuildStore $bld $val $valp
 	# Store location on stack
-	puts 3
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	puts 4
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	puts 4.5
-	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp ""] $tsl
+	set tspv [LLVMBuildLoad $bld $tsp "push"]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "push"]
+	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp "push"] $tsl
 	# Update stack pointer
-	puts 5
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] ""]
-	puts 6
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] "push"]
 	LLVMBuildStore $bld $tspv $tsp
-	puts 7
     }
     
-    proc pop {bld} {
+    proc pop {bld valt} {
 	variable ts
 	variable tsp
 	# Get location from stack and decrement the stack pointer
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
+	set tspv [LLVMBuildLoad $bld $tsp "pop"]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "pop"]
 	LLVMBuildStore $bld $tspv $tsp
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	set valp [LLVMBuildLoad $bld $tsl ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "pop"]
+	set valp [LLVMBuildLoad $bld $tsl "pop"]
 	# Load value
-	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType [LLVMInt32Type] 0] ""] ""]
+	set pc [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "pop"]
+	set rt [LLVMBuildLoad $bld $pc "pop"]
+	return $rt
     }
     
-    proc top {bld {offset 0}} {
+    proc top {bld valt {offset 0}} {
 	variable ts
 	variable tsp
 	# Get location from stack
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	set valp [LLVMBuildLoad $bld $tsl ""]
+	set tspv [LLVMBuildLoad $bld $tsp "top"]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "top"]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "top"]
+	set valp [LLVMBuildLoad $bld $tsl "top"]
 	# Load value
-	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType [LLVMInt32Type] 0] ""] ""]
+	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "top"] "top"]
     }
 }

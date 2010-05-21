@@ -44,24 +44,26 @@ LLVMBuildRet $bld $add4
 puts "----- Input --------------------------------------------------"
 puts [LLVMDumpModule $m]
 
-# Write function as bit code
-LLVMWriteBitcodeToFile $m plus10.bc
-
-#set vrt [LLVMTclVerifyModule $m LLVMPrintMessageAction]
-#puts "Verify: $vrt"
+# Verify the module
+lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+if {$rt} {
+    error $msg
+}
 
 # Execute
 lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
 set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
 set res [LLVMRunFunction $EE $plus10 $i]
 puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"
+
+# Optimize
 set td [LLVMCreateTargetData ""]
 LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
 LLVMOptimizeFunction $m $plus10 3 $td
 LLVMOptimizeModule $m 3 0 1 1 1 0 $td
 puts "----- Optimized ----------------------------------------------"
 puts [LLVMDumpModule $m]
-LLVMWriteBitcodeToFile $m plus10-optimized.bc
 
+# Execute optimized code
 set res [LLVMRunFunction $EE $plus10 $i]
 puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"

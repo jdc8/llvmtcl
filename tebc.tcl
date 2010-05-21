@@ -3,7 +3,6 @@ package require llvmtcl
 
 namespace import llvmtcl::*
 
-set do_wrapper 1
 set optimize 1
 set procs {test2 test test3 test4 test5 fact facti fact10}
 
@@ -55,10 +54,8 @@ proc fact10 { } {
 LLVMLinkInJIT
 LLVMInitializeNativeTarget
 
-# Create a module and builder
+# Create a module
 set m [LLVMModuleCreateWithName "atest"]
-set td [LLVMCreateTargetData ""]
-LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
 
 # Convert Tcl to LLVM
 foreach nm $procs {
@@ -68,40 +65,28 @@ foreach nm $procs {
     set func($nm) [Tcl2LLVM $m $nm]
 }
 
-if {$do_wrapper} {
-    set ft [LLVMFunctionType [LLVMInt32Type] {} 0]
-    set w [LLVMAddFunction $m "wrapper" $ft]
-    set block [LLVMAppendBasicBlock $w ""]
-    set bld [LLVMCreateBuilder]
-    LLVMPositionBuilderAtEnd $bld $block
-    set rt [LLVMBuildCall $bld $func(fact10) {} ""]
-    LLVMBuildRet $bld $rt
-}
-
-
-puts "----- Input --------------------------------------------------"
-puts [LLVMDumpModule $m]
-
+# Save module
 set f [open tebc.ll w]
 puts $f [LLVMDumpModule $m]
 close $f
 
-puts "----- Verify -------------------------------------------------"
+# Verify the module
 lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
 if {$rt} {
     error $msg
 }
 
+# Optimize functions and module
 if {$optimize} {
-    puts "----- Optimized ----------------------------------------------"
+    set td [LLVMCreateTargetData ""]
+    LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
     foreach {nm f} [array get func] {
 	LLVMOptimizeFunction $m $f 3 $td
     }
     LLVMOptimizeModule $m 3 0 1 1 1 0 $td
-    puts [LLVMDumpModule $m]
 }
 
-puts "--------------------------------------------------------------"
+# Some tests
 set tclArgs {5 2 3 4 5}
 set llvmArgs {}
 foreach v $tclArgs {
@@ -133,17 +118,10 @@ foreach nm $procs {
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
 }
 
-if {$do_wrapper} {
-    set res [LLVMRunFunction $EE $w {}]
-    set lr [expr {int([LLVMGenericValueToInt $res 0])}]
-    set tr [fact 10]
-    puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] wrapper"
-    
-    for {set i 0} {$i < 10} {incr i} {
-	puts tcl1\ :[time {fact 10} 10000]
-	puts tcl2\ :[time {fact10} 10000]
-	puts llvm1:[time {LLVMRunFunction $EE $func(fact10) {}} 10000]
-	puts llvm2:[time {LLVMRunFunction $EE $w {}} 10000]
-	puts ""
-    }
-}
+set v [LLVMCreateGenericValueOfInt [LLVMInt32Type] 10 0]
+puts ""
+puts "tcl \[fact 10\]  : [time {fact 10} 10000]"
+puts "tcl \[fact10\]   : [time {fact10} 10000]"
+puts "llvm \[fact 10\] : [time {LLVMRunFunction $EE $func(fact) $v} 10000]"
+puts "llvm \[fact10\]  : [time {LLVMRunFunction $EE $func(fact10) {}} 10000]"
+

@@ -19,11 +19,29 @@ namespace eval llvmtcl {
 	LLVMDisposePassManager $fpm
     }
 
+    proc AddTcl2LLVMUtils {m} {
+	variable funcar
+	variable utils_added
+	set bld [LLVMCreateBuilder]
+	set ft [LLVMFunctionType [LLVMInt32Type] [list [LLVMInt32Type]] 0]
+	set func [LLVMAddFunction $m "llvm_mathfunc_int" $ft]
+	set funcar($m,tcl::mathfunc::int) $func
+	set block [LLVMAppendBasicBlock $func "block"]
+	LLVMPositionBuilderAtEnd $bld $block
+	LLVMBuildRet $bld [LLVMGetParam $func 0]
+	LLVMDisposeBuilder $bld
+	set utils_added($m) 1
+    }
+
     proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
 	variable tstp
 	variable ts
 	variable tsp
 	variable funcar
+	variable utils_added
+	if {![info exists utils_added($m)] || !$utils_added($m)} {
+	    AddTcl2LLVMUtils $m
+	}
 	# Disassemble the proc
 	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
@@ -60,9 +78,9 @@ namespace eval llvmtcl {
 		set ipath($next_is_ipath) $pc
 		set next_is_ipath -1
 	    }
-	    if {[string match "jump*1" $opcode] || [string match "startCommand" $opcode]} {
+	    if {[string match "jump*1" $opcode] || [string match "jump*4" $opcode] || [string match "startCommand" $opcode]} {
 		# (pc) opcode offset
-		regexp {\((\d+)\) (jump\S*1|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
+		regexp {\((\d+)\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
 		set tgt [expr {$pc + $offset}]
 		if {![info exists block($tgt)]} {
 		    set block($tgt) [LLVMAppendBasicBlock $func "block$tgt"]
@@ -117,7 +135,7 @@ namespace eval llvmtcl {
 
 	set done_done 0
 	foreach l $dasm {
-	    #puts $l
+	    puts $l
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
@@ -128,8 +146,8 @@ namespace eval llvmtcl {
 	    }
 	    set ends_with_jump($curr_block) 0
 	    unset -nocomplain tgt
-	    if {[string match "jump*1" $opcode] || [string match "startCommand" $opcode]} {
-		regexp {\(\d+\) (jump\S*1|startCommand) (\+*\-*\d+)} $l -> cmd offset
+	    if {[string match "jump*1" $opcode] || [string match "jump*4" $opcode] || [string match "startCommand" $opcode]} {
+		regexp {\(\d+\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> cmd offset
 		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
@@ -181,6 +199,7 @@ namespace eval llvmtcl {
 			}
 			push $bld $val
 		    }
+		    "jumpTrue4" -
 		    "jumpTrue1" {
 			set top [pop $bld [LLVMInt32Type]]
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
@@ -191,6 +210,7 @@ namespace eval llvmtcl {
 			LLVMBuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
 			set ends_with_jump($curr_block) 1
 		    }
+		    "jumpFalse4" -
 		    "jumpFalse1" {
 			set top [pop $bld [LLVMInt32Type]]
 			if {[LLVMGetIntTypeWidth [LLVMTypeOf $top]] == 1} {
@@ -201,8 +221,12 @@ namespace eval llvmtcl {
 			LLVMBuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
 			set ends_with_jump($curr_block) 1
 		    }
+		    "tryCvtToNumeric" {
+			push $bld [pop $bld [LLVMInt32Type]]
+		    }
 		    "startCommand" {
 		    }
+		    "jump4" -
 		    "jump1" {
 			LLVMBuildBr $bld $block($tgt)
 			set ends_with_jump($curr_block) 1
@@ -261,14 +285,14 @@ namespace eval llvmtcl {
 	variable tsp
 	# Allocate space for value
 	set valt [LLVMTypeOf $val]
-	set valp [LLVMBuildAlloca $bld $valt ""]
+	set valp [LLVMBuildAlloca $bld $valt "push"]
 	LLVMBuildStore $bld $val $valp
 	# Store location on stack
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
+	set tspv [LLVMBuildLoad $bld $tsp "push"]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "push"]
 	LLVMBuildStore $bld [LLVMBuildPointerCast $bld $valp $tstp ""] $tsl
 	# Update stack pointer
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] ""]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] 1 0] "push"]
 	LLVMBuildStore $bld $tspv $tsp
     }
     
@@ -276,14 +300,14 @@ namespace eval llvmtcl {
 	variable ts
 	variable tsp
 	# Get location from stack and decrement the stack pointer
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
+	set tspv [LLVMBuildLoad $bld $tsp "pop"]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "pop"]
 	LLVMBuildStore $bld $tspv $tsp
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	set valp [LLVMBuildLoad $bld $tsl ""]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "pop"]
+	set valp [LLVMBuildLoad $bld $tsl "pop"]
 	# Load value
-	set pc [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] ""]
-	set rt [LLVMBuildLoad $bld $pc ""]
+	set pc [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "pop"]
+	set rt [LLVMBuildLoad $bld $pc "pop"]
 	return $rt
     }
     
@@ -291,11 +315,11 @@ namespace eval llvmtcl {
 	variable ts
 	variable tsp
 	# Get location from stack
-	set tspv [LLVMBuildLoad $bld $tsp ""]
-	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] ""]
-	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] ""]
-	set valp [LLVMBuildLoad $bld $tsl ""]
+	set tspv [LLVMBuildLoad $bld $tsp "top"]
+	set tspv [LLVMBuildAdd $bld $tspv [LLVMConstInt [LLVMInt32Type] -1 0] "top"]
+	set tsl [LLVMBuildGEP $bld $ts [list [LLVMConstInt [LLVMInt32Type] 0 0] $tspv] "top"]
+	set valp [LLVMBuildLoad $bld $tsl "top"]
 	# Load value
-	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] ""] ""]
+	return [LLVMBuildLoad $bld [LLVMBuildPointerCast $bld $valp [LLVMPointerType $valt 0] "top"] "top"]
     }
 }

@@ -135,7 +135,7 @@ namespace eval llvmtcl {
 
 	set done_done 0
 	foreach l $dasm {
-	    puts $l
+	    #puts $l
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode

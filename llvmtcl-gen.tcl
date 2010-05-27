@@ -467,9 +467,9 @@ set f [open llvmtcl-gen.inp r]
 set ll [split [read $f] \n]
 close $f
 
-set cf [open llvmtcl-gen.cpp w]
-set of [open llvmtcl-gen-cmddef.cpp w]
-set mf [open llvmtcl-gen-map.cpp w]
+set cf [open generic/llvmtcl-gen.c w]
+set of [open generic/llvmtcl-gen-cmddef.c w]
+set mf [open generic/llvmtcl-gen-map.c w]
 
 foreach l $ll {
     set l [string trim $l]

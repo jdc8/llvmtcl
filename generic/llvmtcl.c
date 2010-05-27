@@ -21,7 +21,7 @@ static std::string GetRefName(std::string prefix)
     return os.str();
 }
 
-#include "llvmtcl-gen-map.cpp"
+#include "llvmtcl-gen-map.c"
 
 void LLVMDisposeBuilderTcl(LLVMBuilderRef builderRef)
 {
@@ -107,7 +107,7 @@ void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM,
 				  VerifyEach);
 }
 
-#include "llvmtcl-gen.cpp"
+#include "llvmtcl-gen.c"
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
@@ -122,6 +122,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     if (Tcl_PkgProvide(interp, "llvmtcl", "0.1") != TCL_OK) {
 	return TCL_ERROR;
     }
-#include "llvmtcl-gen-cmddef.cpp"  
+#include "llvmtcl-gen-cmddef.c"  
     return TCL_OK;
 }

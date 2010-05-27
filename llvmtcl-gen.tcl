@@ -173,12 +173,13 @@ proc gen_api_call {cf of l} {
 			puts $cf "    $fargtype arg$n = ($fargtype)iarg$n;"
 		    }
 		    "long long" {
-			puts $cf "    long long arg$n = 0;"
+			puts $cf "    Tcl_WideInt iarg$n = 0;"
 			puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
 			puts $cf "        return TCL_ERROR;"
+			puts $cf "    long long arg$n = (long long)iarg$n;"
 		    }
 		    "unsigned long long" {
-			puts $cf "    long long iarg$n = 0;"
+			puts $cf "    Tcl_WideInt iarg$n = 0;"
 			puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &iarg$n) != TCL_OK)"
 			puts $cf "        return TCL_ERROR;"
 			puts $cf "    unsigned long long arg$n = (unsigned long long)iarg$n;"
@@ -312,7 +313,8 @@ proc gen_api_call {cf of l} {
 		}
 		"long long" -
 		"unsigned long long" {
-		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewWideIntObj($rnm));"
+		    puts $cf "    Tcl_WideInt w$rnm = (Tcl_WideInt)$rnm;"
+		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewWideIntObj(w$rnm));"
 		}
 		"void" {
 		}
@@ -354,7 +356,8 @@ proc gen_api_call {cf of l} {
 	    }
 	    "long long" -
 	    "unsigned long long" {
-		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(rt));"
+		puts $cf "    Tcl_WideInt wrt = (Tcl_WideInt)rt;"
+		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(wrt));"
 	    }
 	    "std::string" {
 		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewStringObj(rt.c_str(), -1));"

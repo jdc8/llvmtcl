@@ -131,5 +131,14 @@ EXAMPLES
 ========
 
 examples/test.tcl
+
+    Example using the LLVM API to create a factorial function
+
 examples/test2.tcl
+
+    Example using the LLVM API to create a function adding 4 and 6 to an
+    argument, optimize that function and execute it.
+
 examples/tebc.tcl
+
+    Example converting Tcl into LLVM

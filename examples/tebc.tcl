@@ -73,7 +73,7 @@ proc filter { } {
 	set y2 $y1
 	set y1 $y
 	set x2 $x1
-	set x1 [expr {$i}]
+	set x1 $i
     }
     return $y
 }

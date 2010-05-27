@@ -90,7 +90,6 @@ foreach nm $procs {
     set func($nm) [Tcl2LLVM $m $nm 1]
 }
 foreach nm $procs {
-    puts "$nm ######################################################################"
     set func($nm) [Tcl2LLVM $m $nm]
 }
 

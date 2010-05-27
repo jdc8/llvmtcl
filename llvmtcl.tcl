@@ -19,6 +19,24 @@ namespace eval llvmtcl {
 	LLVMDisposePassManager $fpm
     }
 
+    proc LLVMOptimize {m funcList} {
+	set td [LLVMCreateTargetData ""]
+	LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
+	foreach f $funcList {
+	    LLVMOptimizeFunction $m $f 3 $td
+	}
+	LLVMOptimizeModule $m 3 0 1 1 1 0 $td
+    }
+
+    proc LLVMExecute {m f args} {
+	lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
+	set largs {}
+	foreach arg $args {
+	    lappend largs [LLVMCreateGenericValueOfInt [LLVMInt32Type] $arg 0]
+	}
+	set rt [LLVMGenericValueToInt [LLVMRunFunction $EE $f $largs] 0]
+    }
+
     proc AddTcl2LLVMUtils {m} {
 	variable funcar
 	variable utils_added

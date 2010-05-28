@@ -1,8 +1,6 @@
 lappend auto_path .
 package require llvmtcl
 
-namespace import llvmtcl::*
-
 set optimize 1
 set procs {test2 test test3 test4 test5 fact facti fact10 low_pass filter}
 set timings {low_pass filter}
@@ -87,10 +85,11 @@ set m [llvmtcl ModuleCreateWithName "atest"]
 
 # Convert Tcl to llvmtcl 
 foreach nm $procs {
-    set func($nm) [Tcl2LLVM  $m $nm 1]
+    set func($nm) [llvmtcl Tcl2LLVM  $m $nm 1]
 }
+set all_funcs {}
 foreach nm $procs {
-    set func($nm) [Tcl2LLVM  $m $nm]
+    lappend all_funcs [set func($nm) [set f [llvmtcl Tcl2LLVM  $m $nm]]]
 }
 
 # Save module
@@ -107,12 +106,7 @@ if {$rt} {
 # Optimize functions and module
 if {$optimize} {
     for {set i 0} {$i < 10} {incr i} {
-	set td [llvmtcl CreateTargetData ""]
-	llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
-	foreach {nm f} [array get func] {
-	    llvmtcl OptimizeFunction $m $f 3 $td
-	}
-	llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
+	llvmtcl Optimize $m $all_funcs
     }
 }
 

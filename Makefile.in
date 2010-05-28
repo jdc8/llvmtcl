@@ -184,7 +184,7 @@ COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(C
 
 all: binaries libraries doc
 
-generic/llvmtcl-gen.c generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c: llvmtcl-gen.inp llvmtcl-gen.tcl
+generate-api: llvmtcl-gen.inp llvmtcl-gen.tcl
 	$(TCLSH) llvmtcl-gen.tcl
 
 #========================================================================
@@ -194,7 +194,7 @@ generic/llvmtcl-gen.c generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c: ll
 # of the Makefile, in the "BINARIES" variable.
 #========================================================================
 
-binaries: generic/llvmtcl-gen.c generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c $(BINARIES)
+binaries: generate-api $(BINARIES)
 
 libraries:
 

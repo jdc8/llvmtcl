@@ -1,22 +1,21 @@
 package require tcltest
 package require llvmtcl
-namespace import llvmtcl::*
 
 tcltest::test tebc-expr {Convert Tcl to llvm, optimize and run it} -setup {
     proc test {a} {
 	return [expr {4+$a+6}]
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_expr"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_expr"]
 } -body {
     set f [Tcl2LLVM $m "test"]
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f]
-    LLVMExecute $m $f 5
+    llvmtcl Optimize $m [list $f]
+    llvmtcl Execute $m $f 5
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {15}
 
 tcltest::test tebc-if-then-else {Convert Tcl to llvm, optimize and run it} -setup {
@@ -28,20 +27,20 @@ tcltest::test tebc-if-then-else {Convert Tcl to llvm, optimize and run it} -setu
 	}
 	return $rt
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_if_then_else"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_if_then_else"]
 } -body {
     set f [Tcl2LLVM $m "test"]
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f]
+    llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [LLVMExecute $m $f 5]
-    lappend result [LLVMExecute $m $f 55]
-    lappend result [LLVMExecute $m $f 555]
+    lappend result [llvmtcl Execute $m $f 5]
+    lappend result [llvmtcl Execute $m $f 55]
+    lappend result [llvmtcl Execute $m $f 555]
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {0 100 0}
 
 tcltest::test tebc-for {Convert Tcl to llvm, optimize and run it} -setup {
@@ -52,20 +51,20 @@ tcltest::test tebc-for {Convert Tcl to llvm, optimize and run it} -setup {
 	}
 	return $rt
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_for"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_for"]
 } -body {
     set f [Tcl2LLVM $m "test"]
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f]
+    llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [LLVMExecute $m $f 0]
-    lappend result [LLVMExecute $m $f 5]
-    lappend result [LLVMExecute $m $f 10]
+    lappend result [llvmtcl Execute $m $f 0]
+    lappend result [llvmtcl Execute $m $f 5]
+    lappend result [llvmtcl Execute $m $f 10]
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {1 24 362880}
 
 tcltest::test tebc-call {Convert Tcl to llvm, optimize and run it} -setup {
@@ -75,20 +74,20 @@ tcltest::test tebc-call {Convert Tcl to llvm, optimize and run it} -setup {
     proc caller {a b} {
 	return [expr {12+[callee $a $b]+34}]
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_call"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_call"]
 } -body {
     Tcl2LLVM $m "callee"
     set f [Tcl2LLVM $m "caller"]
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f]
+    llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [LLVMExecute $m $f 0 0]
-    lappend result [LLVMExecute $m $f 5 10]
+    lappend result [llvmtcl Execute $m $f 0 0]
+    lappend result [llvmtcl Execute $m $f 5 10]
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {46 61}
 
 tcltest::test tebc-recursive {Convert Tcl to llvm, optimize and run it} -setup {
@@ -104,22 +103,22 @@ tcltest::test tebc-recursive {Convert Tcl to llvm, optimize and run it} -setup {
     proc fact10 { } {
 	return [fact 10]
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_recursive"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {
     set f [Tcl2LLVM $m "fact"]
     set fi [Tcl2LLVM $m "facti"]
     set f10 [Tcl2LLVM $m "fact10"]
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f $fi $f10]
+    llvmtcl Optimize $m [list $f $fi $f10]
     set result {}
-    lappend result [LLVMExecute $m $f 5]
-    lappend result [LLVMExecute $m $fi 6]
-    lappend result [LLVMExecute $m $f10]
+    lappend result [llvmtcl Execute $m $f 5]
+    lappend result [llvmtcl Execute $m $fi 6]
+    lappend result [llvmtcl Execute $m $f10]
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {120 720 3628800}
 
 tcltest::test tebc-filter {Convert Tcl to llvm, optimize and run it} -setup {
@@ -147,20 +146,20 @@ tcltest::test tebc-filter {Convert Tcl to llvm, optimize and run it} -setup {
 	}
 	return $y
     }
-    LLVMLinkInJIT
-    LLVMInitializeNativeTarget
-    set m [LLVMModuleCreateWithName "tebc_recursive"]
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
+    set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {
     Tcl2LLVM $m "low_pass" 1
     set f [Tcl2LLVM $m "filter"]
     Tcl2LLVM $m "low_pass"
-    lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+    lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
-    LLVMOptimize $m [list $f]
+    llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [LLVMExecute $m $f]
+    lappend result [llvmtcl Execute $m $f]
 } -cleanup {
-    LLVMDisposeModule $m
+    llvmtcl DisposeModule $m
 } -result {999}
 
 # cleanup

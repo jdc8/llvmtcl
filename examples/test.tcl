@@ -1,105 +1,103 @@
 lappend auto_path .
 package require llvmtcl
 
-namespace import llvmtcl::*
+llvmtcl LinkInJIT
+llvmtcl InitializeNativeTarget
 
-LLVMLinkInJIT
-LLVMInitializeNativeTarget
-
-set m [LLVMModuleCreateWithName "testmodule"]
-set bld [LLVMCreateBuilder]
+set m [llvmtcl ModuleCreateWithName "testmodule"]
+set bld [llvmtcl CreateBuilder]
 
 # Create a function with an int32 argument returning an int32
-set ft [LLVMFunctionType [LLVMInt32Type] [list [LLVMInt32Type]] 0]
-set fac [LLVMAddFunction $m "fac" $ft]
+set ft [llvmtcl FunctionType [llvmtcl Int32Type] [list [llvmtcl Int32Type]] 0]
+set fac [llvmtcl AddFunction $m "fac" $ft]
 
 # Create constants
-set two [LLVMConstInt [LLVMInt32Type] 2  0]
-set one [LLVMConstInt [LLVMInt32Type] 1  0]
+set two [llvmtcl ConstInt [llvmtcl Int32Type] 2  0]
+set one [llvmtcl ConstInt [llvmtcl Int32Type] 1  0]
 
 # Create the basic blocks
-set entry [LLVMAppendBasicBlock $fac entry]
-set exit_lt_2 [LLVMAppendBasicBlock $fac exit_lt_2]
-set recurse [LLVMAppendBasicBlock $fac recurse]
+set entry [llvmtcl AppendBasicBlock $fac entry]
+set exit_lt_2 [llvmtcl AppendBasicBlock $fac exit_lt_2]
+set recurse [llvmtcl AppendBasicBlock $fac recurse]
 
 # Put arguments on the stack to avoid having to write select and/or phi nodes
-LLVMPositionBuilderAtEnd $bld $entry
-set arg0_1 [LLVMGetParam $fac 0]
-set arg0_2 [LLVMBuildAlloca $bld [LLVMInt32Type] arg0]
-set arg0_3 [LLVMBuildStore $bld $arg0_1 $arg0_2]
+llvmtcl PositionBuilderAtEnd $bld $entry
+set arg0_1 [llvmtcl GetParam $fac 0]
+set arg0_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] arg0]
+set arg0_3 [llvmtcl BuildStore $bld $arg0_1 $arg0_2]
 
 # Compare input < 2
-set arg0_4 [LLVMBuildLoad $bld $arg0_2 "n"]
-set cc [LLVMBuildICmp $bld LLVMIntSLT $arg0_4 $two "cc"]
+set arg0_4 [llvmtcl BuildLoad $bld $arg0_2 "n"]
+set cc [llvmtcl BuildICmp $bld llvmtcl IntSLT $arg0_4 $two "cc"]
 
 # Branch
-LLVMBuildCondBr $bld $cc $exit_lt_2 $recurse
+llvmtcl BuildCondBr $bld $cc $exit_lt_2 $recurse
 
 # If n < 2, return 1
-LLVMPositionBuilderAtEnd $bld $exit_lt_2
-LLVMBuildRet $bld $one
+llvmtcl PositionBuilderAtEnd $bld $exit_lt_2
+llvmtcl BuildRet $bld $one
 
 # If >= 2, return n*fac(n-1)
-LLVMPositionBuilderAtEnd $bld $recurse
-set arg0_5 [LLVMBuildLoad $bld $arg0_2 "n"]
-set arg0_minus_1 [LLVMBuildSub $bld $arg0_5 $one "arg0_minus_1"]
-set fc [LLVMBuildCall $bld $fac [list $arg0_minus_1] "rec"]
-set rt [LLVMBuildMul $bld $arg0_5 $fc "rt"]
-LLVMBuildRet $bld $rt
+llvmtcl PositionBuilderAtEnd $bld $recurse
+set arg0_5 [llvmtcl BuildLoad $bld $arg0_2 "n"]
+set arg0_minus_1 [llvmtcl BuildSub $bld $arg0_5 $one "arg0_minus_1"]
+set fc [llvmtcl BuildCall $bld $fac [list $arg0_minus_1] "rec"]
+set rt [llvmtcl BuildMul $bld $arg0_5 $fc "rt"]
+llvmtcl BuildRet $bld $rt
 # Done
 
 # Create function returning fac(10)
-set ft [LLVMFunctionType [LLVMInt32Type] [list] 0]
-set fac10 [LLVMAddFunction $m "fac10" $ft]
-set ten [LLVMConstInt [LLVMInt32Type] 10 0]
-set main [LLVMAppendBasicBlock $fac10 main]
-LLVMPositionBuilderAtEnd $bld $main
-set rt [LLVMBuildCall $bld $fac [list $ten] "rec"]
-LLVMBuildRet $bld $rt
+set ft [llvmtcl FunctionType [llvmtcl Int32Type] [list] 0]
+set fac10 [llvmtcl AddFunction $m "fac10" $ft]
+set ten [llvmtcl ConstInt [llvmtcl Int32Type] 10 0]
+set main [llvmtcl AppendBasicBlock $fac10 main]
+llvmtcl PositionBuilderAtEnd $bld $main
+set rt [llvmtcl BuildCall $bld $fac [list $ten] "rec"]
+llvmtcl BuildRet $bld $rt
 
-# Write LLVM bit code to file
-LLVMWriteBitcodeToFile $m fac.bc
+# Write llvmtcl  bit code to file
+llvmtcl WriteBitcodeToFile $m fac.bc
 
-# Write LLVM textual representation to file
+# Write llvmtcl  textual representation to file
 set f [open fac.ll w]
-puts $f [LLVMDumpModule $m]
+puts $f [llvmtcl DumpModule $m]
 close $f
 
 # Verify the module
-lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
 if {$rt} {
     error $msg
 }
 
 # Run the fac and fac10 functions
-lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
-set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 10 0]
-set res [LLVMRunFunction $EE $fac $i]
-puts "res=$res=[LLVMGenericValueToInt $res 0]"
-set res [LLVMRunFunction $EE $fac10 {}]
-puts "res=$res=[LLVMGenericValueToInt $res 0]"
+lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+set i [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 10 0]
+set res [llvmtcl RunFunction $EE $fac $i]
+puts "res=$res=[llvmtcl GenericValueToInt $res 0]"
+set res [llvmtcl RunFunction $EE $fac10 {}]
+puts "res=$res=[llvmtcl GenericValueToInt $res 0]"
 
 # Time runs of fac and fac10
-puts [time {LLVMRunFunction $EE $fac $i} 1000]
-puts [time {LLVMRunFunction $EE $fac10 {}} 1000]
+puts [time {llvmtcl RunFunction $EE $fac $i} 1000]
+puts [time {llvmtcl RunFunction $EE $fac10 {}} 1000]
 
 # Optimize functions and module
-set td [LLVMCreateTargetData ""]
-LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
+set td [llvmtcl CreateTargetData ""]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
 for {set t 0} {$t < 10} {incr t} {
-    LLVMOptimizeFunction $m $fac 3 $td
-    LLVMOptimizeFunction $m $fac10 3 $td
-    LLVMOptimizeModule $m 3 0 1 1 1 0  $td
+    llvmtcl OptimizeFunction $m $fac 3 $td
+    llvmtcl OptimizeFunction $m $fac10 3 $td
+    llvmtcl OptimizeModule $m 3 0 1 1 1 0  $td
 }
 
-# Write LLVM bit code to file
-LLVMWriteBitcodeToFile $m fac-optimized.bc
+# Write llvmtcl  bit code to file
+llvmtcl WriteBitcodeToFile $m fac-optimized.bc
 
-# Write LLVM textual representation to file
+# Write llvmtcl  textual representation to file
 set f [open fac-optimized.ll w]
-puts $f [LLVMDumpModule $m]
+puts $f [llvmtcl DumpModule $m]
 close $f
 
 # Time runs of fac and fac10
-puts [time {LLVMRunFunction $EE $fac $i} 1000]
-puts [time {LLVMRunFunction $EE $fac10 {}} 1000]
+puts [time {llvmtcl RunFunction $EE $fac $i} 1000]
+puts [time {llvmtcl RunFunction $EE $fac10 {}} 1000]

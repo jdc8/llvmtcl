@@ -373,7 +373,11 @@ proc gen_api_call {cf of l} {
     puts $cf "\}"
     puts $cf ""
 
-    puts $of "    LLVMObjCmd(\"llvmtcl::$nm\", ${nm}ObjCmd);"
+    set cmdnm $nm
+    if {[string match "LLVM*" $cmdnm]} {
+	set cmdnm [string range $cmdnm 4 end]
+    }
+    puts $of "    LLVMObjCmd(\"llvmtcl::$cmdnm\", ${nm}ObjCmd);"
 }
 
 proc gen_enum {cf l} {

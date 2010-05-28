@@ -79,27 +79,27 @@ proc filter { } {
 }
 
 # Initialize the JIT
-LLVMLinkInJIT
-LLVMInitializeNativeTarget
+llvmtcl LinkInJIT
+llvmtcl InitializeNativeTarget
 
 # Create a module
-set m [LLVMModuleCreateWithName "atest"]
+set m [llvmtcl ModuleCreateWithName "atest"]
 
-# Convert Tcl to LLVM
+# Convert Tcl to llvmtcl 
 foreach nm $procs {
-    set func($nm) [Tcl2LLVM $m $nm 1]
+    set func($nm) [Tcl2LLVM  $m $nm 1]
 }
 foreach nm $procs {
-    set func($nm) [Tcl2LLVM $m $nm]
+    set func($nm) [Tcl2LLVM  $m $nm]
 }
 
 # Save module
 set f [open tebc.ll w]
-puts $f [LLVMDumpModule $m]
+puts $f [llvmtcl DumpModule $m]
 close $f
 
 # Verify the module
-lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
 if {$rt} {
     error $msg
 }
@@ -107,24 +107,24 @@ if {$rt} {
 # Optimize functions and module
 if {$optimize} {
     for {set i 0} {$i < 10} {incr i} {
-	set td [LLVMCreateTargetData ""]
-	LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
+	set td [llvmtcl CreateTargetData ""]
+	llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
 	foreach {nm f} [array get func] {
-	    LLVMOptimizeFunction $m $f 3 $td
+	    llvmtcl OptimizeFunction $m $f 3 $td
 	}
-	LLVMOptimizeModule $m 3 0 1 1 1 0 $td
+	llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
     }
 }
 
 set f [open tebc-optimized.ll w]
-puts $f [LLVMDumpModule $m]
+puts $f [llvmtcl DumpModule $m]
 close $f
 
 # Some tests
 
-lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
+lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 
-puts "OK? Tcl        LLVM       Function"
+puts "OK? Tcl        llvmtcl        Function"
 puts "--- ---------- ---------- ------------------------------------"
 foreach nm $procs {
     switch -glob -- $nm {
@@ -135,32 +135,32 @@ foreach nm $procs {
 	}
 	"fact*" {
 	    set ta($nm) 5
-	    set la($nm) [LLVMCreateGenericValueOfInt [LLVMInt32Type] 5 0]
+	    set la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 5 0]
 	}
 	"low_pass*" {
 	    set ta($nm) {500 1000 2000 1234 5678 1341 2682 1341 16607 -5591}
 	    set la($nm) {}
 	    foreach v $ta($nm) {
-		lappend la($nm) [LLVMCreateGenericValueOfInt [LLVMInt32Type] $v 0]
+		lappend la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $v 0]
 	    }
 	}
 	default {
 	    set ta($nm) {5 2 3 4 5}
 	    set la($nm) {}
 	    foreach v $ta($nm) {
-		lappend la($nm) [LLVMCreateGenericValueOfInt [LLVMInt32Type] $v 0]
+		lappend la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $v 0]
 	    }
 	}
     }
-    set res [LLVMRunFunction $EE $func($nm) $la($nm)]
+    set res [llvmtcl RunFunction $EE $func($nm) $la($nm)]
     set tr [$nm {*}$ta($nm)]
-    set lr [expr {int([LLVMGenericValueToInt $res 0])}]
+    set lr [expr {int([llvmtcl GenericValueToInt $res 0])}]
     puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
 }
 
 foreach nm $timings {
     puts "tcl \[$nm\]: [time {$nm {*}$ta($nm)} $timing_count]"
-    puts "llvm \[$nm\]: [time {LLVMRunFunction $EE $func($nm) $la($nm)} $timing_count]"
+    puts "llvm \[$nm\]: [time {llvmtcl RunFunction $EE $func($nm) $la($nm)} $timing_count]"
 }
 
 

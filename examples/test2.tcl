@@ -4,66 +4,66 @@ package require llvmtcl
 namespace import llvmtcl::*
 
 # Initialize the JIT
-LLVMLinkInJIT
-LLVMInitializeNativeTarget
+llvmtcl LinkInJIT
+llvmtcl InitializeNativeTarget
 
 # Create a module and builder
-set m [LLVMModuleCreateWithName "testmodule"]
-set bld [LLVMCreateBuilder]
+set m [llvmtcl ModuleCreateWithName "testmodule"]
+set bld [llvmtcl CreateBuilder]
 
 # Create a plus10 function, taking one argument and adding 6 and 4 to it
-set ft [LLVMFunctionType [LLVMInt32Type] [list [LLVMInt32Type]] 0]
-set plus10 [LLVMAddFunction $m "plus10" $ft]
+set ft [llvmtcl FunctionType [llvmtcl Int32Type] [list [llvmtcl Int32Type]] 0]
+set plus10 [llvmtcl AddFunction $m "plus10" $ft]
 
 # Create constants
-set c6 [LLVMConstInt [LLVMInt32Type] 6 0]
-set c4 [LLVMConstInt [LLVMInt32Type] 4 0]
+set c6 [llvmtcl ConstInt [llvmtcl Int32Type] 6 0]
+set c4 [llvmtcl ConstInt [llvmtcl Int32Type] 4 0]
 
 # Create the basic blocks
-set entry [LLVMAppendBasicBlock $plus10 entry]
+set entry [llvmtcl AppendBasicBlock $plus10 entry]
 
 # Put arguments on the stack to avoid having to write select and/or phi nodes
-LLVMPositionBuilderAtEnd $bld $entry
-set arg0_1 [LLVMGetParam $plus10 0]
-set arg0_2 [LLVMBuildAlloca $bld [LLVMInt32Type] arg0]
-set arg0_3 [LLVMBuildStore $bld $arg0_1 $arg0_2]
+llvmtcl PositionBuilderAtEnd $bld $entry
+set arg0_1 [llvmtcl GetParam $plus10 0]
+set arg0_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] arg0]
+set arg0_3 [llvmtcl BuildStore $bld $arg0_1 $arg0_2]
 
 # Do add 10 in two steps to see the optimizer @ work
 
 # Add 6
-set arg0_4 [LLVMBuildLoad $bld $arg0_2 "arg0"]
-set add6 [LLVMBuildAdd $bld $arg0_4 $c6 "add6"]
+set arg0_4 [llvmtcl BuildLoad $bld $arg0_2 "arg0"]
+set add6 [llvmtcl BuildAdd $bld $arg0_4 $c6 "add6"]
 
 # Add 4
-set add4 [LLVMBuildAdd $bld $add6 $c4 "add4"]
+set add4 [llvmtcl BuildAdd $bld $add6 $c4 "add4"]
 
 # Set return
-LLVMBuildRet $bld $add4
+llvmtcl BuildRet $bld $add4
 
 # Show input
 puts "----- Input --------------------------------------------------"
-puts [LLVMDumpModule $m]
+puts [llvmtcl DumpModule $m]
 
 # Verify the module
-lassign [LLVMVerifyModule $m LLVMReturnStatusAction] rt msg
+lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
 if {$rt} {
     error $msg
 }
 
 # Execute
-lassign [LLVMCreateJITCompilerForModule $m 0] rt EE msg
-set i [LLVMCreateGenericValueOfInt [LLVMInt32Type] 4 0]
-set res [LLVMRunFunction $EE $plus10 $i]
-puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"
+lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+set i [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 4 0]
+set res [llvmtcl RunFunction $EE $plus10 $i]
+puts "plus10(4) = [llvmtcl GenericValueToInt $res 0]\n"
 
 # Optimize
-set td [LLVMCreateTargetData ""]
-LLVMSetDataLayout $m [LLVMCopyStringRepOfTargetData $td]
-LLVMOptimizeFunction $m $plus10 3 $td
-LLVMOptimizeModule $m 3 0 1 1 1 0 $td
+set td [llvmtcl CreateTargetData ""]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+llvmtcl OptimizeFunction $m $plus10 3 $td
+llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
 puts "----- Optimized ----------------------------------------------"
-puts [LLVMDumpModule $m]
+puts [llvmtcl DumpModule $m]
 
 # Execute optimized code
-set res [LLVMRunFunction $EE $plus10 $i]
-puts "plus10(4) = [LLVMGenericValueToInt $res 0]\n"
+set res [llvmtcl RunFunction $EE $plus10 $i]
+puts "plus10(4) = [llvmtcl GenericValueToInt $res 0]\n"

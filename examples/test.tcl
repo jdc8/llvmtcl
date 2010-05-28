@@ -28,7 +28,7 @@ set arg0_3 [llvmtcl BuildStore $bld $arg0_1 $arg0_2]
 
 # Compare input < 2
 set arg0_4 [llvmtcl BuildLoad $bld $arg0_2 "n"]
-set cc [llvmtcl BuildICmp $bld llvmtcl IntSLT $arg0_4 $two "cc"]
+set cc [llvmtcl BuildICmp $bld LLVMIntSLT $arg0_4 $two "cc"]
 
 # Branch
 llvmtcl BuildCondBr $bld $cc $exit_lt_2 $recurse

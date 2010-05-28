@@ -1,8 +1,6 @@
 lappend auto_path .
 package require llvmtcl
 
-namespace import llvmtcl::*
-
 # Initialize the JIT
 llvmtcl LinkInJIT
 llvmtcl InitializeNativeTarget
@@ -57,10 +55,7 @@ set res [llvmtcl RunFunction $EE $plus10 $i]
 puts "plus10(4) = [llvmtcl GenericValueToInt $res 0]\n"
 
 # Optimize
-set td [llvmtcl CreateTargetData ""]
-llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
-llvmtcl OptimizeFunction $m $plus10 3 $td
-llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
+llvmtcl Optimize $m $plus10
 puts "----- Optimized ----------------------------------------------"
 puts [llvmtcl DumpModule $m]
 

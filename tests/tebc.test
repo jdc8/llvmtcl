@@ -9,7 +9,7 @@ tcltest::test tebc-expr {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_expr"]
 } -body {
-    set f [Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
@@ -31,7 +31,7 @@ tcltest::test tebc-if-then-else {Convert Tcl to llvm, optimize and run it} -setu
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_if_then_else"]
 } -body {
-    set f [Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
@@ -55,7 +55,7 @@ tcltest::test tebc-for {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_for"]
 } -body {
-    set f [Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
@@ -78,8 +78,8 @@ tcltest::test tebc-call {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_call"]
 } -body {
-    Tcl2LLVM $m "callee"
-    set f [Tcl2LLVM $m "caller"]
+    llvmtcl Tcl2LLVM $m "callee"
+    set f [llvmtcl Tcl2LLVM $m "caller"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
@@ -107,9 +107,9 @@ tcltest::test tebc-recursive {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {
-    set f [Tcl2LLVM $m "fact"]
-    set fi [Tcl2LLVM $m "facti"]
-    set f10 [Tcl2LLVM $m "fact10"]
+    set f [llvmtcl Tcl2LLVM $m "fact"]
+    set fi [llvmtcl Tcl2LLVM $m "facti"]
+    set f10 [llvmtcl Tcl2LLVM $m "fact10"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f $fi $f10]
@@ -150,9 +150,9 @@ tcltest::test tebc-filter {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {
-    Tcl2LLVM $m "low_pass" 1
-    set f [Tcl2LLVM $m "filter"]
-    Tcl2LLVM $m "low_pass"
+    llvmtcl Tcl2LLVM $m "low_pass" 1
+    set f [llvmtcl Tcl2LLVM $m "filter"]
+    llvmtcl Tcl2LLVM $m "low_pass"
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]

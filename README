@@ -14,7 +14,7 @@ REQUIREMENTS
 ============
 
 - tcl 8.5
-- llvm 2.7
+- llvm 2.7 or 2.8
 
 You need to fix LLVM Bug 7019, which is not fixed in the downloadable LLVM 2.7
 package. More info at http://llvm.org/viewvc/llvm-project?view=rev&revision=102959

@@ -406,7 +406,6 @@ void LLVMAddInstructionCombiningPass(LLVMPassManagerRef PM);
 void LLVMAddJumpThreadingPass(LLVMPassManagerRef PM);
 void LLVMAddLICMPass(LLVMPassManagerRef PM);
 void LLVMAddLoopDeletionPass(LLVMPassManagerRef PM);
-void LLVMAddLoopIndexSplitPass(LLVMPassManagerRef PM);
 void LLVMAddLoopRotatePass(LLVMPassManagerRef PM);
 void LLVMAddLoopUnrollPass(LLVMPassManagerRef PM);
 void LLVMAddLoopUnswitchPass(LLVMPassManagerRef PM);

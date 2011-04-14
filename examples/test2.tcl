@@ -1,4 +1,4 @@
-lappend auto_path .
+lappend auto_path ..
 package require llvmtcl
 
 # Initialize the JIT

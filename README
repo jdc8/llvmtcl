@@ -3,6 +3,10 @@ Please see the webpage
 
 	http://github.com/jdc8/llvmtcl
 
+or
+
+        http://wiki.tcl.tk/26308
+
 for more details.
 
 This package is a freely available open source package.  You can do virtually
@@ -14,10 +18,7 @@ REQUIREMENTS
 ============
 
 - tcl 8.6
-- llvm 2.9
-
-You need to fix LLVM Bug 7019, which is not fixed in the downloadable LLVM 2.7
-package. More info at http://llvm.org/viewvc/llvm-project?view=rev&revision=102959
+- llvm 3.0
 
 CONTENTS
 ========
@@ -81,6 +82,7 @@ example will build and install the extension:
 	$ cd llvmtcl
 	$ ./configure --with-tcl=... --with-llvm=...
 	$ make
+        $ make test
 	$ make install
 
 Add the llvm lib directory containing the llvm shared object files to the
@@ -117,15 +119,16 @@ USING llvmtcl
 
   package require llvmtcl
 
-- all commands are added to the llvmtcl namespace and can be imported:
+- The package makes a llvmtcl ensemble command. The subcommands are the LLVM C
+  API functions with LLVM trimmed from the front. All supported types,
+  enumerators and functions can be found in:
 
-  namespace import llvmtcl::*
+  http://github.com/jdc8/llvmtcl/blob/master/llvmtcl-gen.inp
 
-- llvmtcl command names and arguments are taken from the C API as found in the
-  llvm include file llvm-c/Core.h. Commands taking a pointer and a number of
-  elements as arguments have been converted to take a Tcl list as
-  argument. Commands with references arguments to return information have been
-  converted to return a list of values.
+- Functions taking a pointer argument followed by an unsigned argument to
+  specified the number of elements the pointer is pointing to are converted to
+  ensemble commands where the pointer and the unsigned argument are replaced by
+  a Tcl list.
 
 EXAMPLES
 ========
@@ -142,3 +145,7 @@ examples/test2.tcl
 examples/tebc.tcl
 
     Example converting Tcl into LLVM
+
+examples/ffidle.tcl
+
+    Example calling functions in shared libraries

@@ -3,7 +3,9 @@
 #include <sstream>
 #include <map>
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/StandardPasses.h"
+#include "llvm/PassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/IPO.h"
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
@@ -72,39 +74,43 @@ LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, L
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }
 
+// Code taken from tools/opt/opt.cpp
+
 void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel)
 {
-    llvm::createStandardFunctionPasses(dynamic_cast<llvm::FunctionPassManager*>(llvm::unwrap(PM)),
-				       OptimizationLevel);
+    llvm::PassManagerBuilder Builder;
+    Builder.OptLevel = OptimizationLevel;
+    if (OptimizationLevel == 0) {
+	// No inlining pass
+    } else if (OptimizationLevel > 1) {
+	unsigned Threshold = 225;
+	if (OptimizationLevel > 2)
+	    Threshold = 275;
+	Builder.Inliner = llvm::createFunctionInliningPass(Threshold);
+    } else {
+	Builder.Inliner = llvm::createAlwaysInlinerPass();
+    }
+    Builder.DisableUnrollLoops = OptimizationLevel == 0;
+    Builder.populateFunctionPassManager(*(dynamic_cast<llvm::FunctionPassManager*>(llvm::unwrap(PM))));
 }
 
 void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM,
-				    unsigned OptimizationLevel,
-				    bool OptimizeSize,
-				    bool UnitAtATime,
-				    bool UnrollLoops,
-				    bool SimplifyLibCalls,
-				    bool HaveExceptions)
+				    unsigned OptimizationLevel)
 {
-    llvm::createStandardModulePasses(dynamic_cast<llvm::PassManager*>(llvm::unwrap(PM)),
-				     OptimizationLevel,
-				     OptimizeSize,
-				     UnitAtATime,
-				     UnrollLoops,
-				     SimplifyLibCalls,
-				     HaveExceptions,
-				     llvm::createFunctionInliningPass());
-}
-
-void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM,
-				 bool Internalize,
-				 bool RunInliner,
-				 bool VerifyEach)
-{
-    llvm::createStandardLTOPasses(dynamic_cast<llvm::PassManager*>(llvm::unwrap(PM)),
-				  Internalize,
-				  RunInliner,
-				  VerifyEach);
+    llvm::PassManagerBuilder Builder;
+    Builder.OptLevel = OptimizationLevel;
+    if (OptimizationLevel == 0) {
+	// No inlining pass
+    } else if (OptimizationLevel > 1) {
+	unsigned Threshold = 225;
+	if (OptimizationLevel > 2)
+	    Threshold = 275;
+	Builder.Inliner = llvm::createFunctionInliningPass(Threshold);
+    } else {
+	Builder.Inliner = llvm::createAlwaysInlinerPass();
+    }
+    Builder.DisableUnrollLoops = OptimizationLevel == 0;
+    Builder.populateModulePassManager(*(dynamic_cast<llvm::PassManagerBase*>(llvm::unwrap(PM))));
 }
 
 #include "llvmtcl-gen.c"
@@ -119,7 +125,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
     }
-    if (Tcl_PkgProvide(interp, "llvmtcl", "0.1") != TCL_OK) {
+    if (Tcl_PkgProvide(interp, "llvmtcl", "3.0") != TCL_OK) {
 	return TCL_ERROR;
     }
 #include "llvmtcl-gen-cmddef.c"  

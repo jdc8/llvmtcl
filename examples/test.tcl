@@ -87,7 +87,7 @@ llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
 for {set t 0} {$t < 10} {incr t} {
     llvmtcl OptimizeFunction $m $fac 3 $td
     llvmtcl OptimizeFunction $m $fac10 3 $td
-    llvmtcl OptimizeModule $m 3 0 1 1 1 0  $td
+    llvmtcl OptimizeModule $m 3 $td
 }
 
 # Write llvmtcl  bit code to file

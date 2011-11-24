@@ -3,7 +3,7 @@ typedef LLVMTypeRef
 typedef LLVMValueRef
 typedef LLVMBasicBlockRef
 typedef LLVMContextRef
-typedef LLVMTypeHandleRef
+//typedef LLVMTypeHandleRef
 typedef LLVMModuleRef
 typedef LLVMUseRef
 typedef LLVMExecutionEngineRef
@@ -11,7 +11,7 @@ typedef LLVMGenericValueRef
 typedef LLVMPassManagerRef
 typedef LLVMTargetDataRef
 
-enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMOpaqueTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
+enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
 enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment} LLVMAttribute;
 enum { LLVMRet, LLVMBr, LLVMSwitch, LLVMIndirectBr, LLVMInvoke, LLVMUnwind, LLVMUnreachable, LLVMAdd, LLVMFAdd, LLVMSub, LLVMFSub, LLVMMul, LLVMFMul, LLVMUDiv, LLVMSDiv, LLVMFDiv, LLVMURem, LLVMSRem, LLVMFRem, LLVMShl, LLVMLShr, LLVMAShr, LLVMAnd, LLVMOr, LLVMXor, LLVMAlloca, LLVMLoad, LLVMStore, LLVMGetElementPtr, LLVMTrunc, LLVMZExt, LLVMSExt, LLVMFPToUI, LLVMFPToSI, LLVMUIToFP, LLVMSIToFP, LLVMFPTrunc, LLVMFPExt, LLVMPtrToInt, LLVMIntToPtr, LLVMBitCast, LLVMICmp, LLVMFCmp, LLVMPHI, LLVMCall, LLVMSelect, LLVMVAArg, LLVMExtractElement, LLVMInsertElement, LLVMShuffleVector, LLVMExtractValue, LLVMInsertValue} LLVMOpcode;
 enum { LLVMIntEQ, LLVMIntNE, LLVMIntUGT, LLVMIntUGE, LLVMIntULT, LLVMIntULE, LLVMIntSGT, LLVMIntSGE, LLVMIntSLT, LLVMIntSLE} LLVMIntPredicate;
@@ -53,7 +53,6 @@ LLVMValueRef LLVMBuildCondBr(LLVMBuilderRef, LLVMValueRef If, LLVMBasicBlockRef 
 LLVMValueRef LLVMBuildSwitch(LLVMBuilderRef, LLVMValueRef V, LLVMBasicBlockRef Else, unsigned NumCases);
 LLVMValueRef LLVMBuildIndirectBr(LLVMBuilderRef B, LLVMValueRef Addr, unsigned NumDests);
 //LLVMValueRef LLVMBuildInvoke(LLVMBuilderRef, LLVMValueRef Fn, LLVMValueRef * Args, unsigned NumArgs, LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch, const char * Name);
-LLVMValueRef LLVMBuildUnwind(LLVMBuilderRef);
 LLVMValueRef LLVMBuildUnreachable(LLVMBuilderRef);
 void LLVMAddCase(LLVMValueRef Switch, LLVMValueRef OnVal, LLVMBasicBlockRef Dest);
 void LLVMAddDestination(LLVMValueRef IndirectBr, LLVMBasicBlockRef Dest);
@@ -179,14 +178,8 @@ unsigned LLVMGetPointerAddressSpace(LLVMTypeRef PointerTy);
 unsigned LLVMGetVectorSize(LLVMTypeRef VectorTy);
 LLVMTypeRef LLVMVoidTypeInContext(LLVMContextRef C);
 LLVMTypeRef LLVMLabelTypeInContext(LLVMContextRef C);
-LLVMTypeRef LLVMOpaqueTypeInContext(LLVMContextRef C);
 LLVMTypeRef LLVMVoidType(void);
 LLVMTypeRef LLVMLabelType(void);
-LLVMTypeRef LLVMOpaqueType(void);
-LLVMTypeHandleRef LLVMCreateTypeHandle(LLVMTypeRef PotentiallyAbstractTy);
-void LLVMRefineType(LLVMTypeRef AbstractTy, LLVMTypeRef ConcreteTy);
-LLVMTypeRef LLVMResolveTypeHandle(LLVMTypeHandleRef TypeHandle);
-void LLVMDisposeTypeHandle(LLVMTypeHandleRef TypeHandle);
 // Functions
 LLVMValueRef LLVMAddFunction(LLVMModuleRef M, const char *Name, LLVMTypeRef FunctionTy);
 LLVMValueRef LLVMGetNamedFunction(LLVMModuleRef M, const char *Name);
@@ -382,10 +375,12 @@ LLVMBool LLVMCreateInterpreterForModule(LLVMExecutionEngineRef *OutInterp, LLVMM
 LLVMBool LLVMCreateJITCompilerForModule(LLVMExecutionEngineRef *OutJIT, LLVMModuleRef M, unsigned OptLevel, char **OutError);
 
 LLVMGenericValueRef LLVMCreateGenericValueOfInt(LLVMTypeRef Ty, unsigned long long N, LLVMBool IsSigned);
+LLVMGenericValueRef LLVMCreateGenericValueOfFloat(LLVMTypeRef Ty, double N);
 
 LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs);
 
 unsigned long long LLVMGenericValueToInt(LLVMGenericValueRef GenVal, LLVMBool IsSigned);
+double LLVMGenericValueToFloat(LLVMTypeRef TyRef, LLVMGenericValueRef GenVal);
 
 LLVMPassManagerRef LLVMCreatePassManager(void);
 LLVMPassManagerRef LLVMCreateFunctionPassManagerForModule(LLVMModuleRef M);
@@ -421,19 +416,16 @@ void LLVMAddDemoteMemoryToRegisterPass(LLVMPassManagerRef PM);
 void LLVMAddArgumentPromotionPass(LLVMPassManagerRef PM);
 void LLVMAddConstantMergePass(LLVMPassManagerRef PM);
 void LLVMAddDeadArgEliminationPass(LLVMPassManagerRef PM);
-void LLVMAddDeadTypeEliminationPass(LLVMPassManagerRef PM);
 void LLVMAddFunctionAttrsPass(LLVMPassManagerRef PM);
 void LLVMAddFunctionInliningPass(LLVMPassManagerRef PM);
 void LLVMAddGlobalDCEPass(LLVMPassManagerRef PM);
 void LLVMAddGlobalOptimizerPass(LLVMPassManagerRef PM);
 void LLVMAddIPConstantPropagationPass(LLVMPassManagerRef PM);
-void LLVMAddLowerSetJmpPass(LLVMPassManagerRef PM);
 void LLVMAddPruneEHPass(LLVMPassManagerRef PM);
 void LLVMAddStripDeadPrototypesPass(LLVMPassManagerRef PM);
 void LLVMAddStripSymbolsPass(LLVMPassManagerRef PM);
 void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel);
-void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM, unsigned OptimizationLevel, bool OptimizeSize, bool UnitAtATime, bool UnrollLoops, bool SimplifyLibCalls, bool HaveExceptions);
-void LLVMCreateStandardLTOPasses(LLVMPassManagerRef PM, bool Internalize, bool RunInliner, bool VerifyEach);
+void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM, unsigned OptimizationLevel);
 
 std::string LLVMGetDataLayout(LLVMModuleRef M);
 void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);

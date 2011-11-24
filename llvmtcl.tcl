@@ -2,10 +2,10 @@ namespace eval llvmtcl {
     namespace export *
     namespace ensemble create
 
-    proc OptimizeModule {m optimizeLevel optimizeSize unitAtATime unrollLoops simplifyLibCalls haveExceptions targetDataRef} {
+    proc OptimizeModule {m optimizeLevel targetDataRef} {
 	set pm [llvmtcl CreatePassManager]
 	llvmtcl AddTargetData $targetDataRef $pm
-	llvmtcl CreateStandardModulePasses $pm $optimizeLevel $optimizeSize $unitAtATime $unrollLoops $simplifyLibCalls $haveExceptions
+	llvmtcl CreateStandardModulePasses $pm $optimizeLevel 
 	llvmtcl RunPassManager $pm $m
 	llvmtcl DisposePassManager $pm
     }
@@ -26,7 +26,7 @@ namespace eval llvmtcl {
 	foreach f $funcList {
 	    llvmtcl OptimizeFunction $m $f 3 $td
 	}
-	llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
+	llvmtcl OptimizeModule $m 3 $td
     }
 
     proc Execute {m f args} {

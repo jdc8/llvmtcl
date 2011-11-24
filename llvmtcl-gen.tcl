@@ -227,6 +227,7 @@ proc gen_api_call {cf of l} {
 	"LLVMUseRef" -
 	"int" -
 	"long long" -
+	"double" -
 	"unsigned" -
 	"unsigned long long" -
 	"std::string" {
@@ -316,6 +317,9 @@ proc gen_api_call {cf of l} {
 		    puts $cf "    Tcl_WideInt w$rnm = (Tcl_WideInt)$rnm;"
 		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewWideIntObj(w$rnm));"
 		}
+		"double" {
+		    puts $cf "    Tcl_ListObjAppendElement(interp, rtl, Tcl_NewDoubleObj($rnm));"
+		}
 		"void" {
 		}
 		default {
@@ -358,6 +362,9 @@ proc gen_api_call {cf of l} {
 	    "unsigned long long" {
 		puts $cf "    Tcl_WideInt wrt = (Tcl_WideInt)rt;"
 		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(wrt));"
+	    }
+	    "double" {
+		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewDoubleObj(rt));"
 	    }
 	    "std::string" {
 		puts $cf "    Tcl_SetObjResult(interp, Tcl_NewStringObj(rt.c_str(), -1));"

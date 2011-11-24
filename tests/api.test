@@ -45,7 +45,7 @@ tcltest::test api-1 {build an example with llvm C api wrapper and execute it} -b
     set td [llvmtcl CreateTargetData ""]
     llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
     llvmtcl OptimizeFunction $m $plus10 3 $td
-    llvmtcl OptimizeModule $m 3 0 1 1 1 0 $td
+    llvmtcl OptimizeModule $m 3 $td
     # Execute optimized code
     set res [llvmtcl RunFunction $EE $plus10 $i]
     lappend result [llvmtcl GenericValueToInt $res 0]
@@ -119,7 +119,7 @@ tcltest::test api-2 {build an example with llvm C api wrapper and execute it} -b
     for {set t 0} {$t < 10} {incr t} {
 	llvmtcl OptimizeFunction $m $fac 3 $td
 	llvmtcl OptimizeFunction $m $fac10 3 $td
-	llvmtcl OptimizeModule $m 3 0 1 1 1 0  $td
+	llvmtcl OptimizeModule $m 3 $td
     }
     set res [llvmtcl RunFunction $EE $fac $i]
     lappend result [llvmtcl GenericValueToInt $res 0]

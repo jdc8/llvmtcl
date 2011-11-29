@@ -123,7 +123,6 @@ int LLVMCreateGenericValueOfTclInterpObjCmd(ClientData clientData, Tcl_Interp* i
         Tcl_WrongNumArgs(interp, 1, objv, " ");
         return TCL_ERROR;
     }
-    std::cout << "LLVMCreateGenericValueOfTclInterpObjCmd " << interp << std::endl;
     LLVMGenericValueRef rt = LLVMCreateGenericValueOfPointer(interp);
     Tcl_SetObjResult(interp, SetLLVMGenericValueRefAsObj(interp, rt));
     return TCL_OK;
@@ -134,7 +133,6 @@ int LLVMCreateGenericValueOfTclObjObjCmd(ClientData clientData, Tcl_Interp* inte
         Tcl_WrongNumArgs(interp, 1, objv, "val ");
         return TCL_ERROR;
     }
-    std::cout << "LLVMCreateGenericValueOfTclObjObjCmd " << objv[1] << std::endl;
     Tcl_IncrRefCount(objv[1]);
     LLVMGenericValueRef rt = LLVMCreateGenericValueOfPointer(objv[1]);
     Tcl_SetObjResult(interp, SetLLVMGenericValueRefAsObj(interp, rt));
@@ -193,14 +191,17 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_test", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_test);
     }
-    LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
-    LLVMTypeRef pta[3] = {pt, pt, pt};
-    LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
     {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef pta[3] = {pt, pt, pt};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_add", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_add);
     }
     {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef pta[3] = {pt, pt, pt};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_sub", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_sub);
     }

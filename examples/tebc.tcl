@@ -2,7 +2,7 @@ lappend auto_path ..
 package require llvmtcl
 
 set optimize 1
-set procs {test2 test test3 test4 test5 fact facti fact10 low_pass filter}
+set procs {test2} ;#{ test test3 test4 test5 fact facti fact10 low_pass filter}
 set timings {low_pass filter}
 set timing_count 10
 

@@ -33,17 +33,17 @@ namespace eval llvmtcl {
 	lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 	set largs {}
 	foreach arg $args {
-	    lappend largs [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $arg 0]
+	    lappend largs [llvmtcl CreateGenericValueOfTclObj $arg]
 	}
-	set rt [llvmtcl GenericValueToInt [llvmtcl RunFunction $EE $f $largs] 0]
+	set rt [llvmtcl GenericValueToTclObj [llvmtcl RunFunction $EE $f $largs]]
     }
 
     proc Tcl2LLVM {m procName {functionDeclarationOnly 0}} {
-	variable tstp
 	variable ts
 	variable tsp
 	variable funcar
 	variable utils_added
+	variable TclObjPtr
 	if {![info exists utils_added($m)] || !$utils_added($m)} {
 	    AddTcl2LLVMUtils $m
 	}
@@ -57,10 +57,10 @@ namespace eval llvmtcl {
 	    foreach l $dasm {
 		set l [string trim $l]
 		if {[regexp {slot \d+, .*arg, \"} $l]} {
-		    lappend argl [llvmtcl Int32Type]
+		    lappend argl $TclObjPtr
 		}
 	    }
-	    set ft [llvmtcl FunctionType [llvmtcl Int32Type] $argl 0]
+	    set ft [llvmtcl FunctionType $TclObjPtr $argl 0]
 	    set func [llvmtcl AddFunction $m $procName $ft]
 	    set funcar($m,$procName) $func
 	}
@@ -96,49 +96,50 @@ namespace eval llvmtcl {
 	llvmtcl PositionBuilderAtEnd $bld $block(0)
 	set curr_block $block(0)
 	# Create stack and stack pointer
-	set tstp [llvmtcl PointerType [llvmtcl Int8Type] 0]
-	set at [llvmtcl ArrayType [llvmtcl PointerType [llvmtcl Int8Type] 0] 100]
+	set at [llvmtcl ArrayType $TclObjPtr 100]
 	set ts [llvmtcl BuildArrayAlloca $bld $at [llvmtcl ConstInt [llvmtcl Int32Type] 1 0] ""]
 	set tsp [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
-	llvmtcl BuildStore $bld [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] $tsp
+	set d0 [llvmtcl CreateGenericValueOfTclObj 0]
+	llvmtcl BuildStore $bld $d0 $tsp
 	# Load arguments into llvm, allocate space for slots
 	set n 0
 	foreach l $dasm {
 	    set l [string trim $l]
 	    if {[regexp {slot \d+, .*arg, \"} $l]} {
 		set arg_1 [llvmtcl GetParam $func $n]
-		set arg_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
+		set arg_2 [llvmtcl BuildAlloca $bld $TclObjPtr ""]
 		set arg_3 [llvmtcl BuildStore $bld $arg_1 $arg_2]
 		set vars($n) $arg_2
 		incr n
 	    } elseif {[string match "slot *" $l]} {
-		set arg_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
+		set arg_2 [llvmtcl BuildAlloca $bld $TclObjPtr ""]
 		set vars($n) $arg_2
 	    }
 	}
 	# Convert Tcl parse output
-	set LLVMBuilder2(bitor) BuildXor
-	set LLVMBuilder2(bitxor) BuildOr
-	set LLVMBuilder2(bitand) BuildAnd
-	set LLVMBuilder2(lshift) BuildShl
-	set LLVMBuilder2(rshift) BuildAShr
-	set LLVMBuilder2(add) BuildAdd
-	set LLVMBuilder2(sub) BuildSub
-	set LLVMBuilder2(mult) BuildMul
-	set LLVMBuilder2(div) BuildSDiv
-	set LLVMBuilder2(mod) BuildSRem
+	set LLVMBuilder2(bitor) [llvmtcl GetNamedFunction $m "llvm_or"]
+	set LLVMBuilder2(bitxor) [llvmtcl GetNamedFunction $m "llvm_xor"]
+	set LLVMBuilder2(bitand) [llvmtcl GetNamedFunction $m "llvm_and"]
+	set LLVMBuilder2(lshift) [llvmtcl GetNamedFunction $m "llvm_lshd"]
+	set LLVMBuilder2(rshift) [llvmtcl GetNamedFunction $m "llvm_rshd"]
+	set LLVMBuilder2(add) [llvmtcl GetNamedFunction $m "llvm_add"]
+	set LLVMBuilder2(sub) [llvmtcl GetNamedFunction $m "llvm_sub"]
+	set LLVMBuilder2(mult) [llvmtcl GetNamedFunction $m "llvm_mul"]
+	set LLVMBuilder2(div) [llvmtcl GetNamedFunction $m "llvm_div"]
+	set LLVMBuilder2(mod) [llvmtcl GetNamedFunction $m "llvm_mod"]
 
-	set LLVMBuilder1(uminus) BuildNeg
-	set LLVMBuilder1(bitnot) BuildNot
+	set LLVMBuilder1(uminus) [llvmtcl GetNamedFunction $m "llvm_neg"]
+	set LLVMBuilder1(bitnot) [llvmtcl GetNamedFunction $m "llvm_not"]
 
-	set LLVMBuilderICmp(eq) LLVMIntEQ
-	set LLVMBuilderICmp(neq) LLVMIntNE
-	set LLVMBuilderICmp(lt) LLVMIntSLT
-	set LLVMBuilderICmp(gt) LLVMIntSGT
-	set LLVMBuilderICmp(le) LLVMIntSLE
-	set LLVMBuilderICmp(ge) LLVMIntGE
+	set LLVMBuilderICmp(eq) [llvmtcl GetNamedFunction $m "llvm_eq"]
+	set LLVMBuilderICmp(neq) [llvmtcl GetNamedFunction $m "llvm_neq"]
+	set LLVMBuilderICmp(lt) [llvmtcl GetNamedFunction $m "llvm_lt"]
+	set LLVMBuilderICmp(gt) [llvmtcl GetNamedFunction $m "llvm_gt"]
+	set LLVMBuilderICmp(le) [llvmtcl GetNamedFunction $m "llvm_le"]
+	set LLVMBuilderICmp(ge) [llvmtcl GetNamedFunction $m "llvm_ge"]
 
 	set done_done 0
+	set interp [llvmtcl CreateGenericValueOfTclInterp]
 	foreach l $dasm {
 	    #puts $l
 	    set l [string trim $l]
@@ -156,15 +157,15 @@ namespace eval llvmtcl {
 		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
-		push $bld [llvmtcl $LLVMBuilder1($opcode) $bld [pop $bld [llvmtcl Int32Type]] ""]
+		set top0 [pop $bld $TclObjPtr]
+		push $bld [llvmtcl BuildCall $bld $LLVMBuilder1($opcode) [list $interp $top0] $opcode]
 	    } elseif {[info exists LLVMBuilder2($opcode)]} {
-		set top0 [pop $bld [llvmtcl Int32Type]]
-		set top1 [pop $bld [llvmtcl Int32Type]]
-		push $bld [llvmtcl $LLVMBuilder2($opcode) $bld $top1 $top0 ""]
+		set top1 [pop $bld $TclObjPtr]
+		push $bld [llvmtcl BuildCall $bld $LLVMBuilder2($opcode) [list $interp $top1 $top0] $opcode]
 	    } elseif {[info exists LLVMBuilderICmp($opcode)]} {
-		set top0 [pop $bld [llvmtcl Int32Type]]
-		set top1 [pop $bld [llvmtcl Int32Type]]
-		push $bld [llvmtcl BuildIntCast $bld [llvmtcl BuildICmp $bld $LLVMBuilderICmp($opcode) $top1 $top0 ""] [llvmtcl Int32Type] ""]
+		set top0 [pop $bld $TclObjPtr]
+		set top1 [pop $bld $TclObjPtr]
+		push $bld [llvmtcl BuildCall $bld $LLVMBuilderICmp($opcode) [list $interp $top1 $top0] $opcode]
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
@@ -177,57 +178,51 @@ namespace eval llvmtcl {
 			if {[info exists vars($idx)]} {
 			    set var_2 $vars($idx)
 			} else {
-			    set var_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
+			    set var_2 [llvmtcl BuildAlloca $bld $TclObjPtr ""]
 			}
 			set var_3 [llvmtcl BuildStore $bld $var_1 $var_2]
 			set vars($idx) $var_2
 		    }
 		    "incrScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			llvmtcl BuildStore $bld [llvmtcl BuildAdd $bld [llvmtcl BuildLoad $bld $var ""] [top $bld [llvmtcl Int32Type]] ""] $var
+			llvmtcl BuildStore $bld [llvmtcl BuildCall $bld $LLVMBuilder2(add) [list $interp [llvmtcl BuildLoad $bld $var ""] [top $bld $TclObjPtr]] $opcode] $var
 		    }
 		    "incrScalar1Imm" {
 			set var $vars([string range [lindex $l 2] 2 end])
 			set i [lindex $l 3]
-			set s [llvmtcl BuildAdd $bld [llvmtcl BuildLoad $bld $var ""] [llvmtcl ConstInt [llvmtcl Int32Type] $i 0] ""]
+			set s [llvmtcl BuildCall $bld $LLVMBuilder2(add) [list $interp [llvmtcl BuildLoad $bld $var ""] [llvmtcl CreateGenericValueOfTclObj $i]] $opcode]
 			push $bld $s
 			llvmtcl BuildStore $bld $s $var
 		    }
 		    "push1" {
 			set tval [lindex $l 4]
 			if {[string is integer -strict $tval]} {
-			    set val [llvmtcl ConstInt [llvmtcl Int32Type] $tval 0]
+			    set val [llvmtcl CreateGenericValueOfTclObj $tval]
 			} elseif {[info exists funcar($m,$tval)]} {
 			    set val $funcar($m,$tval)
 			} else {
-			    set val [llvmtcl ConstInt [llvmtcl Int32Type] 0 0]
+			    set val [llvmtcl CreateGenericValueOfTclObj 0]
 			}
 			push $bld $val
 		    }
 		    "jumpTrue4" -
 		    "jumpTrue1" {
-			set top [pop $bld [llvmtcl Int32Type]]
-			if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
-			    set cond $top
-			} else {
-			    set cond [llvmtcl BuildICmp $bld LLVMIntNE $top [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
-			}
+			set top [pop $bld $TclObjPtr]
+			set top_cond [llvmtcl ConstInt [llvmtcl Int32Type] [llvmtcl GenericValueToTclObj $top] 0]
+			set cond [llvmtcl BuildICmp $bld LLVMIntNE $top_cond [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
 			llvmtcl BuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
 			set ends_with_jump($curr_block) 1
 		    }
 		    "jumpFalse4" -
 		    "jumpFalse1" {
-			set top [pop $bld [llvmtcl Int32Type]]
-			if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
-			    set cond $top
-			} else {
-			    set cond [llvmtcl BuildICmp $bld LLVMIntNE $top [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
-			}
+			set top [pop $bld $TclObjPtr]
+			set top_cond [llvmtcl ConstInt [llvmtcl Int32Type] [llvmtcl GenericValueToTclObj $top] 0]
+			set cond [llvmtcl BuildICmp $bld LLVMIntNE $top_cond [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
 			llvmtcl BuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
 			set ends_with_jump($curr_block) 1
 		    }
 		    "tryCvtToNumeric" {
-			push $bld [pop $bld [llvmtcl Int32Type]]
+			push $bld [pop $bld $TclObjPtr]
 		    }
 		    "startCommand" {
 		    }
@@ -241,20 +236,20 @@ namespace eval llvmtcl {
 			set objv {}
 			set argl {}
 			for {set i 0} {$i < ($objc-1)} {incr i} {
-			    lappend objv [pop $bld [llvmtcl Int32Type]]
-			    lappend argl [llvmtcl Int32Type]
+			    lappend objv [pop $bld $TclObjPtr]
+			    lappend argl [llvmtcl $TclObjPtr]
 			}
 			set objv [lreverse $objv]
-			set ft [llvmtcl PointerType [llvmtcl FunctionType [llvmtcl Int32Type] $argl 0] 0]
+			set ft [llvmtcl PointerType [llvmtcl FunctionType $TclObjPtr $argl 0] 0]
 			set fptr [pop $bld $ft]
 			push $bld [llvmtcl BuildCall $bld $fptr $objv ""]
 		    }
 		    "pop" {
-			pop $bld [llvmtcl Int32Type]
+			pop $bld $TclObjPtr
 		    }
 		    "done" {
 			if {!$done_done} {
-			    llvmtcl BuildRet $bld [top $bld [llvmtcl Int32Type]]
+			    llvmtcl BuildRet $bld [top $bld $TclObjPtr]
 			    set ends_with_jump($curr_block) 1
 			    set done_done 1
 			}
@@ -301,7 +296,6 @@ namespace eval llvmtcl {
     }
 
     proc push {bld val} {
-	variable tstp
 	variable ts
 	variable tsp
 	# Allocate space for value
@@ -311,7 +305,7 @@ namespace eval llvmtcl {
 	# Store location on stack
 	set tspv [llvmtcl BuildLoad $bld $tsp "push"]
 	set tsl [llvmtcl BuildGEP $bld $ts [list [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] $tspv] "push"]
-	llvmtcl BuildStore $bld [llvmtcl BuildPointerCast $bld $valp $tstp ""] $tsl
+	llvmtcl BuildStore $bld [llvmtcl BuildPointerCast $bld $valp $TclObjPtr ""] $tsl
 	# Update stack pointer
 	set tspv [llvmtcl BuildAdd $bld $tspv [llvmtcl ConstInt [llvmtcl Int32Type] 1 0] "push"]
 	llvmtcl BuildStore $bld $tspv $tsp
@@ -343,4 +337,6 @@ namespace eval llvmtcl {
 	# Load value
 	return [llvmtcl BuildLoad $bld [llvmtcl BuildPointerCast $bld $valp [llvmtcl PointerType $valt 0] "top"] "top"]
     }
+
+    variable TclObjPtr [llvmtcl PointerType [llvmtcl Int8Type] 0]
 }

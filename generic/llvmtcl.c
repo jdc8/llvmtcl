@@ -124,8 +124,6 @@ int LLVMCreateGenericValueOfTclInterpObjCmd(ClientData clientData, Tcl_Interp* i
         return TCL_ERROR;
     }
     LLVMGenericValueRef rt = LLVMCreateGenericValueOfPointer(interp);
-    LLVMValueRef_map[rt.Name()] = rt;
-    LLVMValueRef_refmap[rt] = ;
     Tcl_SetObjResult(interp, SetLLVMGenericValueRefAsObj(interp, rt));
     return TCL_OK;
 }
@@ -137,8 +135,6 @@ int LLVMCreateGenericValueOfTclObjObjCmd(ClientData clientData, Tcl_Interp* inte
     }
     Tcl_IncrRefCount(objv[1]); // TBD: Where to Decr???
     LLVMGenericValueRef rt = LLVMCreateGenericValueOfPointer(objv[1]);
-    LLVMValueRef_map[] = rt;
-    LLVMValueRef_refmap[rt] = ;
     Tcl_SetObjResult(interp, SetLLVMGenericValueRefAsObj(interp, rt));
     return TCL_OK;
 }
@@ -165,7 +161,8 @@ extern "C" void llvm_test() {}
     Tcl_GetBignumFromObj(interp, ob, &big2);\
     TclBN_mp_init(&bigResult);\
     TclBN_mp_ ## O (&big1, &big2, &bigResult);\
-    return Tcl_NewBignumObj(&bigResult);\
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigResult);\
+    return rt;\
 }
 
 llvm_intop_2_bigint_oper(add)
@@ -184,7 +181,8 @@ llvm_intop_2_bigint_oper(xor)
     TclBN_mp_init(&bigResult);\
     TclBN_mp_copy(&bigResult, &big1);\
     TclBN_mp_ ## O (&bigResult, int2);\
-    return Tcl_NewBignumObj(&bigResult);\
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigResult);\
+    return rt;\
 }
 
 llvm_intop_shift_oper(lshd)
@@ -198,7 +196,8 @@ extern "C" Tcl_Obj* llvm_div(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     TclBN_mp_init(&bigDiv);
     TclBN_mp_init(&bigMod);
     TclBN_mp_div(&big1, &big2, &bigDiv, &bigMod);
-    return Tcl_NewBignumObj(&bigDiv);
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigDiv);
+    return rt;\
 }
 
 extern "C" Tcl_Obj* llvm_mod(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
@@ -209,7 +208,8 @@ extern "C" Tcl_Obj* llvm_mod(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     TclBN_mp_init(&bigDiv);
     TclBN_mp_init(&bigMod);
     TclBN_mp_div(&big1, &big2, &bigDiv, &bigMod);
-    return Tcl_NewBignumObj(&bigMod);
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigMod);
+    return rt;\
 }
 
 extern "C" Tcl_Obj* llvm_neg(Tcl_Interp* interp, Tcl_Obj* oa)
@@ -218,7 +218,8 @@ extern "C" Tcl_Obj* llvm_neg(Tcl_Interp* interp, Tcl_Obj* oa)
     Tcl_GetBignumFromObj(interp, oa, &big1);
     TclBN_mp_init(&bigResult);
     TclBN_mp_neg(&big1, &bigResult);
-    return Tcl_NewBignumObj(&bigResult);
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigResult);
+    return rt;\
 }
 
 extern "C" Tcl_Obj* llvm_not(Tcl_Interp* interp, Tcl_Obj* oa)
@@ -229,7 +230,8 @@ extern "C" Tcl_Obj* llvm_not(Tcl_Interp* interp, Tcl_Obj* oa)
     TclBN_mp_init(&bigResult);
     TclBN_mp_neg(&big1, &bigResult);
     TclBN_mp_sub_d(&bigResult, 1, &bigResult);
-    return Tcl_NewBignumObj(&bigResult);
+    Tcl_Obj* rt = Tcl_NewBignumObj(&bigResult);
+    return rt;\
 }
 
 static int llvm_cmp(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
@@ -270,6 +272,18 @@ extern "C" Tcl_Obj* llvm_ge(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     return Tcl_NewBooleanObj(llvm_cmp(interp, oa, ob) != MP_LT);
 }
 
+extern "C" int llvm_to_int(Tcl_Interp* interp, Tcl_Obj* oa)
+{
+    int i;
+    Tcl_GetIntFromObj(interp, oa, &i);
+    return i;
+}
+
+extern "C" Tcl_Obj* llvm_from_int(Tcl_Interp* interp, int i)
+{
+    return Tcl_NewIntObj(i);
+}
+
 #define llvm_intop_1oper_add_func(O) {\
     LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);\
     LLVMTypeRef pta[2] = {pt, pt};\
@@ -286,7 +300,7 @@ extern "C" Tcl_Obj* llvm_ge(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     LLVMAddGlobalMapping(ee, func, (void*)&llvm_ ## O);\
 }
 
-int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+int LLVMAddTcl2LLVMCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
     if (objc != 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "EE mod ");
         return TCL_ERROR;
@@ -320,6 +334,21 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
     llvm_intop_2oper_add_func(gt);
     llvm_intop_2oper_add_func(le);
     llvm_intop_2oper_add_func(ge);
+    {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef pta[2] = {pt, pt};
+	LLVMTypeRef func_type = LLVMFunctionType(LLVMInt32Type(), pta, 2, 0);
+	LLVMValueRef func = LLVMAddFunction(mod, "llvm_to_int", func_type);
+	LLVMAddGlobalMapping(ee, func, (void*)&llvm_to_int);
+    }
+    {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef it = LLVMInt32Type();
+	LLVMTypeRef pta[2] = {pt, it};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 2, 0);
+	LLVMValueRef func = LLVMAddFunction(mod, "llvm_from_int", func_type);
+	LLVMAddGlobalMapping(ee, func, (void*)&llvm_from_int);
+    }
     return TCL_OK;
 }
 
@@ -347,7 +376,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclInterp", LLVMCreateGenericValueOfTclInterpObjCmd);
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclObj", LLVMCreateGenericValueOfTclObjObjCmd);
     LLVMObjCmd("llvmtcl::GenericValueToTclObj", LLVMGenericValueToTclObjObjCmd);
-    LLVMObjCmd("llvmtcl::AddLLVMTclCommands", LLVMAddLLVMTclCommandsObjCmd);
+    LLVMObjCmd("llvmtcl::AddTcl2LLVMCommands", LLVMAddTcl2LLVMCommandsObjCmd);
 
     return TCL_OK;
 }

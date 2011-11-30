@@ -1,8 +1,10 @@
 lappend auto_path ..
 package require llvmtcl
+source ../llvmtcl.tcl
 
 set optimize 1
-set procs {test2} ;#{ test test3 test4 test5 fact facti fact10 low_pass filter}
+set procs {test2 test test3 test4 facti low_pass test5 fact fact10 factmp filter}
+#set procs facti
 set timings {low_pass filter}
 set timing_count 10
 
@@ -50,6 +52,10 @@ proc fact10 { } {
     return [fact 10]
 }
 
+proc factmp { } {
+    return [facti 40]
+}
+
 proc low_pass {x x1 x2 y1 y2 C0 C1 C2 C3 C4} {
     return [expr {$x*$C0 + $x1*$C1 + $x2*$C2 + $y1*$C3 + $y2*$C4}]
 }
@@ -82,14 +88,15 @@ llvmtcl InitializeNativeTarget
 
 # Create a module
 set m [llvmtcl ModuleCreateWithName "atest"]
+lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 
 # Convert Tcl to llvmtcl 
 foreach nm $procs {
-    set func($nm) [llvmtcl Tcl2LLVM  $m $nm 1]
+    set func($nm) [llvmtcl Tcl2LLVM $EE $m $nm 1]
 }
 set all_funcs {}
 foreach nm $procs {
-    lappend all_funcs [set func($nm) [set f [llvmtcl Tcl2LLVM  $m $nm]]]
+    lappend all_funcs [set func($nm) [set f [llvmtcl Tcl2LLVM $EE $m $nm]]]
 }
 
 # Save module
@@ -116,40 +123,37 @@ close $f
 
 # Some tests
 
-lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
-
 puts "OK? Tcl        llvmtcl        Function"
 puts "--- ---------- ---------- ------------------------------------"
 foreach nm $procs {
+    set ta($nm) {}
+    set la($nm) [list [llvmtcl CreateGenericValueOfTclInterp]]
     switch -glob -- $nm {
 	"filter*" -
-	"fact10" {
-	    set la($nm) {}
-	    set ta($nm) {}
+	"fact10" -
+	"factmp" {
 	}
 	"fact*" {
 	    set ta($nm) 5
-	    set la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 5 0]
+	    lappend la($nm) [llvmtcl CreateGenericValueOfTclObj 5]
 	}
 	"low_pass*" {
 	    set ta($nm) {500 1000 2000 1234 5678 1341 2682 1341 16607 -5591}
-	    set la($nm) {}
 	    foreach v $ta($nm) {
-		lappend la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $v 0]
+		lappend la($nm) [llvmtcl CreateGenericValueOfTclObj $v]
 	    }
 	}
 	default {
 	    set ta($nm) {5 2 3 4 5}
-	    set la($nm) {}
 	    foreach v $ta($nm) {
-		lappend la($nm) [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $v 0]
+		lappend la($nm) [llvmtcl CreateGenericValueOfTclObj $v]
 	    }
 	}
     }
     set res [llvmtcl RunFunction $EE $func($nm) $la($nm)]
     set tr [$nm {*}$ta($nm)]
-    set lr [expr {int([llvmtcl GenericValueToInt $res 0])}]
-    puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10d $tr] [format %10d $lr] $nm"
+    set lr [llvmtcl GenericValueToTclObj $res]
+    puts "[expr {$tr==$lr?"OK ":"ERR"}] [format %10s $tr] [format %10s $lr] $nm"
 }
 
 foreach nm $timings {

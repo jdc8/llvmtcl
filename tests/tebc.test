@@ -8,12 +8,13 @@ tcltest::test tebc-expr {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_expr"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    set f [llvmtcl Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $EE $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
-    llvmtcl Execute $m $f 5
+    llvmtcl Execute $EE $m $f 5
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {15}
@@ -30,15 +31,16 @@ tcltest::test tebc-if-then-else {Convert Tcl to llvm, optimize and run it} -setu
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_if_then_else"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    set f [llvmtcl Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $EE $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [llvmtcl Execute $m $f 5]
-    lappend result [llvmtcl Execute $m $f 55]
-    lappend result [llvmtcl Execute $m $f 555]
+    lappend result [llvmtcl Execute $EE $m $f 5]
+    lappend result [llvmtcl Execute $EE $m $f 55]
+    lappend result [llvmtcl Execute $EE $m $f 555]
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {0 100 0}
@@ -54,15 +56,16 @@ tcltest::test tebc-for {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_for"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    set f [llvmtcl Tcl2LLVM $m "test"]
+    set f [llvmtcl Tcl2LLVM $EE $m "test"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [llvmtcl Execute $m $f 0]
-    lappend result [llvmtcl Execute $m $f 5]
-    lappend result [llvmtcl Execute $m $f 10]
+    lappend result [llvmtcl Execute $EE $m $f 0]
+    lappend result [llvmtcl Execute $EE $m $f 5]
+    lappend result [llvmtcl Execute $EE $m $f 10]
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {1 24 362880}
@@ -77,15 +80,16 @@ tcltest::test tebc-call {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_call"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    llvmtcl Tcl2LLVM $m "callee"
-    set f [llvmtcl Tcl2LLVM $m "caller"]
+    llvmtcl Tcl2LLVM $EE $m "callee"
+    set f [llvmtcl Tcl2LLVM $EE $m "caller"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [llvmtcl Execute $m $f 0 0]
-    lappend result [llvmtcl Execute $m $f 5 10]
+    lappend result [llvmtcl Execute $EE $m $f 0 0]
+    lappend result [llvmtcl Execute $EE $m $f 5 10]
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {46 61}
@@ -106,17 +110,18 @@ tcltest::test tebc-recursive {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    set f [llvmtcl Tcl2LLVM $m "fact"]
-    set fi [llvmtcl Tcl2LLVM $m "facti"]
-    set f10 [llvmtcl Tcl2LLVM $m "fact10"]
+    set f [llvmtcl Tcl2LLVM $EE $m "fact"]
+    set fi [llvmtcl Tcl2LLVM $EE $m "facti"]
+    set f10 [llvmtcl Tcl2LLVM $EE $m "fact10"]
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f $fi $f10]
     set result {}
-    lappend result [llvmtcl Execute $m $f 5]
-    lappend result [llvmtcl Execute $m $fi 6]
-    lappend result [llvmtcl Execute $m $f10]
+    lappend result [llvmtcl Execute $EE $m $f 5]
+    lappend result [llvmtcl Execute $EE $m $fi 6]
+    lappend result [llvmtcl Execute $EE $m $f10]
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {120 720 3628800}
@@ -149,15 +154,16 @@ tcltest::test tebc-filter {Convert Tcl to llvm, optimize and run it} -setup {
     llvmtcl LinkInJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
+    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
 } -body {
-    llvmtcl Tcl2LLVM $m "low_pass" 1
-    set f [llvmtcl Tcl2LLVM $m "filter"]
-    llvmtcl Tcl2LLVM $m "low_pass"
+    llvmtcl Tcl2LLVM $EE $m "low_pass" 1
+    set f [llvmtcl Tcl2LLVM $EE $m "filter"]
+    llvmtcl Tcl2LLVM $EE $m "low_pass"
     lassign [llvmtcl VerifyModule $m LLVMReturnStatusAction] rt msg
     if {$rt} { error $msg }
     llvmtcl Optimize $m [list $f]
     set result {}
-    lappend result [llvmtcl Execute $m $f]
+    lappend result [llvmtcl Execute $EE $m $f]
 } -cleanup {
     llvmtcl DisposeModule $m
 } -result {999}

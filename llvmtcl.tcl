@@ -29,8 +29,7 @@ namespace eval llvmtcl {
 	llvmtcl OptimizeModule $m 3 $td
     }
 
-    proc Execute {m f args} {
-	lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+    proc Execute {EE m f args} {
 	set largs [list [llvmtcl CreateGenericValueOfTclInterp]]
 	foreach arg $args {
 	    lappend largs [llvmtcl CreateGenericValueOfTclObj $arg]
@@ -150,7 +149,7 @@ namespace eval llvmtcl {
 	foreach l $dasm {
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
-	    puts $l
+#	    puts $l
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
 	    if {[info exists block($pc)]} {
 		llvmtcl PositionBuilderAtEnd $bld $block($pc)

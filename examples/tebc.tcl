@@ -1,12 +1,12 @@
-lappend auto_path ..
 package require llvmtcl
-source ../llvmtcl.tcl
 
 set optimize 1
 set procs {test2 test test3 test4 facti low_pass test5 fact fact10 factmp filter}
 #set procs facti
 set timings {low_pass filter}
 set timing_count 10
+
+package require tcltest
 
 proc test {a b c d e} {
     if {$a <= 66 && $a > 50} {

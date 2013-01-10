@@ -1,4 +1,5 @@
 #include "tcl.h"
+#include "tclTomMath.h"
 #include <iostream>
 #include <sstream>
 #include <map>
@@ -17,6 +18,7 @@
 #include "llvm-c/BitWriter.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
+
 static std::string GetRefName(std::string prefix)
 {
     static int LLVMRef_id = 0;
@@ -72,7 +74,7 @@ std::string LLVMDumpModuleTcl(LLVMModuleRef moduleRef)
     return s;
 }
 
-LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs) 
+LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs)
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }
@@ -151,7 +153,6 @@ int LLVMGenericValueToTclObjObjCmd(ClientData clientData, Tcl_Interp* interp, in
 }
 extern "C" void llvm_test() {}
 
-/*
 extern "C" Tcl_Obj* llvm_add(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
 {
     mp_int big1, big2, bigResult;
@@ -172,7 +173,6 @@ extern "C" Tcl_Obj* llvm_sub(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     Tcl_Obj* oc = Tcl_NewBignumObj(&bigResult);
     return oc;
 }
-*/
 
 int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
     if (objc != 3) {
@@ -190,7 +190,6 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_test", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_test);
     }
-    /*
     {
 	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
 	LLVMTypeRef pta[3] = {pt, pt, pt};
@@ -205,7 +204,6 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_sub", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_sub);
     }
-    */
     return TCL_OK;
 }
 
@@ -213,32 +211,24 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
-int jdcjdc(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
-    std::cerr << "jdcjdc" << std::endl;
-    return TCL_OK;
-}
-
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 {
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
     }
-    /*
     if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL) {
 	return TCL_ERROR;
     }
-    */
     if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
     }
     if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK) {
 	return TCL_ERROR;
     }
-#include "llvmtcl-gen-cmddef.c"  
+#include "llvmtcl-gen-cmddef.c"
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclInterp", LLVMCreateGenericValueOfTclInterpObjCmd);
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclObj", LLVMCreateGenericValueOfTclObjObjCmd);
     LLVMObjCmd("llvmtcl::GenericValueToTclObj", LLVMGenericValueToTclObjObjCmd);
     LLVMObjCmd("llvmtcl::AddLLVMTclCommands", LLVMAddLLVMTclCommandsObjCmd);
-    Tcl_CreateObjCommand(interp, "jdcjdc", (Tcl_ObjCmdProc*)jdcjdc, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
     return TCL_OK;
 }

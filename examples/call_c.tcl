@@ -1,3 +1,4 @@
+lappend auto_path .
 package require llvmtcl
 
 llvmtcl LinkInJIT

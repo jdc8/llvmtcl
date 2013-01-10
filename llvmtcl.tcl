@@ -38,6 +38,7 @@ namespace eval llvmtcl {
     }
 
     proc Tcl2LLVM {EE m procName {functionDeclarationOnly 0}} {
+	variable tclts {}
 	variable ts
 	variable tsp
 	variable funcar
@@ -52,6 +53,23 @@ namespace eval llvmtcl {
 	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
 	set bld [llvmtcl CreateBuilder]
+	# Create strings
+	if {!$functionDeclarationOnly} {
+	    foreach l $dasm {
+		set l [string trim $l]
+		if {![string match "(*" $l]} { continue }
+		regexp {\((\d+)\) (\S+)} $l -> pc opcode
+		if {$opcode eq "push1"} {
+		    set s [lindex $l 4]
+		    puts "Need to create string for: $s"
+		    set st [llvmtcl ArrayType [llvmtcl Int8Type] [expr {[string length $s]+1}]]
+		    set gv [llvmtcl AddGlobal $m $st $s]
+		    llvmtcl SetInitializer $gv [llvmtcl ConstString $s [string length $s] 0]
+		    llvmtcl SetGlobalConstant $gv 1
+		    set strings($s) $gv
+		}
+	    }
+	}
 	# Create function
 	if {![info exists funcar($m,$procName)]} {
 	    set argl [list $TclInterpPtr]
@@ -98,12 +116,14 @@ namespace eval llvmtcl {
 	set curr_block $block(0)
 
 	# Get pointers to Tcl functions
+	set LLVMBuilder2(add) [llvmtcl GetNamedFunction $m "llvm_add"]
+	set LLVMBuilder2(append) [llvmtcl GetNamedFunction $m "llvm_append"]
+
 	set LLVMBuilder2(bitor) [llvmtcl GetNamedFunction $m "llvm_or"]
 	set LLVMBuilder2(bitxor) [llvmtcl GetNamedFunction $m "llvm_xor"]
 	set LLVMBuilder2(bitand) [llvmtcl GetNamedFunction $m "llvm_and"]
 	set LLVMBuilder2(lshift) [llvmtcl GetNamedFunction $m "llvm_lshd"]
 	set LLVMBuilder2(rshift) [llvmtcl GetNamedFunction $m "llvm_rshd"]
-	set LLVMBuilder2(add) [llvmtcl GetNamedFunction $m "llvm_add"]
 	set LLVMBuilder2(sub) [llvmtcl GetNamedFunction $m "llvm_sub"]
 	set LLVMBuilder2(mult) [llvmtcl GetNamedFunction $m "llvm_mul"]
 	set LLVMBuilder2(div) [llvmtcl GetNamedFunction $m "llvm_div"]
@@ -113,6 +133,8 @@ namespace eval llvmtcl {
 	set LLVMBuilder1(bitnot) [llvmtcl GetNamedFunction $m "llvm_not"]
 	set LLVMBuilder1(to_int) [llvmtcl GetNamedFunction $m "llvm_to_int"]
 	set LLVMBuilder1(from_int) [llvmtcl GetNamedFunction $m "llvm_from_int"]
+	set LLVMBuilder1(from_string) [llvmtcl GetNamedFunction $m "llvm_from_string"]
+	set LLVMBuilder1(new_obj) [llvmtcl GetNamedFunction $m "llvm_new_obj"]
 
 	set LLVMBuilderICmp(eq) [llvmtcl GetNamedFunction $m "llvm_eq"]
 	set LLVMBuilderICmp(neq) [llvmtcl GetNamedFunction $m "llvm_neq"]
@@ -120,6 +142,8 @@ namespace eval llvmtcl {
 	set LLVMBuilderICmp(gt) [llvmtcl GetNamedFunction $m "llvm_gt"]
 	set LLVMBuilderICmp(le) [llvmtcl GetNamedFunction $m "llvm_le"]
 	set LLVMBuilderICmp(ge) [llvmtcl GetNamedFunction $m "llvm_ge"]
+
+	set LLVMBuilder1(eval) [llvmtcl GetNamedFunction $m "llvm_eval"]
 
 	# Create stack and stack pointer
 	set interp [llvmtcl GetParam $func 0]
@@ -146,10 +170,11 @@ namespace eval llvmtcl {
 
 	# Convert Tcl parse output
 	set done_done 0
+	puts [join $dasm \n]
 	foreach l $dasm {
 	    set l [string trim $l]
 	    if {![string match "(*" $l]} { continue }
-#	    puts $l
+	    puts $l
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
 	    if {[info exists block($pc)]} {
 		llvmtcl PositionBuilderAtEnd $bld $block($pc)
@@ -163,24 +188,25 @@ namespace eval llvmtcl {
 		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
-		set top0 [pop $bld $TclObjPtr]
-		push $bld [llvmtcl BuildCall $bld $LLVMBuilder1($opcode) [list $interp $top0] ""]
+		lassing [pop $bld $TclObjPtr] top0 tclval0
+		push $bld [llvmtcl BuildCall $bld $LLVMBuilder1($opcode) [list $interp $top0] ""] 
 	    } elseif {[info exists LLVMBuilder2($opcode)]} {
-		set top0 [pop $bld $TclObjPtr]
-		set top1 [pop $bld $TclObjPtr]
+		lassign [pop $bld $TclObjPtr] top0 tclval0
+		lassign [pop $bld $TclObjPtr] top1 tclval1
 		push $bld [llvmtcl BuildCall $bld $LLVMBuilder2($opcode) [list $interp $top1 $top0] ""]
 	    } elseif {[info exists LLVMBuilderICmp($opcode)]} {
-		set top0 [pop $bld $TclObjPtr]
-		set top1 [pop $bld $TclObjPtr]
+		lassign [pop $bld $TclObjPtr] top0 tclval0
+		lassign [pop $bld $TclObjPtr] top1 tclval1
 		push $bld [llvmtcl BuildCall $bld $LLVMBuilderICmp($opcode) [list $interp $top1 $top0] ""]
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
-			set var $vars([string range [lindex $l 2] 2 end])
+			set tclval [string range [lindex $l 2] 2 end]
+			set var $vars($tclval)
 			push $bld [llvmtcl BuildLoad $bld $var ""]
 		    }
 		    "storeScalar1" {
-			set var_1 [top $bld $TclObjPtr]
+			lassign [top $bld $TclObjPtr] var_1 tclval1
 			set idx [string range [lindex $l 2] 2 end]
 			if {[info exists vars($idx)]} {
 			    set var_2 $vars($idx)
@@ -190,16 +216,23 @@ namespace eval llvmtcl {
 			set var_3 [llvmtcl BuildStore $bld $var_1 $var_2]
 			set vars($idx) $var_2
 		    }
+		    "appendScalar1" {
+			set var $vars([string range [lindex $l 2] 2 end])
+			lassign [pop $bld $TclObjPtr] top0 tclval0
+			llvmtcl BuildStore $bld [llvmtcl BuildCall $bld $LLVMBuilder2(append) [list $interp [llvmtcl BuildLoad $bld $var ""] $top0] ""] $var
+		    }
 		    "incrScalar1" {
 			set var $vars([string range [lindex $l 2] 2 end])
-			llvmtcl BuildStore $bld [llvmtcl BuildCall $bld $LLVMBuilder2(add) [list $interp [llvmtcl BuildLoad $bld $var ""] [top $bld $TclObjPtr]] ""] $var
+			lassign [pop $bld $TclObjPtr] top0 tclval0
+			llvmtcl BuildStore $bld [llvmtcl BuildCall $bld $LLVMBuilder2(add)    [list $interp [llvmtcl BuildLoad $bld $var ""] $top0] ""] $var
 		    }
 		    "incrScalar1Imm" {
-			set var $vars([string range [lindex $l 2] 2 end])
+			set tclval [string range [lindex $l 2] 2 end]
+			set var $vars($tclval)
 			set i [lindex $l 3]
 			set imm [llvmtcl BuildCall $bld $LLVMBuilder1(from_int) [list $interp [llvmtcl ConstInt [llvmtcl Int32Type] $i 0]] ""]
 			set s [llvmtcl BuildCall $bld $LLVMBuilder2(add) [list $interp [llvmtcl BuildLoad $bld $var ""] $imm] ""]
-			push $bld $s
+			push $bld $s $tclval
 			llvmtcl BuildStore $bld $s $var
 		    }
 		    "push1" {
@@ -208,14 +241,17 @@ namespace eval llvmtcl {
 			    set val [llvmtcl BuildCall $bld $LLVMBuilder1(from_int) [list $interp [llvmtcl ConstInt [llvmtcl Int32Type] $tval 0]] ""]
 			} elseif {[info exists funcar($m,$tval)]} {
 			    set val $funcar($m,$tval)
+			} elseif {[info exists strings($tval)]} {
+			    set val [llvmtcl GetInitializer $strings($tval)]
+			    #set val [llvmtcl BuildCall $bld $LLVMBuilder1(from_string) [list $interp $cs] ""]
 			} else {
 			    set val [llvmtcl BuildCall $bld $LLVMBuilder1(from_int) [list $interp [llvmtcl ConstInt [llvmtcl Int32Type] 0 0]] ""]
 			}
-			push $bld $val
+			push $bld $val $tval
 		    }
 		    "jumpTrue4" -
 		    "jumpTrue1" {
-			set top [pop $bld $TclObjPtr]
+			lassign [pop $bld $TclObjPtr] top tclval
 			set top_cond [llvmtcl BuildCall $bld $LLVMBuilder1(to_int) [list $interp $top] ""]
 			set cond [llvmtcl BuildICmp $bld LLVMIntNE $top_cond [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
 			llvmtcl BuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
@@ -223,14 +259,15 @@ namespace eval llvmtcl {
 		    }
 		    "jumpFalse4" -
 		    "jumpFalse1" {
-			set top [pop $bld $TclObjPtr]
+			lassign [pop $bld $TclObjPtr] top tclval
 			set top_cond [llvmtcl BuildCall $bld $LLVMBuilder1(to_int) [list $interp $top] ""]
 			set cond [llvmtcl BuildICmp $bld LLVMIntNE $top_cond [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] ""]
 			llvmtcl BuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
 			set ends_with_jump($curr_block) 1
 		    }
 		    "tryCvtToNumeric" {
-			push $bld [pop $bld $TclObjPtr]
+			lassign [pop $bld $TclObjPtr] top tclval
+			push $bld $top
 		    }
 		    "startCommand" {
 		    }
@@ -240,25 +277,64 @@ namespace eval llvmtcl {
 			set ends_with_jump($curr_block) 1
 		    }
 		    "invokeStk1" {
-			set objc [lindex $l 2]
-			set objv {}
-			set argl [list $TclInterpPtr]
-			for {set i 0} {$i < ($objc-1)} {incr i} {
-			    lappend objv [pop $bld $TclObjPtr]
-			    lappend argl $TclObjPtr
+			if {0} {
+			    set objc [lindex $l 2]
+			    set objv {}
+			    set tclobjv {}
+			    set argl [list $TclInterpPtr]
+			    for {set i 0} {$i < ($objc-1)} {incr i} {
+				lassign [pop $bld $TclObjPtr] top $tclval
+				lappend objv $top
+				lappend objv $tclval
+				lappend argl $TclObjPtr
+			    }
+			    lappend objv $interp
+			    set objv [lreverse $objv]
+			    set tclobjv [lreverse $tclobjv]
+			    set ft [llvmtcl PointerType [llvmtcl FunctionType $TclObjPtr $argl 0] 0]
+			    lassign [pop $bld $ft] fptr tclfptr
+			    push $bld [llvmtcl BuildCall $bld $fptr $objv ""]
+			} else {
+			    set objc [lindex $l 2]
+			    set objv {}
+			    set tclobjv {}
+			    for {set i 0} {$i < $objc} {incr i} {
+				lassign [pop $bld $TclObjPtr] top tclval
+				lappend objv $top
+				lappend tclobjv $tclval
+			    }
+			    lappend objv [llvmtcl ConstInt [llvmtcl Int32Type] [llength $objv] 0]
+			    lappend objv $interp
+			    lappend tclobjv interp
+			    set objv [lreverse $objv]
+			    set tclobjv [lreverse $tclobjv]
+			    puts "invoke: $objv"
+			    puts "      : $tclobjv"
+			    parray vars
+			    switch -exact -- [lindex $tclobjv 1] {
+				"append" {
+				    set varnm [lindex $tclobjv 2]
+				    puts "Append to var '$varnm' [info exists vars($varnm)]"
+				    if {![info exists vars($varnm)]} {
+					set var_1 [llvmtcl BuildCall $bld $LLVMBuilder1(new_obj) [list $interp] ""]
+					set var_2 [llvmtcl BuildAlloca $bld $TclObjPtr ""]
+					set var_3 [llvmtcl BuildStore $bld $var_1 $var_2]
+					set vars($varnm) $var_2
+				    }
+				    lset objv 2 [llvmtcl BuildLoad $bld $vars($varnm) ""]
+				}
+			    }
+			    puts "invoke: $objv"
+			    push $bld [llvmtcl BuildCall $bld $LLVMBuilder1(eval) $objv ""]
 			}
-			lappend objv $interp
-			set objv [lreverse $objv]
-			set ft [llvmtcl PointerType [llvmtcl FunctionType $TclObjPtr $argl 0] 0]
-			set fptr [pop $bld $ft]
-			push $bld [llvmtcl BuildCall $bld $fptr $objv ""]
 		    }
 		    "pop" {
 			pop $bld $TclObjPtr
 		    }
 		    "done" {
 			if {!$done_done} {
-			    llvmtcl BuildRet $bld [top $bld $TclObjPtr]
+			    lassign [top $bld $TclObjPtr] top tclval
+			    llvmtcl BuildRet $bld $top
 			    set ends_with_jump($curr_block) 1
 			    set done_done 1
 			}
@@ -304,7 +380,8 @@ namespace eval llvmtcl {
 	set utils_added($m) 1
     }
 
-    proc push {bld val} {
+    proc push {bld val {tclval ""}} {
+	variable tclts
 	variable ts
 	variable tsp
 	variable TclObjPtr
@@ -319,9 +396,11 @@ namespace eval llvmtcl {
 	# Update stack pointer
 	set tspv [llvmtcl BuildAdd $bld $tspv [llvmtcl ConstInt [llvmtcl Int32Type] 1 0] "push"]
 	llvmtcl BuildStore $bld $tspv $tsp
+	lappend tclts $tclval
     }
 
     proc pop {bld valt} {
+	variable tclts
 	variable ts
 	variable tsp
 	# Get location from stack and decrement the stack pointer
@@ -333,10 +412,13 @@ namespace eval llvmtcl {
 	# Load value
 	set pc [llvmtcl BuildPointerCast $bld $valp [llvmtcl PointerType $valt 0] "pop"]
 	set rt [llvmtcl BuildLoad $bld $pc "pop"]
-	return $rt
+	set tclval [lindex $tclts end]
+	set tclts [lrange $tclts 0 end-1]
+	return [list $rt $tclval]
     }
 
     proc top {bld valt {offset 0}} {
+	variable tclts
 	variable ts
 	variable tsp
 	# Get location from stack
@@ -345,7 +427,9 @@ namespace eval llvmtcl {
 	set tsl [llvmtcl BuildGEP $bld $ts [list [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] $tspv] "top"]
 	set valp [llvmtcl BuildLoad $bld $tsl "top"]
 	# Load value
-	return [llvmtcl BuildLoad $bld [llvmtcl BuildPointerCast $bld $valp [llvmtcl PointerType $valt 0] "top"] "top"]
+	set rt [llvmtcl BuildLoad $bld [llvmtcl BuildPointerCast $bld $valp [llvmtcl PointerType $valt 0] "top"] "top"]
+	set tclval [lindex $tclts end]
+	return [list $rt $tclval]
     }
 
     variable TclObjPtr [llvmtcl PointerType [llvmtcl Int8Type] 0]

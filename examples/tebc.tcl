@@ -1,12 +1,18 @@
 package require llvmtcl
+source ../llvmtcl.tcl
 
 set optimize 1
-set procs {test2 test test3 test4 facti low_pass test5 fact fact10 factmp filter}
-#set procs facti
+set procs {test2 test test3 test4 facti low_pass test5 fact fact10 factmp filter test_append}
+set procs "test_append"
 set timings {low_pass filter}
 set timing_count 10
 
 package require tcltest
+
+proc test_append {a b} {
+    append x $a $b $b $b $b $b $a
+    return $x
+}
 
 proc test {a b c d e} {
     if {$a <= 66 && $a > 50} {
@@ -49,7 +55,7 @@ proc facti n {
 }
 
 proc fact10 { } {
-    return [fact 10]
+    return [facti 10]
 }
 
 proc factmp { } {
@@ -143,6 +149,11 @@ foreach nm $procs {
 		lappend la($nm) [llvmtcl CreateGenericValueOfTclObj $v]
 	    }
 	}
+	"test_append" {
+	    set ta($nm) {foo bar}
+	    lappend la($nm) [llvmtcl CreateGenericValueOfTclObj foo]
+	    lappend la($nm) [llvmtcl CreateGenericValueOfTclObj bar]
+	}
 	default {
 	    set ta($nm) {5 2 3 4 5}
 	    foreach v $ta($nm) {
@@ -157,8 +168,10 @@ foreach nm $procs {
 }
 
 foreach nm $timings {
-    puts "tcl \[$nm\]: [time {$nm {*}$ta($nm)} $timing_count]"
-    puts "llvm \[$nm\]: [time {llvmtcl RunFunction $EE $func($nm) $la($nm)} $timing_count]"
+    if {$nm in $procs} {
+	puts "tcl \[$nm\]: [time {$nm {*}$ta($nm)} $timing_count]"
+	puts "llvm \[$nm\]: [time {llvmtcl RunFunction $EE $func($nm) $la($nm)} $timing_count]"
+    }
 }
 
 

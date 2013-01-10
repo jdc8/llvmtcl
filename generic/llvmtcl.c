@@ -272,6 +272,27 @@ extern "C" Tcl_Obj* llvm_ge(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
     return Tcl_NewBooleanObj(llvm_cmp(interp, oa, ob) != MP_LT);
 }
 
+extern "C" Tcl_Obj* llvm_append(Tcl_Interp* interp, Tcl_Obj* oa, Tcl_Obj* ob)
+{
+    Tcl_AppendObjToObj(oa, ob);
+    return oa;
+}
+
+extern "C" Tcl_Obj* llvm_eval(Tcl_Interp* interp, int n, ...)
+{
+    Tcl_Obj* l = Tcl_NewListObj(0, 0);
+    va_list ap;
+    va_start(ap, n);
+    for(int i = 0; i < n; i++) {
+	Tcl_Obj* p = va_arg(ap, Tcl_Obj*);
+	std::cerr << "p[" << i << "] = " << Tcl_GetStringFromObj(p, 0) << std::endl;
+	Tcl_ListObjAppendElement(interp, l, p);
+    }
+    va_end(ap);
+    Tcl_EvalObjEx(interp, l, TCL_EVAL_DIRECT);
+    return Tcl_GetObjResult(interp);
+}
+
 extern "C" int llvm_to_int(Tcl_Interp* interp, Tcl_Obj* oa)
 {
     int i;
@@ -279,9 +300,25 @@ extern "C" int llvm_to_int(Tcl_Interp* interp, Tcl_Obj* oa)
     return i;
 }
 
+extern "C" Tcl_Obj* llvm_new_obj(Tcl_Interp*)
+{
+    Tcl_Obj* rt = Tcl_NewObj();
+    Tcl_IncrRefCount(rt); // TBD: Where to Decr???
+    return rt;
+}
+
 extern "C" Tcl_Obj* llvm_from_int(Tcl_Interp* interp, int i)
 {
-    return Tcl_NewIntObj(i);
+    Tcl_Obj* rt = Tcl_NewIntObj(i);
+    Tcl_IncrRefCount(rt); // TBD: Where to Decr???
+    return rt;
+}
+
+extern "C" Tcl_Obj* llvm_from_string(Tcl_Interp* interp, const char* i)
+{
+    Tcl_Obj* rt = Tcl_NewStringObj(i, -1);
+    Tcl_IncrRefCount(rt); // TBD: Where to Decr???
+    return rt;
 }
 
 #define llvm_intop_1oper_add_func(O) {\
@@ -334,6 +371,7 @@ int LLVMAddTcl2LLVMCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int
     llvm_intop_2oper_add_func(gt);
     llvm_intop_2oper_add_func(le);
     llvm_intop_2oper_add_func(ge);
+    llvm_intop_2oper_add_func(append);
     {
 	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
 	LLVMTypeRef pta[2] = {pt, pt};
@@ -348,6 +386,28 @@ int LLVMAddTcl2LLVMCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int
 	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 2, 0);
 	LLVMValueRef func = LLVMAddFunction(mod, "llvm_from_int", func_type);
 	LLVMAddGlobalMapping(ee, func, (void*)&llvm_from_int);
+    }
+    {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef pta[1] = {pt};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 1, 0);
+	LLVMValueRef func = LLVMAddFunction(mod, "llvm_new_obj", func_type);
+	LLVMAddGlobalMapping(ee, func, (void*)&llvm_new_obj);
+    }
+    {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef it = LLVMInt32Type();
+	LLVMTypeRef pta[2] = {pt, it};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 2, 1);
+	LLVMValueRef func = LLVMAddFunction(mod, "llvm_eval", func_type);
+	LLVMAddGlobalMapping(ee, func, (void*)&llvm_eval);
+    }
+    {
+	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
+	LLVMTypeRef pta[2] = {pt, pt};
+	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 2, 0);
+	LLVMValueRef func = LLVMAddFunction(mod, "llvm_from_string", func_type);
+	LLVMAddGlobalMapping(ee, func, (void*)&llvm_from_string);
     }
     return TCL_OK;
 }

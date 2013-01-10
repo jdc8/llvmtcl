@@ -19,6 +19,7 @@
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
+#include "llvm-c/Transforms/Vectorize.h"
 
 static std::string GetRefName(std::string prefix)
 {

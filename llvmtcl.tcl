@@ -5,7 +5,7 @@ namespace eval llvmtcl {
     proc OptimizeModule {m optimizeLevel targetDataRef} {
 	set pm [llvmtcl CreatePassManager]
 	llvmtcl AddTargetData $targetDataRef $pm
-	llvmtcl CreateStandardModulePasses $pm $optimizeLevel 
+	llvmtcl CreateStandardModulePasses $pm $optimizeLevel
 	llvmtcl RunPassManager $pm $m
 	llvmtcl DisposePassManager $pm
     }

@@ -5,7 +5,14 @@ namespace eval llvmtcl {
     proc OptimizeModule {m optimizeLevel targetDataRef} {
 	set pm [llvmtcl CreatePassManager]
 	llvmtcl AddTargetData $targetDataRef $pm
-	llvmtcl CreateStandardModulePasses $pm $optimizeLevel
+	set bld [llvmtcl PassManagerBuilderCreate]
+	llvmtcl PassManagerBuilderSetOptLevel $bld $optimizeLevel
+	llvmtcl PassManagerBuilderSetDisableUnrollLoops $bld [expr {$optimizeLevel == 0}]
+	if {$optimizeLevel > 1} {
+	    llvmtcl PassManagerBuilderSetDisableUnrollLoops $bld 0
+	    llvmtcl PassManagerBuilderUseInlinerWithThreshold $bld [expr {$optimizeLevel > 2 ? 275 : 225 }]
+	}
+	llvmtcl PassManagerBuilderPopulateModulePassManager $bld $pm
 	llvmtcl RunPassManager $pm $m
 	llvmtcl DisposePassManager $pm
     }
@@ -13,7 +20,14 @@ namespace eval llvmtcl {
     proc OptimizeFunction {m f optimizeLevel targetDataRef} {
 	set fpm [llvmtcl CreateFunctionPassManagerForModule $m]
 	llvmtcl AddTargetData $targetDataRef $fpm
-	llvmtcl CreateStandardFunctionPasses $fpm $optimizeLevel
+	set bld [llvmtcl PassManagerBuilderCreate]
+	llvmtcl PassManagerBuilderSetOptLevel $bld $optimizeLevel
+	llvmtcl PassManagerBuilderSetDisableUnrollLoops $bld [expr {$optimizeLevel == 0}]
+	if {$optimizeLevel > 1} {
+	    llvmtcl PassManagerBuilderSetDisableUnrollLoops $bld 0
+	    llvmtcl PassManagerBuilderUseInlinerWithThreshold $bld [expr {$optimizeLevel > 2 ? 275 : 225 }]
+	}
+	llvmtcl PassManagerBuilderPopulateFunctionPassManager $bld $fpm
 	llvmtcl InitializeFunctionPassManager $fpm
 	llvmtcl RunFunctionPassManager $fpm $f
 	llvmtcl FinalizeFunctionPassManager $fpm

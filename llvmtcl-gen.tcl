@@ -121,6 +121,7 @@ proc gen_api_call {cf of l} {
 		    "LLVMTypeRef" -
 		    "LLVMUseRef" -
 		    "LLVMPassManagerRef" -
+		    "LLVMPassManagerBuilderRef" -
 		    "LLVMModuleRef" {
 			puts $cf "    $fargtype arg$n = 0;"
 			puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
@@ -224,6 +225,7 @@ proc gen_api_call {cf of l} {
 	"LLVMModuleRef" -
 	"LLVMGenericValueRef" -
 	"LLVMPassManagerRef" -
+	"LLVMPassManagerBuilderRef" -
 	"LLVMUseRef" -
 	"int" -
 	"long long" -
@@ -295,6 +297,7 @@ proc gen_api_call {cf of l} {
 		"LLVMTypeHandleRef" -
 		"LLVMTypeRef" -
 		"LLVMPassManagerRef" -
+		"LLVMPassManagerBuilderRef" -
 		"LLVMUseRef" -
 		"LLVMGenericValueRef" -
 		"LLVMModuleRef" {
@@ -347,6 +350,7 @@ proc gen_api_call {cf of l} {
 	    "LLVMTypeHandleRef" -
 	    "LLVMTypeRef" -
 	    "LLVMPassManagerRef" -
+	    "LLVMPassManagerBuilderRef" -
 	    "LLVMUseRef" -
 	    "LLVMGenericValueRef" -
 	    "LLVMModuleRef" {

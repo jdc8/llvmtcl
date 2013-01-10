@@ -9,6 +9,7 @@ typedef LLVMUseRef
 typedef LLVMExecutionEngineRef
 typedef LLVMGenericValueRef
 typedef LLVMPassManagerRef
+typedef LLVMPassManagerBuilderRef
 typedef LLVMTargetDataRef
 
 enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
@@ -427,8 +428,6 @@ void LLVMAddIPSCCPPass(LLVMPassManagerRef PM);
 void LLVMAddInternalizePass(LLVMPassManagerRef, unsigned AllButMain);
 void LLVMAddStripDeadPrototypesPass(LLVMPassManagerRef PM);
 void LLVMAddStripSymbolsPass(LLVMPassManagerRef PM);
-void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel);
-void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM, unsigned OptimizationLevel);
 
 std::string LLVMGetDataLayout(LLVMModuleRef M);
 void LLVMSetDataLayout(LLVMModuleRef M, const char *Triple);
@@ -445,3 +444,15 @@ void LLVMViewFunctionCFGOnly(LLVMValueRef Fn);
 LLVMTargetDataRef LLVMCreateTargetData(const char *StringRep);
 void LLVMAddTargetData(LLVMTargetDataRef, LLVMPassManagerRef);
 std::string LLVMCopyStringRepOfTargetData(LLVMTargetDataRef);
+
+LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate(void);
+void LLVMPassManagerBuilderDispose(LLVMPassManagerBuilderRef);
+void LLVMPassManagerBuilderSetOptLevel(LLVMPassManagerBuilderRef, unsigned);
+void LLVMPassManagerBuilderSetSizeLevel(LLVMPassManagerBuilderRef, unsigned);
+void LLVMPassManagerBuilderSetDisableUnitAtATime(LLVMPassManagerBuilderRef, LLVMBool);
+void LLVMPassManagerBuilderSetDisableUnrollLoops(LLVMPassManagerBuilderRef, LLVMBool);
+void LLVMPassManagerBuilderSetDisableSimplifyLibCalls(LLVMPassManagerBuilderRef, LLVMBool);
+void LLVMPassManagerBuilderUseInlinerWithThreshold(LLVMPassManagerBuilderRef, unsigned);
+void LLVMPassManagerBuilderPopulateFunctionPassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef);
+void LLVMPassManagerBuilderPopulateModulePassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef);
+void LLVMPassManagerBuilderPopulateLTOPassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef, bool, bool);

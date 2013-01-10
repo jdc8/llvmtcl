@@ -27,8 +27,7 @@ llvmtcl PositionBuilderAtEnd $bld $entry
 set rt1 [llvmtcl BuildCall $bld $add [list [llvmtcl GetParam $wtest 0] [llvmtcl GetParam $wtest 1] [llvmtcl GetParam $wtest 2]] "call"]
 set rt2 [llvmtcl BuildCall $bld $add [list [llvmtcl GetParam $wtest 0] $rt1 [llvmtcl GetParam $wtest 3]] "call"]
 set rt3 [llvmtcl BuildCall $bld $sub [list [llvmtcl GetParam $wtest 0] $rt2 [llvmtcl GetParam $wtest 4]] "call"]
-#llvmtcl BuildCall $bld $test [list] "call"
-llvmtcl BuildRet $bld $rt2
+llvmtcl BuildRet $bld $rt3
 
 # Verify the function
 puts [llvmtcl DumpModule $m]

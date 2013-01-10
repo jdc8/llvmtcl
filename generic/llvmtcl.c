@@ -16,6 +16,7 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/BitWriter.h"
+#include "llvm-c/Transforms/PassManagerBuilder.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
 
@@ -77,45 +78,6 @@ std::string LLVMDumpModuleTcl(LLVMModuleRef moduleRef)
 LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs)
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
-}
-
-// Code taken from tools/opt/opt.cpp
-
-void LLVMCreateStandardFunctionPasses(LLVMPassManagerRef PM, unsigned OptimizationLevel)
-{
-    llvm::PassManagerBuilder Builder;
-    Builder.OptLevel = OptimizationLevel;
-    if (OptimizationLevel == 0) {
-	// No inlining pass
-    } else if (OptimizationLevel > 1) {
-	unsigned Threshold = 225;
-	if (OptimizationLevel > 2)
-	    Threshold = 275;
-	Builder.Inliner = llvm::createFunctionInliningPass(Threshold);
-    } else {
-	Builder.Inliner = llvm::createAlwaysInlinerPass();
-    }
-    Builder.DisableUnrollLoops = OptimizationLevel == 0;
-    Builder.populateFunctionPassManager(*(reinterpret_cast<llvm::FunctionPassManager*>(PM)));
-}
-
-void LLVMCreateStandardModulePasses(LLVMPassManagerRef PM,
-				    unsigned OptimizationLevel)
-{
-    llvm::PassManagerBuilder Builder;
-    Builder.OptLevel = OptimizationLevel;
-    if (OptimizationLevel == 0) {
-	// No inlining pass
-    } else if (OptimizationLevel > 1) {
-	unsigned Threshold = 225;
-	if (OptimizationLevel > 2)
-	    Threshold = 275;
-	Builder.Inliner = llvm::createFunctionInliningPass(Threshold);
-    } else {
-	Builder.Inliner = llvm::createAlwaysInlinerPass();
-    }
-    Builder.DisableUnrollLoops = OptimizationLevel == 0;
-    Builder.populateModulePassManager(*(llvm::unwrap(PM)));
 }
 
 int LLVMCreateGenericValueOfTclInterpObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {

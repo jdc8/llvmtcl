@@ -12,12 +12,12 @@ typedef LLVMPassManagerRef
 typedef LLVMPassManagerBuilderRef
 typedef LLVMTargetDataRef
 
-enum {LLVMVoidTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
+enum {LLVMVoidTypeKind, LLVMHalfTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
 enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment} LLVMAttribute;
 enum { LLVMRet, LLVMBr, LLVMSwitch, LLVMIndirectBr, LLVMInvoke, LLVMUnreachable, LLVMAdd, LLVMFAdd, LLVMSub, LLVMFSub, LLVMMul, LLVMFMul, LLVMUDiv, LLVMSDiv, LLVMFDiv, LLVMURem, LLVMSRem, LLVMFRem, LLVMShl, LLVMLShr, LLVMAShr, LLVMAnd, LLVMOr, LLVMXor, LLVMAlloca, LLVMLoad, LLVMStore, LLVMGetElementPtr, LLVMTrunc, LLVMZExt, LLVMSExt, LLVMFPToUI, LLVMFPToSI, LLVMUIToFP, LLVMSIToFP, LLVMFPTrunc, LLVMFPExt, LLVMPtrToInt, LLVMIntToPtr, LLVMBitCast, LLVMICmp, LLVMFCmp, LLVMPHI, LLVMCall, LLVMSelect, LLVMVAArg, LLVMExtractElement, LLVMInsertElement, LLVMShuffleVector, LLVMExtractValue, LLVMInsertValue} LLVMOpcode;
 enum { LLVMIntEQ, LLVMIntNE, LLVMIntUGT, LLVMIntUGE, LLVMIntULT, LLVMIntULE, LLVMIntSGT, LLVMIntSGE, LLVMIntSLT, LLVMIntSLE} LLVMIntPredicate;
 enum {LLVMRealPredicateFalse,LLVMRealOEQ,LLVMRealOGT,LLVMRealOGE,LLVMRealOLT,LLVMRealOLE,LLVMRealONE,LLVMRealORD,LLVMRealUNO,LLVMRealUEQ,LLVMRealUGT,LLVMRealUGE,LLVMRealULT,LLVMRealULE,LLVMRealUNE,LLVMRealPredicateTrue} LLVMRealPredicate;
-enum {LLVMExternalLinkage, LLVMAvailableExternallyLinkage, LLVMLinkOnceAnyLinkage, LLVMLinkOnceODRLinkage, LLVMWeakAnyLinkage, LLVMWeakODRLinkage, LLVMAppendingLinkage, LLVMInternalLinkage, LLVMPrivateLinkage, LLVMDLLImportLinkage, LLVMDLLExportLinkage, LLVMExternalWeakLinkage, LLVMGhostLinkage, LLVMCommonLinkage, LLVMLinkerPrivateLinkage} LLVMLinkage;
+enum {LLVMExternalLinkage, LLVMAvailableExternallyLinkage, LLVMLinkOnceAnyLinkage, LLVMLinkOnceODRLinkage, LLVMLinkOnceODRAutoHideLinkage, LLVMWeakAnyLinkage, LLVMWeakODRLinkage, LLVMAppendingLinkage, LLVMInternalLinkage, LLVMPrivateLinkage, LLVMDLLImportLinkage, LLVMDLLExportLinkage, LLVMExternalWeakLinkage, LLVMGhostLinkage, LLVMCommonLinkage, LLVMLinkerPrivateLinkage, LLVMLinkerPrivateWeakLinkage} LLVMLinkage;
 enum { LLVMDefaultVisibility, LLVMHiddenVisibility, LLVMProtectedVisibility} LLVMVisibility;
 enum { LLVMCCallConv, LLVMFastCallConv, LLVMColdCallConv, LLVMX86StdcallCallConv, LLVMX86FastcallCallConv} LLVMCallConv;
 enum { LLVMAbortProcessAction, LLVMPrintMessageAction, LLVMReturnStatusAction } LLVMVerifierFailureAction;
@@ -100,6 +100,8 @@ LLVMValueRef LLVMBuildInBoundsGEP(LLVMBuilderRef B, LLVMValueRef Pointer, LLVMVa
 LLVMValueRef LLVMBuildStructGEP(LLVMBuilderRef B, LLVMValueRef Pointer, unsigned Idx, const char * Name);
 LLVMValueRef LLVMBuildGlobalString(LLVMBuilderRef B, const char * Str, const char * Name);
 LLVMValueRef LLVMBuildGlobalStringPtr(LLVMBuilderRef B, const char * Str, const char * Name);
+LLVMBool LLVMGetVolatile(LLVMValueRef MemoryAccessInst);
+void LLVMSetVolatile(LLVMValueRef MemoryAccessInst, LLVMBool IsVolatile);
 LLVMValueRef LLVMBuildTrunc(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildZExt(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildSExt(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);

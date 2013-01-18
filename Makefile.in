@@ -20,9 +20,9 @@
 #========================================================================
 
 #SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
-LLVMCFLAGS = `@LLVMDIR@/bin/llvm-config --cflags`
-LLVMLFLAGS = `@LLVMDIR@/bin/llvm-config --ldflags`
-LLVMLIBS = `@LLVMDIR@/bin/llvm-config --libs`
+LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
+LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`
+LLVMLIBS = `@LLVMCONFIG@ --libs`
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.

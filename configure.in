@@ -181,11 +181,11 @@ TEA_PROG_TCLSH
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 
-AC_ARG_WITH(llvm,
-  [  --with-llvm=DIR],
-  [LLVMDIR=$withval
-   AC_SUBST(LLVMDIR)],
-  [AC_MSG_ERROR(No llvm directory specified)])
+AC_ARG_WITH(llvm-config,
+  [  --with-llvm-config=FILE],
+  [LLVMCONFIG=$withval
+   AC_SUBST(LLVMCONFIG)],
+  [AC_MSG_ERROR(No llvm-config specified)])
 
 #--------------------------------------------------------------------
 # Finally, substitute all of the various values into the Makefile.

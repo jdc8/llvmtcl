@@ -591,7 +591,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
-LLVMDIR
+LLVMCONFIG
 TCLSH_PROG
 RANLIB_STUB
 MAKE_STUB_LIB
@@ -712,7 +712,7 @@ enable_wince
 with_celib
 enable_load
 enable_symbols
-with_llvm
+with_llvm_config
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1351,7 +1351,7 @@ Optional Packages:
                           (tclConfig.sh)
   --with-tclinclude       directory containing the public Tcl header files
   --with-celib=DIR        use Windows/CE support library from DIR
-  --with-llvm=DIR
+  --with-llvm-config=FILE
 
 Some influential environment variables:
   CC          C compiler command
@@ -8065,12 +8065,12 @@ $as_echo "${TCLSH_PROG}" >&6; }
 #--------------------------------------------------------------------
 
 
-# Check whether --with-llvm was given.
-if test "${with_llvm+set}" = set; then :
-  withval=$with_llvm; LLVMDIR=$withval
+# Check whether --with-llvm-config was given.
+if test "${with_llvm_config+set}" = set; then :
+  withval=$with_llvm_config; LLVMCONFIG=$withval
 
 else
-  as_fn_error $? "No llvm directory specified" "$LINENO" 5
+  as_fn_error $? "No llvm-config specified" "$LINENO" 5
 fi
 
 

@@ -62,14 +62,15 @@ namespace eval llvmtcl {
 	    AddTcl2LLVMUtils $m
 	}
 	# Disassemble the proc
-	set ddasm [tcl::unsupported::getbytecode proc $procName]
+	set dasm [split [tcl::unsupported::disassemble proc $procName] \n]
 	# Create builder
 	set bld [llvmtcl CreateBuilder]
 	# Create function
 	if {![info exists funcar($m,$procName)]} {
 	    set argl {}
-	    foreach var [dict get $ddasm variables] {
-		if {[lindex $var 0 1] eq "arg"} {
+	    foreach l $dasm {
+		set l [string trim $l]
+		if {[regexp {slot \d+, .*arg, \"} $l]} {
 		    lappend argl [llvmtcl Int32Type]
 		}
 	    }
@@ -84,9 +85,12 @@ namespace eval llvmtcl {
 	# Create basic blocks
 	set block(0) [llvmtcl AppendBasicBlock $func "block0"]
 	set next_is_ipath -1
-	foreach {pc l} [dict get $ddasm instructions] {
-	    set opcode [lindex $l 0]
+	foreach l $dasm {
+	    set l [string trim $l]
+	    if {![string match "(*" $l]} { continue }
+	    set opcode [lindex $l 1]
 	    if {$next_is_ipath >= 0} {
+		regexp {\((\d+)\) } $l -> pc
 		if {![info exists block($pc)]} {
 		    set block($pc) [llvmtcl AppendBasicBlock $func "block$pc"]
 		}
@@ -94,11 +98,11 @@ namespace eval llvmtcl {
 		set next_is_ipath -1
 	    }
 	    if {[string match "jump*1" $opcode] || [string match "jump*4" $opcode] || [string match "startCommand" $opcode]} {
-		set tgt [lindex $l 1 1]
+		# (pc) opcode offset
+		regexp {\((\d+)\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
+		set tgt [expr {$pc + $offset}]
 		if {![info exists block($tgt)]} {
-		    if {![string match "startCommand" $opcode] || $tgt < [llength [dict get $ddasm instructions]]} {
-			set block($tgt) [llvmtcl AppendBasicBlock $func "block$tgt"]
-		    }
+		    set block($tgt) [llvmtcl AppendBasicBlock $func "block$tgt"]
 		}
 		set next_is_ipath $pc
 	    }
@@ -113,14 +117,15 @@ namespace eval llvmtcl {
 	llvmtcl BuildStore $bld [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] $tsp
 	# Load arguments into llvm, allocate space for slots
 	set n 0
-	foreach l [dict get $ddasm variables] {
-	    if {[lindex $l 0 1] eq "arg"} {
+	foreach l $dasm {
+	    set l [string trim $l]
+	    if {[regexp {slot \d+, .*arg, \"} $l]} {
 		set arg_1 [llvmtcl GetParam $func $n]
 		set arg_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
 		set arg_3 [llvmtcl BuildStore $bld $arg_1 $arg_2]
 		set vars($n) $arg_2
 		incr n
-	    } else {
+	    } elseif {[string match "slot *" $l]} {
 		set arg_2 [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
 		set vars($n) $arg_2
 	    }
@@ -148,8 +153,11 @@ namespace eval llvmtcl {
 	set LLVMBuilderICmp(ge) LLVMIntGE
 
 	set done_done 0
-	foreach {pc l} [dict get $ddasm instructions] {
-	    set opcode [lindex $l 0]
+	foreach l $dasm {
+	    #puts $l
+	    set l [string trim $l]
+	    if {![string match "(*" $l]} { continue }
+	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
 	    if {[info exists block($pc)]} {
 		llvmtcl PositionBuilderAtEnd $bld $block($pc)
 		set curr_block $block($pc)
@@ -158,7 +166,8 @@ namespace eval llvmtcl {
 	    set ends_with_jump($curr_block) 0
 	    unset -nocomplain tgt
 	    if {[string match "jump*1" $opcode] || [string match "jump*4" $opcode] || [string match "startCommand" $opcode]} {
-		set tgt [lindex $l 1 1]
+		regexp {\(\d+\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> cmd offset
+		set tgt [expr {$pc + $offset}]
 	    }
 	    if {[info exists LLVMBuilder1($opcode)]} {
 		push $bld [llvmtcl $LLVMBuilder1($opcode) $bld [pop $bld [llvmtcl Int32Type]] ""]
@@ -173,12 +182,12 @@ namespace eval llvmtcl {
 	    } else {
 		switch -exact -- $opcode {
 		    "loadScalar1" {
-			set var $vars([string trim [lindex $l 1] %])
+			set var $vars([string range [lindex $l 2] 2 end])
 			push $bld [llvmtcl BuildLoad $bld $var ""]
 		    }
 		    "storeScalar1" {
 			set var_1 [top $bld [llvmtcl Int32Type]]
-			set idx [string trim [lindex $l 1] %]
+			set idx [string range [lindex $l 2] 2 end]
 			if {[info exists vars($idx)]} {
 			    set var_2 $vars($idx)
 			} else {
@@ -188,18 +197,18 @@ namespace eval llvmtcl {
 			set vars($idx) $var_2
 		    }
 		    "incrScalar1" {
-			set var $vars([string trim [lindex $l 1] %])
+			set var $vars([string range [lindex $l 2] 2 end])
 			llvmtcl BuildStore $bld [llvmtcl BuildAdd $bld [llvmtcl BuildLoad $bld $var ""] [top $bld [llvmtcl Int32Type]] ""] $var
 		    }
 		    "incrScalar1Imm" {
-			set var $vars([string trim [lindex $l 1] %])
-			set i [lindex $l 2]
+			set var $vars([string range [lindex $l 2] 2 end])
+			set i [lindex $l 3]
 			set s [llvmtcl BuildAdd $bld [llvmtcl BuildLoad $bld $var ""] [llvmtcl ConstInt [llvmtcl Int32Type] $i 0] ""]
 			push $bld $s
 			llvmtcl BuildStore $bld $s $var
 		    }
 		    "push1" {
-			set tval [lindex [dict get $ddasm literals] [string trim [lindex $l 1] @]]
+			set tval [lindex $l 4]
 			if {[string is integer -strict $tval]} {
 			    set val [llvmtcl ConstInt [llvmtcl Int32Type] $tval 0]
 			} elseif {[info exists funcar($m,$tval)]} {
@@ -242,7 +251,7 @@ namespace eval llvmtcl {
 			set ends_with_jump($curr_block) 1
 		    }
 		    "invokeStk1" {
-			set objc [lindex $l 1]
+			set objc [lindex $l 2]
 			set objv {}
 			set argl {}
 			for {set i 0} {$i < ($objc-1)} {incr i} {
@@ -256,8 +265,6 @@ namespace eval llvmtcl {
 		    }
 		    "pop" {
 			pop $bld [llvmtcl Int32Type]
-		    }
-		    "nop" {
 		    }
 		    "done" {
 			if {!$done_done} {

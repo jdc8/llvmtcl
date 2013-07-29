@@ -333,7 +333,8 @@ dist: dist-clean
 # variable in configure.in
 #========================================================================
 
-clean:  
+clean:
+	-rm generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c generic/llvmtcl-gen.c
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)

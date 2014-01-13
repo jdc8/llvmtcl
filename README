@@ -18,7 +18,7 @@ REQUIREMENTS
 ============
 
 - tcl 8.6
-- llvm 3.2
+- llvm 3.3
 
 CONTENTS
 ========

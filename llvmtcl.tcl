@@ -273,6 +273,8 @@ namespace eval llvmtcl {
 			    set done_done 1
 			}
 		    }
+		    "nop" {
+		    }
 		    default {
 			error "unknown bytecode '$opcode' in '$l'"
 		    }

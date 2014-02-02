@@ -13,14 +13,16 @@ typedef LLVMPassManagerBuilderRef
 typedef LLVMTargetDataRef
 
 enum {LLVMVoidTypeKind, LLVMHalfTypeKind, LLVMFloatTypeKind, LLVMDoubleTypeKind, LLVMX86_FP80TypeKind, LLVMFP128TypeKind, LLVMPPC_FP128TypeKind, LLVMLabelTypeKind, LLVMIntegerTypeKind, LLVMFunctionTypeKind, LLVMStructTypeKind, LLVMArrayTypeKind, LLVMPointerTypeKind, LLVMVectorTypeKind, LLVMMetadataTypeKind} LLVMTypeKind;
-enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment} LLVMAttribute;
-enum { LLVMRet, LLVMBr, LLVMSwitch, LLVMIndirectBr, LLVMInvoke, LLVMUnreachable, LLVMAdd, LLVMFAdd, LLVMSub, LLVMFSub, LLVMMul, LLVMFMul, LLVMUDiv, LLVMSDiv, LLVMFDiv, LLVMURem, LLVMSRem, LLVMFRem, LLVMShl, LLVMLShr, LLVMAShr, LLVMAnd, LLVMOr, LLVMXor, LLVMAlloca, LLVMLoad, LLVMStore, LLVMGetElementPtr, LLVMTrunc, LLVMZExt, LLVMSExt, LLVMFPToUI, LLVMFPToSI, LLVMUIToFP, LLVMSIToFP, LLVMFPTrunc, LLVMFPExt, LLVMPtrToInt, LLVMIntToPtr, LLVMBitCast, LLVMICmp, LLVMFCmp, LLVMPHI, LLVMCall, LLVMSelect, LLVMVAArg, LLVMExtractElement, LLVMInsertElement, LLVMShuffleVector, LLVMExtractValue, LLVMInsertValue} LLVMOpcode;
+enum {LLVMZExtAttribute, LLVMSExtAttribute, LLVMNoReturnAttribute, LLVMInRegAttribute, LLVMStructRetAttribute, LLVMNoUnwindAttribute, LLVMNoAliasAttribute, LLVMByValAttribute, LLVMNestAttribute, LLVMReadNoneAttribute, LLVMReadOnlyAttribute, LLVMNoInlineAttribute, LLVMAlwaysInlineAttribute, LLVMOptimizeForSizeAttribute, LLVMStackProtectAttribute, LLVMStackProtectReqAttribute, LLVMAlignment, LLVMNoCaptureAttribute, LLVMNoRedZoneAttribute, LLVMNoImplicitFloatAttribute, LLVMNakedAttribute, LLVMInlineHintAttribute, LLVMStackAlignment, LLVMReturnsTwice, LLVMUWTable, LLVMNonLazyBind} LLVMAttribute;
+enum { LLVMRet, LLVMBr, LLVMSwitch, LLVMIndirectBr, LLVMInvoke, LLVMUnreachable, LLVMAdd, LLVMFAdd, LLVMSub, LLVMFSub, LLVMMul, LLVMFMul, LLVMUDiv, LLVMSDiv, LLVMFDiv, LLVMURem, LLVMSRem, LLVMFRem, LLVMShl, LLVMLShr, LLVMAShr, LLVMAnd, LLVMOr, LLVMXor, LLVMAlloca, LLVMLoad, LLVMStore, LLVMGetElementPtr, LLVMTrunc, LLVMZExt, LLVMSExt, LLVMFPToUI, LLVMFPToSI, LLVMUIToFP, LLVMSIToFP, LLVMFPTrunc, LLVMFPExt, LLVMPtrToInt, LLVMIntToPtr, LLVMBitCast, LLVMAddrSpaceCast, LLVMICmp, LLVMFCmp, LLVMPHI, LLVMCall, LLVMSelect, LLVMVAArg, LLVMExtractElement, LLVMInsertElement, LLVMShuffleVector, LLVMExtractValue, LLVMInsertValue} LLVMOpcode;
 enum { LLVMIntEQ, LLVMIntNE, LLVMIntUGT, LLVMIntUGE, LLVMIntULT, LLVMIntULE, LLVMIntSGT, LLVMIntSGE, LLVMIntSLT, LLVMIntSLE} LLVMIntPredicate;
 enum {LLVMRealPredicateFalse,LLVMRealOEQ,LLVMRealOGT,LLVMRealOGE,LLVMRealOLT,LLVMRealOLE,LLVMRealONE,LLVMRealORD,LLVMRealUNO,LLVMRealUEQ,LLVMRealUGT,LLVMRealUGE,LLVMRealULT,LLVMRealULE,LLVMRealUNE,LLVMRealPredicateTrue} LLVMRealPredicate;
 enum {LLVMExternalLinkage, LLVMAvailableExternallyLinkage, LLVMLinkOnceAnyLinkage, LLVMLinkOnceODRLinkage, LLVMLinkOnceODRAutoHideLinkage, LLVMWeakAnyLinkage, LLVMWeakODRLinkage, LLVMAppendingLinkage, LLVMInternalLinkage, LLVMPrivateLinkage, LLVMDLLImportLinkage, LLVMDLLExportLinkage, LLVMExternalWeakLinkage, LLVMGhostLinkage, LLVMCommonLinkage, LLVMLinkerPrivateLinkage, LLVMLinkerPrivateWeakLinkage} LLVMLinkage;
 enum { LLVMDefaultVisibility, LLVMHiddenVisibility, LLVMProtectedVisibility} LLVMVisibility;
-enum { LLVMCCallConv, LLVMFastCallConv, LLVMColdCallConv, LLVMX86StdcallCallConv, LLVMX86FastcallCallConv} LLVMCallConv;
+enum { LLVMCCallConv, LLVMFastCallConv, LLVMColdCallConv, LLVMWebKitJSCallConv, LLVMAnyRegCallConv, LLVMX86StdcallCallConv, LLVMX86FastcallCallConv} LLVMCallConv;
 enum { LLVMAbortProcessAction, LLVMPrintMessageAction, LLVMReturnStatusAction } LLVMVerifierFailureAction;
+enum { LLVMAtomicRMWBinOpXchg, LLVMAtomicRMWBinOpAdd, LLVMAtomicRMWBinOpSub, LLVMAtomicRMWBinOpAnd, LLVMAtomicRMWBinOpOr, LLVMAtomicRMWBinOpXor, LLVMAtomicRMWBinOpMax, LLVMAtomicRMWBinOpMin, LLVMAtomicRMWBinOpUMax, LLVMAtomicRMWBinOpUMin} LLVMAtomicRMWBinOp;
+enum { LLVMAtomicOrderingNotAtomic, LLVMAtomicOrderingUnordered, LLVMAtomicOrderingMonotonic, LLVMAtomicOrderingAcquire, LLVMAtomicOrderingRelease, LLVMAtomicOrderingAcquireRelease, LLVMAtomicOrderingSequentiallyConsistent } LLVMAtomicOrdering;
 
 LLVMBool LLVMInitializeNativeTarget();
 void LLVMLinkInJIT(void);
@@ -114,6 +116,7 @@ LLVMValueRef LLVMBuildFPExt(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy
 LLVMValueRef LLVMBuildPtrToInt(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildIntToPtr(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildBitCast(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
+LLVMValueRef LLVMBuildAddrSpaceCast(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char *Name);
 LLVMValueRef LLVMBuildZExtOrBitCast(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildSExtOrBitCast(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
 LLVMValueRef LLVMBuildTruncOrBitCast(LLVMBuilderRef, LLVMValueRef Val, LLVMTypeRef DestTy, const char * Name);
@@ -135,6 +138,7 @@ LLVMValueRef LLVMBuildInsertValue(LLVMBuilderRef, LLVMValueRef AggVal, LLVMValue
 LLVMValueRef LLVMBuildIsNull(LLVMBuilderRef, LLVMValueRef Val, const char * Name);
 LLVMValueRef LLVMBuildIsNotNull(LLVMBuilderRef, LLVMValueRef Val, const char * Name);
 LLVMValueRef LLVMBuildPtrDiff(LLVMBuilderRef, LLVMValueRef LHS, LLVMValueRef RHS, const char * Name);
+LLVMValueRef LLVMBuildAtomicRMW(LLVMBuilderRef, LLVMAtomicRMWBinOp, LLVMValueRef, LLVMValueRef, LLVMAtomicOrdering, LLVMBool);
 
 // Types
 LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty);
@@ -288,6 +292,7 @@ LLVMValueRef LLVMConstFPToSI(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstPtrToInt(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstIntToPtr(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstBitCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
+LLVMValueRef LLVMConstAddrSpaceCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstZExtOrBitCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstSExtOrBitCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
 LLVMValueRef LLVMConstTruncOrBitCast(LLVMValueRef ConstantVal, LLVMTypeRef ToType);
@@ -469,3 +474,14 @@ void LLVMPassManagerBuilderUseInlinerWithThreshold(LLVMPassManagerBuilderRef, un
 void LLVMPassManagerBuilderPopulateFunctionPassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef);
 void LLVMPassManagerBuilderPopulateModulePassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef);
 void LLVMPassManagerBuilderPopulateLTOPassManager(LLVMPassManagerBuilderRef, LLVMPassManagerRef, bool, bool);
+
+void LLVMEnablePrettyStackTrace(void);
+
+rename LLVMPrintModuleToString LLVMPrintModuleToStringTcl
+std::string LLVMPrintModuleToString(LLVMModuleRef M);
+
+rename LLVMPrintTypeToString LLVMPrintTypeToStringTcl
+std::string LLVMPrintTypeToString(LLVMTypeRef M);
+
+rename LLVMPrintValueToString LLVMPrintValueToStringTcl
+std::string LLVMPrintValueToString(LLVMValueRef M);

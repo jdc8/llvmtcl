@@ -95,7 +95,7 @@ llvmtcl WriteBitcodeToFile $m fac-optimized.bc
 
 # Write llvmtcl  textual representation to file
 set f [open fac-optimized.ll w]
-puts $f [llvmtcl DumpModule $m]
+puts $f [llvmtcl PrintModuleToString $m]
 close $f
 
 # Time runs of fac and fac10

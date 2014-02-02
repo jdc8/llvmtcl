@@ -77,6 +77,30 @@ std::string LLVMDumpModuleTcl(LLVMModuleRef moduleRef)
     return s;
 }
 
+std::string LLVMPrintModuleToStringTcl(LLVMModuleRef moduleRef)
+{
+    char* p = LLVMPrintModuleToString(moduleRef);
+    std::string s = p;
+    LLVMDisposeMessage(p);
+    return s;
+}
+
+std::string LLVMPrintTypeToStringTcl(LLVMTypeRef typeRef)
+{
+    char* p = LLVMPrintTypeToString(typeRef);
+    std::string s = p;
+    LLVMDisposeMessage(p);
+    return s;
+}
+
+std::string LLVMPrintValueToStringTcl(LLVMValueRef valueRef)
+{
+    char* p = LLVMPrintValueToString(valueRef);
+    std::string s = p;
+    LLVMDisposeMessage(p);
+    return s;
+}
+
 LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef EE, LLVMValueRef F, LLVMGenericValueRef *Args, unsigned NumArgs)
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);

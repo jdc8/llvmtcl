@@ -135,7 +135,9 @@ proc gen_api_call {cf of l} {
 		    "LLVMRealPredicate" -
 		    "LLVMLinkage" -
 		    "LLVMVerifierFailureAction" -
-		    "LLVMAttribute" {
+		    "LLVMAttribute" -
+		    "LLVMAtomicRMWBinOp" -
+		    "LLVMAtomicOrdering" {
 			puts $cf "    $fargtype arg$n;"
 			puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
 			puts $cf "        return TCL_ERROR;"

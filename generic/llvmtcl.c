@@ -195,6 +195,52 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
     return TCL_OK;
 }
 
+int LLVMAddIncomingObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    LLVMValueRef phiNode;
+    LLVMValueRef* incomingValues;
+    LLVMBasicBlockRef* incomingBlocks;
+    int ivobjc = 0;
+    Tcl_Obj** ivobjv = 0;
+    int ibobjc = 0;
+    Tcl_Obj** ibobjv = 0;
+    if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 1, objv, "PhiNode IncomingValues IncomingBlocks");
+        return TCL_ERROR;
+    }
+    if (GetLLVMValueRefFromObj(interp, objv[1], phiNode) != TCL_OK)
+        return TCL_ERROR;
+    if (Tcl_ListObjGetElements(interp, objv[2], &ivobjc, &ivobjv) != TCL_OK) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValues not specified as list", -1));
+	return TCL_ERROR;
+    }
+    if (Tcl_ListObjGetElements(interp, objv[3], &ibobjc, &ibobjv) != TCL_OK) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingBlocks not specified as list", -1));
+	return TCL_ERROR;
+    }
+    if (ivobjc != ibobjc) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValues and IncomingBlocks have different length", -1));
+	return TCL_ERROR;
+    }
+    incomingValues = (LLVMValueRef*)ckalloc(sizeof(LLVMValueRef) * ivobjc);
+    incomingBlocks = (LLVMBasicBlockRef*)ckalloc(sizeof(LLVMBasicBlockRef) * ivobjc);
+    for(int i = 0; i < ivobjc; i++) {
+	if (GetLLVMValueRefFromObj(interp, ivobjv[i], incomingValues[i]) != TCL_OK) {
+	    ckfree((void*)incomingValues);
+	    ckfree((void*)incomingBlocks);
+	    return TCL_ERROR;
+	}
+	if (GetLLVMBasicBlockRefFromObj(interp, ibobjv[i], incomingBlocks[i]) != TCL_OK) {
+	    ckfree((void*)incomingValues);
+	    ckfree((void*)incomingBlocks);
+	    return TCL_ERROR;
+	}
+    }
+    LLVMAddIncoming(phiNode, incomingValues, incomingBlocks, ivobjc);
+    ckfree((void*)incomingValues);
+    ckfree((void*)incomingBlocks);
+    return TCL_OK;
+}
+
 #include "llvmtcl-gen.c"
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
@@ -218,5 +264,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclObj", LLVMCreateGenericValueOfTclObjObjCmd);
     LLVMObjCmd("llvmtcl::GenericValueToTclObj", LLVMGenericValueToTclObjObjCmd);
     LLVMObjCmd("llvmtcl::AddLLVMTclCommands", LLVMAddLLVMTclCommandsObjCmd);
+    LLVMObjCmd("llvmtcl::AddIncoming", LLVMAddIncomingObjCmd);
     return TCL_OK;
 }

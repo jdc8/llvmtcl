@@ -200,7 +200,7 @@ int LLVMAddIncomingObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, T
         Tcl_WrongNumArgs(interp, 1, objv, "PhiNode IncomingValuesList IncomingBlocksList");
         return TCL_ERROR;
     }
-    LLVMValueRef phiNode;
+    LLVMValueRef phiNode = 0;
     if (GetLLVMValueRefFromObj(interp, objv[1], phiNode) != TCL_OK)
         return TCL_ERROR;
     int ivobjc = 0;
@@ -266,6 +266,62 @@ int LLVMBuildAggregateRetObjCmd(ClientData clientData, Tcl_Interp* interp, int o
     return TCL_OK;
 }
 
+int LLVMBuildInvokeObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 7) {
+        Tcl_WrongNumArgs(interp, 1, objv, "BuilderRef Fn ArgsList ThenBlock CatchBlock Name");
+        return TCL_ERROR;
+    }
+    LLVMBuilderRef builder = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builder) != TCL_OK)
+        return TCL_ERROR;
+    LLVMValueRef fn = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[2], fn) != TCL_OK)
+        return TCL_ERROR;
+    int aobjc = 0;
+    Tcl_Obj** aobjv = 0;
+    if (Tcl_ListObjGetElements(interp, objv[3], &aobjc, &aobjv) != TCL_OK) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("ArgsList not specified as list", -1));
+	return TCL_ERROR;
+    }
+    LLVMValueRef* args = (LLVMValueRef*)ckalloc(sizeof(LLVMValueRef) * aobjc);
+    for(int i = 0; i < aobjc; i++) {
+	if (GetLLVMValueRefFromObj(interp, aobjv[i], args[i]) != TCL_OK) {
+	    ckfree((void*)args);
+	    return TCL_ERROR;
+	}
+    }
+    LLVMBasicBlockRef thenBlock  = 0;
+    if (GetLLVMBasicBlockRefFromObj(interp, objv[4], thenBlock) != TCL_OK)
+        return TCL_ERROR;
+    LLVMBasicBlockRef catchBlock  = 0;
+    if (GetLLVMBasicBlockRefFromObj(interp, objv[5], catchBlock) != TCL_OK)
+        return TCL_ERROR;
+    std::string name = Tcl_GetStringFromObj(objv[6], 0);
+    LLVMValueRef rt = LLVMBuildInvoke(builder, fn, args, aobjc, thenBlock, catchBlock, name.c_str());
+    ckfree((void*)args);
+    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, rt));
+    return TCL_OK;
+}
+
+int LLVMGetParamTypesObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "FunctionTy ");
+        return TCL_ERROR;
+    }
+    LLVMTypeRef functionType = 0;
+    if (GetLLVMTypeRefFromObj(interp, objv[1], functionType) != TCL_OK)
+        return TCL_ERROR;
+    unsigned nargs = LLVMCountParamTypes(functionType);
+    LLVMTypeRef* paramType = (LLVMTypeRef*)ckalloc(sizeof(LLVMTypeRef) * nargs);
+    LLVMGetParamTypes(functionType, paramType);
+    Tcl_Obj* rtl = Tcl_NewListObj(0, NULL);
+    for(unsigned i = 0; i < nargs; i++)
+	Tcl_ListObjAppendElement(interp, rtl, SetLLVMTypeRefAsObj(interp, paramType[i]));
+    ckfree((void*)paramType);
+    Tcl_SetObjResult(interp, rtl);
+    return TCL_OK;
+}
+
 #include "llvmtcl-gen.c"
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
@@ -291,5 +347,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::AddLLVMTclCommands", LLVMAddLLVMTclCommandsObjCmd);
     LLVMObjCmd("llvmtcl::AddIncoming", LLVMAddIncomingObjCmd);
     LLVMObjCmd("llvmtcl::BuildAggregateRet", LLVMBuildAggregateRetObjCmd);
+    LLVMObjCmd("llvmtcl::BuildInvoke", LLVMBuildInvokeObjCmd);
+    LLVMObjCmd("llvmtcl::GetParamTypes", LLVMGetParamTypesObjCmd);
     return TCL_OK;
 }

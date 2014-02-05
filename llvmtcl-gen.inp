@@ -55,7 +55,7 @@ LLVMValueRef LLVMBuildBr(LLVMBuilderRef, LLVMBasicBlockRef Dest);
 LLVMValueRef LLVMBuildCondBr(LLVMBuilderRef, LLVMValueRef If, LLVMBasicBlockRef Then, LLVMBasicBlockRef Else);
 LLVMValueRef LLVMBuildSwitch(LLVMBuilderRef, LLVMValueRef V, LLVMBasicBlockRef Else, unsigned NumCases);
 LLVMValueRef LLVMBuildIndirectBr(LLVMBuilderRef B, LLVMValueRef Addr, unsigned NumDests);
-//LLVMValueRef LLVMBuildInvoke(LLVMBuilderRef, LLVMValueRef Fn, LLVMValueRef * Args, unsigned NumArgs, LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch, const char * Name);
+// (added manualy) LLVMValueRef LLVMBuildInvoke(LLVMBuilderRef, LLVMValueRef Fn, LLVMValueRef * Args, unsigned NumArgs, LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch, const char * Name);
 LLVMValueRef LLVMBuildUnreachable(LLVMBuilderRef);
 void LLVMAddCase(LLVMValueRef Switch, LLVMValueRef OnVal, LLVMBasicBlockRef Dest);
 void LLVMAddDestination(LLVMValueRef IndirectBr, LLVMBasicBlockRef Dest);
@@ -170,7 +170,7 @@ LLVMTypeRef LLVMFunctionType(LLVMTypeRef ReturnType, LLVMTypeRef *ParamTypes, un
 LLVMBool LLVMIsFunctionVarArg(LLVMTypeRef FunctionTy);
 LLVMTypeRef LLVMGetReturnType(LLVMTypeRef FunctionTy);
 unsigned LLVMCountParamTypes(LLVMTypeRef FunctionTy);
-//void LLVMGetParamTypes(LLVMTypeRef FunctionTy, LLVMTypeRef *Dest);
+// (added manually) void LLVMGetParamTypes(LLVMTypeRef FunctionTy, LLVMTypeRef *Dest);
 LLVMTypeRef LLVMStructTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes, unsigned ElementCount, LLVMBool Packed);
 LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes, unsigned ElementCount, LLVMBool Packed);
 unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);

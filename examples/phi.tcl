@@ -48,6 +48,11 @@ set return [llvmtcl BuildPhi $bld [llvmtcl Int32Type] "return"]
 llvmtcl AddIncoming $return [list $rt_then $rt_else] [list $then $else]
 llvmtcl BuildRet $bld $return
 
+# Print function argument types:
+foreach t [llvmtcl GetParamTypes $ft] {
+    puts "argument type = $t = [llvmtcl PrintTypeToString $t]"
+}
+
 # Write llvmtcl bit code to file
 llvmtcl WriteBitcodeToFile $m test.bc
 

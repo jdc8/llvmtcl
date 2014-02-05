@@ -322,6 +322,25 @@ int LLVMGetParamTypesObjCmd(ClientData clientData, Tcl_Interp* interp, int objc,
     return TCL_OK;
 }
 
+int LLVMGetStructElementTypesObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "StructTy ");
+        return TCL_ERROR;
+    }
+    LLVMTypeRef structType = 0;
+    if (GetLLVMTypeRefFromObj(interp, objv[1], structType) != TCL_OK)
+        return TCL_ERROR;
+    unsigned nelem = LLVMCountStructElementTypes(structType);
+    LLVMTypeRef* elemType = (LLVMTypeRef*)ckalloc(sizeof(LLVMTypeRef) * nelem);
+    LLVMGetStructElementTypes(structType, elemType);
+    Tcl_Obj* rtl = Tcl_NewListObj(0, NULL);
+    for(unsigned i = 0; i < nelem; i++)
+	Tcl_ListObjAppendElement(interp, rtl, SetLLVMTypeRefAsObj(interp, elemType[i]));
+    ckfree((void*)elemType);
+    Tcl_SetObjResult(interp, rtl);
+    return TCL_OK;
+}
+
 #include "llvmtcl-gen.c"
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
@@ -349,5 +368,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::BuildAggregateRet", LLVMBuildAggregateRetObjCmd);
     LLVMObjCmd("llvmtcl::BuildInvoke", LLVMBuildInvokeObjCmd);
     LLVMObjCmd("llvmtcl::GetParamTypes", LLVMGetParamTypesObjCmd);
+    LLVMObjCmd("llvmtcl::GetStructElementTypes", LLVMGetStructElementTypesObjCmd);
     return TCL_OK;
 }

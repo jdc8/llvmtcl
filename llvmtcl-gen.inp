@@ -174,7 +174,7 @@ unsigned LLVMCountParamTypes(LLVMTypeRef FunctionTy);
 LLVMTypeRef LLVMStructTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes, unsigned ElementCount, LLVMBool Packed);
 LLVMTypeRef LLVMStructType(LLVMTypeRef *ElementTypes, unsigned ElementCount, LLVMBool Packed);
 unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
-//void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
+// (added manually) void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
 LLVMBool LLVMIsPackedStruct(LLVMTypeRef StructTy);
 LLVMTypeRef LLVMArrayType(LLVMTypeRef ElementType, unsigned ElementCount);
 LLVMTypeRef LLVMPointerType(LLVMTypeRef ElementType, unsigned AddressSpace);

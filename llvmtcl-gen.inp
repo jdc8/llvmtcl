@@ -333,7 +333,7 @@ LLVMBool LLVMIsGlobalConstant(LLVMValueRef GlobalVar);
 void LLVMSetGlobalConstant(LLVMValueRef GlobalVar, LLVMBool IsConstant);
 LLVMValueRef LLVMAddAlias(LLVMModuleRef M, LLVMTypeRef Ty, LLVMValueRef Aliasee, const char *Name);
 unsigned LLVMCountParams(LLVMValueRef Fn);
-//void LLVMGetParams(LLVMValueRef Fn, LLVMValueRef *Params);
+// (added manually) void LLVMGetParams(LLVMValueRef Fn, LLVMValueRef *Params);
 LLVMValueRef LLVMGetParam(LLVMValueRef Fn, unsigned Index);
 LLVMValueRef LLVMGetParamParent(LLVMValueRef Inst);
 LLVMValueRef LLVMGetFirstParam(LLVMValueRef Fn);

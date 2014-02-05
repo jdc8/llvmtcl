@@ -360,6 +360,25 @@ int LLVMGetStructElementTypesObjCmd(ClientData clientData, Tcl_Interp* interp, i
     return TCL_OK;
 }
 
+int LLVMGetBasicBlocksObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "Function ");
+        return TCL_ERROR;
+    }
+    LLVMValueRef function = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], function) != TCL_OK)
+        return TCL_ERROR;
+    unsigned nblocks = LLVMCountBasicBlocks(function);
+    LLVMBasicBlockRef* basicBlock = (LLVMBasicBlockRef*)ckalloc(sizeof(LLVMBasicBlockRef) * nblocks);
+    LLVMGetBasicBlocks(function, basicBlock);
+    Tcl_Obj* rtl = Tcl_NewListObj(0, NULL);
+    for(unsigned i = 0; i < nblocks; i++)
+	Tcl_ListObjAppendElement(interp, rtl, SetLLVMBasicBlockRefAsObj(interp, basicBlock[i]));
+    ckfree((void*)basicBlock);
+    Tcl_SetObjResult(interp, rtl);
+    return TCL_OK;
+}
+
 #include "llvmtcl-gen.c"
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
@@ -389,5 +408,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetParamTypes", LLVMGetParamTypesObjCmd);
     LLVMObjCmd("llvmtcl::GetParams", LLVMGetParamsObjCmd);
     LLVMObjCmd("llvmtcl::GetStructElementTypes", LLVMGetStructElementTypesObjCmd);
+    LLVMObjCmd("llvmtcl::GetBasicBlocks", LLVMGetBasicBlocksObjCmd);
     return TCL_OK;
 }

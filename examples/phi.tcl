@@ -53,6 +53,12 @@ foreach t [llvmtcl GetParamTypes $ft] {
     puts "argument type = $t = [llvmtcl PrintTypeToString $t]"
 }
 
+# Print basic blocks:
+foreach t [llvmtcl GetBasicBlocks $test] {
+    set v [llvmtcl BasicBlockAsValue $t]
+    puts "basic block = $t = $v = [llvmtcl GetValueName $v]"
+}
+
 # Write llvmtcl bit code to file
 llvmtcl WriteBitcodeToFile $m test.bc
 

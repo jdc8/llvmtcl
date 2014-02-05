@@ -196,33 +196,31 @@ int LLVMAddLLVMTclCommandsObjCmd(ClientData clientData, Tcl_Interp* interp, int 
 }
 
 int LLVMAddIncomingObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
-    LLVMValueRef phiNode;
-    LLVMValueRef* incomingValues;
-    LLVMBasicBlockRef* incomingBlocks;
-    int ivobjc = 0;
-    Tcl_Obj** ivobjv = 0;
-    int ibobjc = 0;
-    Tcl_Obj** ibobjv = 0;
     if (objc != 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, "PhiNode IncomingValues IncomingBlocks");
+        Tcl_WrongNumArgs(interp, 1, objv, "PhiNode IncomingValuesList IncomingBlocksList");
         return TCL_ERROR;
     }
+    LLVMValueRef phiNode;
     if (GetLLVMValueRefFromObj(interp, objv[1], phiNode) != TCL_OK)
         return TCL_ERROR;
+    int ivobjc = 0;
+    Tcl_Obj** ivobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[2], &ivobjc, &ivobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValues not specified as list", -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValuesList not specified as list", -1));
 	return TCL_ERROR;
     }
+    int ibobjc = 0;
+    Tcl_Obj** ibobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[3], &ibobjc, &ibobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingBlocks not specified as list", -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingBlocksList not specified as list", -1));
 	return TCL_ERROR;
     }
     if (ivobjc != ibobjc) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValues and IncomingBlocks have different length", -1));
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("IncomingValuesList and IncomingBlocksList have different length", -1));
 	return TCL_ERROR;
     }
-    incomingValues = (LLVMValueRef*)ckalloc(sizeof(LLVMValueRef) * ivobjc);
-    incomingBlocks = (LLVMBasicBlockRef*)ckalloc(sizeof(LLVMBasicBlockRef) * ivobjc);
+    LLVMValueRef* incomingValues = (LLVMValueRef*)ckalloc(sizeof(LLVMValueRef) * ivobjc);
+    LLVMBasicBlockRef* incomingBlocks = (LLVMBasicBlockRef*)ckalloc(sizeof(LLVMBasicBlockRef) * ivobjc);
     for(int i = 0; i < ivobjc; i++) {
 	if (GetLLVMValueRefFromObj(interp, ivobjv[i], incomingValues[i]) != TCL_OK) {
 	    ckfree((void*)incomingValues);
@@ -238,6 +236,33 @@ int LLVMAddIncomingObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, T
     LLVMAddIncoming(phiNode, incomingValues, incomingBlocks, ivobjc);
     ckfree((void*)incomingValues);
     ckfree((void*)incomingBlocks);
+    return TCL_OK;
+}
+
+int LLVMBuildAggregateRetObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "BuilderRef RetValsList");
+        return TCL_ERROR;
+    }
+    LLVMBuilderRef builder = 0;
+    if (GetLLVMBuilderRefFromObj(interp, objv[1], builder) != TCL_OK)
+        return TCL_ERROR;
+    int rvobjc = 0;
+    Tcl_Obj** rvobjv = 0;
+    if (Tcl_ListObjGetElements(interp, objv[2], &rvobjc, &rvobjv) != TCL_OK) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("RetValsList not specified as list", -1));
+	return TCL_ERROR;
+    }
+    LLVMValueRef* returnValues = (LLVMValueRef*)ckalloc(sizeof(LLVMValueRef) * rvobjc);
+    for(int i = 0; i < rvobjc; i++) {
+	if (GetLLVMValueRefFromObj(interp, rvobjv[i], returnValues[i]) != TCL_OK) {
+	    ckfree((void*)returnValues);
+	    return TCL_ERROR;
+	}
+    }
+    LLVMValueRef rt = LLVMBuildAggregateRet(builder, returnValues, rvobjc);
+    ckfree((void*)returnValues);
+    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, rt));
     return TCL_OK;
 }
 
@@ -265,5 +290,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GenericValueToTclObj", LLVMGenericValueToTclObjObjCmd);
     LLVMObjCmd("llvmtcl::AddLLVMTclCommands", LLVMAddLLVMTclCommandsObjCmd);
     LLVMObjCmd("llvmtcl::AddIncoming", LLVMAddIncomingObjCmd);
+    LLVMObjCmd("llvmtcl::BuildAggregateRet", LLVMBuildAggregateRetObjCmd);
     return TCL_OK;
 }

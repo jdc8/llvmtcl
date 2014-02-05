@@ -50,7 +50,7 @@ LLVMValueRef LLVMGetCurrentDebugLocation(LLVMBuilderRef Builder);
 void LLVMSetInstDebugLocation(LLVMBuilderRef Builder, LLVMValueRef Inst);
 LLVMValueRef LLVMBuildRetVoid(LLVMBuilderRef);
 LLVMValueRef LLVMBuildRet(LLVMBuilderRef, LLVMValueRef V);
-//LLVMValueRef LLVMBuildAggregateRet(LLVMBuilderRef, LLVMValueRef * RetVals, unsigned N);
+// (added manualy) LLVMValueRef LLVMBuildAggregateRet(LLVMBuilderRef, LLVMValueRef * RetVals, unsigned N);
 LLVMValueRef LLVMBuildBr(LLVMBuilderRef, LLVMBasicBlockRef Dest);
 LLVMValueRef LLVMBuildCondBr(LLVMBuilderRef, LLVMValueRef If, LLVMBasicBlockRef Then, LLVMBasicBlockRef Else);
 LLVMValueRef LLVMBuildSwitch(LLVMBuilderRef, LLVMValueRef V, LLVMBasicBlockRef Else, unsigned NumCases);
@@ -373,7 +373,7 @@ void LLVMRemoveInstrAttribute(LLVMValueRef Instr, unsigned index, LLVMAttribute)
 void LLVMSetInstrParamAlignment(LLVMValueRef Instr, unsigned index, unsigned align);
 LLVMBool LLVMIsTailCall(LLVMValueRef CallInst);
 void LLVMSetTailCall(LLVMValueRef CallInst, LLVMBool IsTailCall);
-//void LLVMAddIncoming(LLVMValueRef PhiNode, LLVMValueRef *IncomingValues, LLVMBasicBlockRef *IncomingBlocks, unsigned Count);
+// (added manually) void LLVMAddIncoming(LLVMValueRef PhiNode, LLVMValueRef *IncomingValues, LLVMBasicBlockRef *IncomingBlocks, unsigned Count);
 unsigned LLVMCountIncoming(LLVMValueRef PhiNode);
 LLVMValueRef LLVMGetIncomingValue(LLVMValueRef PhiNode, unsigned Index);
 LLVMBasicBlockRef LLVMGetIncomingBlock(LLVMValueRef PhiNode, unsigned Index);

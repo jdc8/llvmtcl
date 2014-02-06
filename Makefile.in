@@ -23,6 +23,7 @@
 LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
 LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`
 LLVMLIBS = `@LLVMCONFIG@ --libs`
+LLVMSYSTEMLIBS = `@LLVMCONFIG@ --system-libs`
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.
@@ -165,7 +166,7 @@ CONFIG_CLEAN_FILES = Makefile pkgIndex.tcl
 CLEANFILES	= @CLEANFILES@
 
 CPPFLAGS	= @CPPFLAGS@
-LIBS		= @PKG_LIBS@ @LIBS@ $(LLVMLIBS) $(LLVMLFLAGS)
+LIBS		= @PKG_LIBS@ @LIBS@ $(LLVMLIBS) $(LLVMLFLAGS) $(LLVMSYSTEMLIBS)
 AR		= @AR@
 CFLAGS		= @CFLAGS@
 COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) $(LLVMCFLAGS)

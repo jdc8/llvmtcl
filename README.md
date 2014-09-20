@@ -99,9 +99,9 @@ The installation of a TEA package is structure like so:
              |
       pkgIndex.tcl (.so|.dll files)
 
-The main .so|.dll library file gets installed in the versioned PACKAGE
+The main `.so`|`.dll` library file gets installed in the versioned PACKAGE
 directory, which is OK on all platforms because it will be directly
-referenced with by 'load' in the pkgIndex.tcl file.  Dependent DLL files on
+referenced with by `load` in the `pkgIndex.tcl` file.  Dependent DLL files on
 Windows must go in the bin directory (or other directory on the user's
 PATH) in order for them to be found.
 

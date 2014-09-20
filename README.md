@@ -1,12 +1,5 @@
 This is the llvmtcl extension based on the Tcl Extension Architecture (TEA).
-Please see the webpage
-
-	http://github.com/jdc8/llvmtcl
-
-or
-
-        http://wiki.tcl.tk/26308
-
+Please see the the [Tcler's wiki page](http://wiki.tcl.tk/26308)
 for more details.
 
 This package is a freely available open source package.  You can do virtually
@@ -26,25 +19,25 @@ CONTENTS
 The following is a short description of the files you will find in
 the sample extension.
 
-    Makefile.in	Makefile template.  The configure script uses this file to
-    		produce the final Makefile.
+    Makefile.in     Makefile template.  The configure script uses this file to
+                    produce the final Makefile.
     
-    README		This file.
+    README          This file.
     
     license.terms   License info for thie package.
     
-    aclocal.m4	Generated file.  Do not edit.  Autoconf uses this as input
-    		when generating the final configure script.  See "tcl.m4"
-    		below.
+    aclocal.m4      Generated file.  Do not edit.  Autoconf uses this as input
+                    when generating the final configure script.  See "tcl.m4"
+                    below.
     
-    configure	Generated file.  Do not edit.  This must be regenerated
-    		anytime configure.in or tclconfig/tcl.m4 changes.
+    configure       Generated file.  Do not edit.  This must be regenerated
+                    anytime configure.in or tclconfig/tcl.m4 changes.
     
-    configure.in	Configure script template.  Autoconf uses this file as input
-    		to produce the final configure script.
+    configure.in    Configure script template.  Autoconf uses this file as input
+                    to produce the final configure script.
     
     pkgIndex.tcl.in Package index template.  The configure script will use
-    		this file as input to create pkgIndex.tcl.
+                    this file as input to create pkgIndex.tcl.
     
     llvmtcl-gen.inp Input for llvmtcl-gen.tcl. It contains reformatted function
                     declarations of the llvm C API.
@@ -59,14 +52,14 @@ the sample extension.
     
     tests           Some tests for the package.
     
-    tclconfig/	This directory contains various template files that build
-    		the configure script.  They should not need modification.
+    tclconfig/      This directory contains various template files that build
+                    the configure script.  They should not need modification.
     
-    	install-sh	Program used for copying binaries and script files
-    			to their install locations.
+        install-sh  Program used for copying binaries and script files
+                    to their install locations.
     
-    	tcl.m4		Collection of Tcl autoconf macros.  Included by
-    			aclocal.m4 to define SC_* macros.
+        tcl.m4      Collection of Tcl autoconf macros.  Included by
+                    aclocal.m4 to define SC_* macros.
 
 UNIX BUILD
 ==========
@@ -79,14 +72,14 @@ and then run make. For more information about the build process, see
 the `tcl/unix/README` file in the Tcl src dist. The following minimal
 example will build and install the extension:
 
-	$ cd llvmtcl
-	$ ./configure --with-tcl=... --with-llvm-config=...
-	$ make
-        $ make test
-	$ make install
+    $ cd llvmtcl
+    $ ./configure --with-tcl=... --with-llvm-config=...
+    $ make
+    $ make test
+    $ make install
 
 Add the llvm lib directory containing the llvm shared object files to the
-LD_LIBRARY_PATH environment variable.
+`LD_LIBRARY_PATH` environment variable.
 
 WINDOWS BUILD
 =============
@@ -115,7 +108,7 @@ PATH) in order for them to be found.
 USING llvmtcl
 =============
 
-* to load the extension into a Tcl interpreter:
+* To load the extension into a Tcl interpreter:
 
         package require llvmtcl
 

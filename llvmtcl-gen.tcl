@@ -1,7 +1,5 @@
 proc gen_api_call {cf of l} {
-    lassign [split $l (] rtnm fargs
-	     # \
-		 )
+    lassign [split $l "("] rtnm fargs
     set rtnm [string trim $rtnm]
     set fargs [string trim $fargs]
     set rt [join [lrange [split $rtnm] 0 end-1] " "]
@@ -27,28 +25,28 @@ proc gen_api_call {cf of l} {
 	}
     }
     # Group types
-    set pointer_types {"LLVMValueRef *" "LLVMTypeRef *" "LLVMGenericValueRef *"}
+    set pointer_types {
+	"LLVMValueRef *" "LLVMTypeRef *" "LLVMGenericValueRef *"
+    }
     # Check number of arguments
-    set n 1
+    set n 2
     set an 1
     set skip_next 0
     foreach {fargtype fargname} $fargsl {
 	if {[string match "Out*" $fargname]} {
+	    # Skip this
+	} elseif {$skip_next} {
+	    set skip_next 0
 	} else {
-	    if {$skip_next} {
-		set skip_next 0
-	    } else {
-		if {$fargtype in $pointer_types} {
-		    if {[lindex $fargsl [expr {$n*2}]] eq "unsigned"} {
-			set skip_next 1
-		    } else {
-			error "Unknown type '$fargtype' in '$l'"
-		    }
+	    if {$fargtype in $pointer_types} {
+		if {[lindex $fargsl $n] ne "unsigned"} {
+		    error "Unknown type '$fargtype' in '$l'"
 		}
-		incr an
+		set skip_next 1
 	    }
+	    incr an
 	}
-	incr n
+	incr n 2
     }
     puts $cf "    if (objc != $an) \{"
     puts -nonewline $cf "        Tcl_WrongNumArgs(interp, 1, objv, \""
@@ -56,29 +54,23 @@ proc gen_api_call {cf of l} {
     set skip_next 0
     foreach {fargtype fargname} $fargsl {
 	if {[string match "Out*" $fargname]} {
-	} else {
-	    if {$skip_next} {
-		set skip_next 0
-	    } else {
-		if {$fargtype in $pointer_types} {
-		    if {[lindex $fargsl [expr {$n*2}]] eq "unsigned"} {
-			if {[string length $fargname]} {
-			    puts -nonewline $cf "$fargname " 
-			} else {
-			    puts -nonewline $cf "$fargtype " 
-			}
-			set skip_next 1
-		    } else {
-			error "Unknown type '$fargtype' in '$l'"
-		    }
-		} else {
-		    if {[string length $fargname]} {
-			puts -nonewline $cf "$fargname " 
-		    } else {
-			puts -nonewline $cf "$fargtype " 
-		    }
-		}
+	    # Skip this
+	} elseif {$skip_next} {
+	    set skip_next 0
+	} elseif {$fargtype in $pointer_types} {
+	    if {[lindex $fargsl [expr {$n*2}]] ne "unsigned"} {
+		error "Unknown type '$fargtype' in '$l'"
 	    }
+	    if {[string length $fargname]} {
+		puts -nonewline $cf "$fargname " 
+	    } else {
+		puts -nonewline $cf "$fargtype " 
+	    }
+	    set skip_next 1
+	} elseif {$fargname ne ""} {
+	    puts -nonewline $cf "$fargname " 
+	} else {
+	    puts -nonewline $cf "$fargtype " 
 	}
 	incr n
     }
@@ -105,101 +97,98 @@ proc gen_api_call {cf of l} {
 		    error "Unknown type '$fargtype' in '$l'"
 		}
 	    }
+	} elseif {$skip_next} {
+	    set skip_next 0
 	} else {
-	    if {$skip_next} {
-		set skip_next 0
-	    } else {
-		switch -exact -- $fargtype {
-		    "LLVMExecutionEngineRef" -
-		    "LLVMBuilderRef" -
-		    "LLVMContextRef" -
-		    "LLVMGenericValueRef" -
-		    "LLVMValueRef" -
-		    "LLVMTargetDataRef" -
-		    "LLVMBasicBlockRef" -
-		    "LLVMTypeHandleRef" -
-		    "LLVMTypeRef" -
-		    "LLVMUseRef" -
-		    "LLVMPassManagerRef" -
-		    "LLVMPassManagerBuilderRef" -
-		    "LLVMModuleRef" {
-			puts $cf "    $fargtype arg$n = 0;"
-			puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-		    }
-		    "LLVMTypeKind" -
-		    "LLVMOpcode" -
-		    "LLVMVisibility" -
-		    "LLVMCallConv" -
-		    "LLVMIntPredicate" -
-		    "LLVMRealPredicate" -
-		    "LLVMLinkage" -
-		    "LLVMVerifierFailureAction" -
-		    "LLVMAttribute" -
-		    "LLVMAtomicRMWBinOp" -
-		    "LLVMAtomicOrdering" {
-			puts $cf "    $fargtype arg$n;"
-			puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-		    }
-		    "LLVMGenericValueRef *" -
-		    "LLVMValueRef *" -
-		    "LLVMTypeRef *" {
-			if {[lindex $fargsl [expr {$n*2}]] eq "unsigned"} {
-			    puts $cf "    int iarg[expr {$n+1}] = 0;"
-			    puts $cf "    $fargtype arg$n = 0;"
-			    puts $cf "    if (GetListOf[string trim $fargtype { *}]FromObj(interp, objv\[$on\], arg$n, iarg[expr {$n+1}]) != TCL_OK)"
-			    puts $cf "        return TCL_ERROR;"
-			    puts $cf "    unsigned arg[expr {$n+1}] = (unsigned)iarg[expr {$n+1}];"
-			    set skip_next 1
-			    lappend delete_args $n
-			} else {
-			    error "Unknown type '$fargtype' in '$l'"
-			}
-		    }
-		    "std::string" -
-		    "const char *" {
-			puts $cf "    std::string arg$n = Tcl_GetStringFromObj(objv\[$on\], 0);"
-		    }
-		    "LLVMBool" -
-		    "bool" -
-		    "int" {
-			puts $cf "    int arg$n = 0;"
-			puts $cf "    if (Tcl_GetIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-		    }
-		    "uint8_t" -
-		    "unsigned" {
-			puts $cf "    int iarg$n = 0;"
-			puts $cf "    if (Tcl_GetIntFromObj(interp, objv\[$on\], &iarg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-			puts $cf "    $fargtype arg$n = ($fargtype)iarg$n;"
-		    }
-		    "long long" {
-			puts $cf "    Tcl_WideInt iarg$n = 0;"
-			puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-			puts $cf "    long long arg$n = (long long)iarg$n;"
-		    }
-		    "unsigned long long" {
-			puts $cf "    Tcl_WideInt iarg$n = 0;"
-			puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &iarg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-			puts $cf "    unsigned long long arg$n = (unsigned long long)iarg$n;"
-		    }
-		    "double" {
-			puts $cf "    double arg$n = 0;"
-			puts $cf "    if (Tcl_GetDoubleFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
-			puts $cf "        return TCL_ERROR;"
-		    }
-		    "void" {
-		    }
-		    default {
+	    switch -exact -- $fargtype {
+		"LLVMExecutionEngineRef" -
+		"LLVMBuilderRef" -
+		"LLVMContextRef" -
+		"LLVMGenericValueRef" -
+		"LLVMValueRef" -
+		"LLVMTargetDataRef" -
+		"LLVMBasicBlockRef" -
+		"LLVMTypeHandleRef" -
+		"LLVMTypeRef" -
+		"LLVMUseRef" -
+		"LLVMPassManagerRef" -
+		"LLVMPassManagerBuilderRef" -
+		"LLVMModuleRef" {
+		    puts $cf "    $fargtype arg$n = 0;"
+		    puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		}
+		"LLVMTypeKind" -
+		"LLVMOpcode" -
+		"LLVMVisibility" -
+		"LLVMCallConv" -
+		"LLVMIntPredicate" -
+		"LLVMRealPredicate" -
+		"LLVMLinkage" -
+		"LLVMVerifierFailureAction" -
+		"LLVMAttribute" -
+		"LLVMAtomicRMWBinOp" -
+		"LLVMAtomicOrdering" {
+		    puts $cf "    $fargtype arg$n;"
+		    puts $cf "    if (Get${fargtype}FromObj(interp, objv\[$on\], arg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		}
+		"LLVMGenericValueRef *" -
+		"LLVMValueRef *" -
+		"LLVMTypeRef *" {
+		    if {[lindex $fargsl [expr {$n*2}]] ne "unsigned"} {
 			error "Unknown type '$fargtype' in '$l'"
 		    }
+		    puts $cf "    int iarg[expr {$n+1}] = 0;"
+		    puts $cf "    $fargtype arg$n = 0;"
+		    puts $cf "    if (GetListOf[string trim $fargtype { *}]FromObj(interp, objv\[$on\], arg$n, iarg[expr {$n+1}]) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		    puts $cf "    unsigned arg[expr {$n+1}] = (unsigned)iarg[expr {$n+1}];"
+		    set skip_next 1
+		    lappend delete_args $n
 		}
-		incr on
+		"std::string" -
+		"const char *" {
+		    puts $cf "    std::string arg$n = Tcl_GetStringFromObj(objv\[$on\], 0);"
+		}
+		"LLVMBool" -
+		"bool" -
+		"int" {
+		    puts $cf "    int arg$n = 0;"
+		    puts $cf "    if (Tcl_GetIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		}
+		"uint8_t" -
+		"unsigned" {
+		    puts $cf "    int iarg$n = 0;"
+		    puts $cf "    if (Tcl_GetIntFromObj(interp, objv\[$on\], &iarg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		    puts $cf "    $fargtype arg$n = ($fargtype)iarg$n;"
+		}
+		"long long" {
+		    puts $cf "    Tcl_WideInt iarg$n = 0;"
+		    puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		    puts $cf "    long long arg$n = (long long)iarg$n;"
+		}
+		"unsigned long long" {
+		    puts $cf "    Tcl_WideInt iarg$n = 0;"
+		    puts $cf "    if (Tcl_GetWideIntFromObj(interp, objv\[$on\], &iarg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		    puts $cf "    unsigned long long arg$n = (unsigned long long)iarg$n;"
+		}
+		"double" {
+		    puts $cf "    double arg$n = 0;"
+		    puts $cf "    if (Tcl_GetDoubleFromObj(interp, objv\[$on\], &arg$n) != TCL_OK)"
+		    puts $cf "        return TCL_ERROR;"
+		}
+		"void" {
+		}
+		default {
+		    error "Unknown type '$fargtype' in '$l'"
+		}
 	    }
+	    incr on
 	}
 	incr n
     }

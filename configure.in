@@ -182,10 +182,14 @@ TEA_PROG_TCLSH
 #--------------------------------------------------------------------
 
 AC_ARG_WITH(llvm-config,
-  [  --with-llvm-config=FILE],
-  [LLVMCONFIG=$withval
-   AC_SUBST(LLVMCONFIG)],
-  [AC_MSG_ERROR(No llvm-config specified)])
+    [  --with-llvm-config=FILE],[
+	LLVMCONFIG=$withval
+	AC_SUBST(LLVMCFLAGS, `$LLVMCONFIG --cflags`)
+	AC_SUBST(LLVMLFLAGS, `$LLVMCONFIG --ldflags`)
+	AC_SUBST(LLVMLIBS, `$LLVMCONFIG --libs`)
+	AC_SUBST(LLVMSYSTEMLIBS, `$LLVMCONFIG --system-libs`)
+	AC_SUBST(LLVMCONFIG)],
+    [AC_MSG_ERROR(No llvm-config specified)])
 
 #--------------------------------------------------------------------
 # Finally, substitute all of the various values into the Makefile.

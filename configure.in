@@ -181,15 +181,17 @@ TEA_PROG_TCLSH
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 
-AC_ARG_WITH(llvm-config,
-    [  --with-llvm-config=FILE],[
-	LLVMCONFIG=$withval
-	AC_SUBST(LLVMCFLAGS, `$LLVMCONFIG --cflags`)
-	AC_SUBST(LLVMLFLAGS, `$LLVMCONFIG --ldflags`)
-	AC_SUBST(LLVMLIBS, `$LLVMCONFIG --libs`)
-	AC_SUBST(LLVMSYSTEMLIBS, `$LLVMCONFIG --system-libs`)
-	AC_SUBST(LLVMCONFIG)],
-    [AC_MSG_ERROR(No llvm-config specified)])
+AC_ARG_WITH(llvm-config, [  --with-llvm-config=FILE],[
+	AC_PATH_PROGS([LLVMCONFIG],[$withval llvm-config],[no])], [
+	AC_PATH_PROGS([LLVMCONFIG],[llvm-config],[no])])
+AS_IF([test "x$LLVMCONFIG" = "xno"], [
+	AC_MSG_ERROR(llvm-config not usable)])
+AC_SUBST(LLVMCFLAGS, `$LLVMCONFIG --cflags`)
+AC_SUBST(LLVMLFLAGS, `$LLVMCONFIG --ldflags`)
+AC_SUBST(LLVMLIBS, `$LLVMCONFIG --libs`)
+# llvm 3.4 doesn't like --system-libs but things work anyway
+AC_SUBST(LLVMSYSTEMLIBS, `$LLVMCONFIG --system-libs 2>/dev/null`)
+AC_SUBST(LLVMCONFIG)
 
 #--------------------------------------------------------------------
 # Finally, substitute all of the various values into the Makefile.

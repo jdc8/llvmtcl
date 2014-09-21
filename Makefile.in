@@ -170,7 +170,7 @@ CPPFLAGS	= @CPPFLAGS@
 LIBS		= @PKG_LIBS@ @LIBS@ $(LLVMLIBS) $(LLVMLFLAGS) $(LLVMSYSTEMLIBS)
 AR		= @AR@
 CFLAGS		= @CFLAGS@
-COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) $(LLVMCFLAGS)
+COMPILE		= $(CC) $(LLVMCFLAGS) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
 #========================================================================
 # Start of user-definable TARGETS section
@@ -187,7 +187,8 @@ COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(C
 all: binaries libraries doc
 
 generate-api: llvmtcl-gen.inp llvmtcl-gen.tcl
-	$(TCLSH) llvmtcl-gen.tcl
+	@echo $(TCLSH_PROG) llvmtcl-gen.tcl
+	@$(TCLSH) llvmtcl-gen.tcl
 
 #========================================================================
 # The binaries target builds executable programs, Windows .dll's, unix

@@ -12,24 +12,28 @@ namespace eval LLVM {
     proc optimise {args} {
 	variable counter
 	variable optimiseRounds
-	variable dumpPre
-	variable dumpPost
 	set module [llvmtcl ModuleCreateWithName module[incr counter]]
 	foreach p $args {
 	    set cmd [uplevel 1 [list namespace which $p]]
 	    lappend cmds $cmd
-	    llvmtcl Tcl2LLVM $module $cmd 1
+	    uplevel 1 [list llvmtcl Tcl2LLVM $module $p 1]
 	}
-	set funcs [lmap f $cmds {llvmtcl Tcl2LLVM $module $f}]
+	set funcs [lmap f $args {
+	    uplevel 1 [list llvmtcl Tcl2LLVM $module $f]
+	}]
+	variable dumpPre [llvmtcl DumpModule $module]
 	lassign [llvmtcl VerifyModule $module LLVMReturnStatusAction] rt msg
 	if {$rt} {
 	    return -code error $msg
 	}
-	variable dumpPre [llvmtcl DumpModule $module]
 	for {set i 0} {$i < $optimiseRounds} {incr i} {
 	    llvmtcl Optimize $module $funcs
 	}
 	variable dumpPost [llvmtcl DumpModule $module]
+	lassign [llvmtcl VerifyModule $module LLVMReturnStatusAction] rt msg
+	if {$rt} {
+	    return -code error $msg
+	}
 	lassign [llvmtcl CreateJITCompilerForModule $module 0] rt ee msg
 	if {$rt} {
 	    return -code error $msg
@@ -86,16 +90,16 @@ proc fact n {expr {
 }}
 
 # Baseline
-puts [f 50]
-puts [time {f 50} 100]
+puts [g 50]
+puts [time {g 50} 100]
 # Convert to optimised form
 puts [LLVM optimise f g]
 # Write out the generated code
 puts [LLVM post]
 # Compare with baseline
-puts [f 50]
-puts [time {f 50} 100]
-puts [f__test 50]
+puts [g 50]
+puts [time {g 50} 100]
+puts [g__test 50]
 ## Checks of what is done in the glue layer
-#puts [info body f]
-#puts [tcl::unsupported::disassemble proc f]
+#puts [info body g]
+#puts [tcl::unsupported::disassemble proc g]

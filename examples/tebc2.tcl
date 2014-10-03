@@ -55,7 +55,7 @@ namespace eval LLVM {
 	set argl {}
 	foreach l $dasm {
 	    set l [string trim $l]
-	    if {[regexp {slot \d+, .*arg, \"} $l]} {
+	    if {[regexp {slot \d+, .*arg, [""]} $l]} {
 		lappend argl $int32
 	    }
 	}
@@ -122,7 +122,7 @@ namespace eval LLVM {
 	set n 0
 	foreach l $dasm {
 	    set l [string trim $l]
-	    if {[regexp {slot \d+, .*arg, \"} $l]} {
+	    if {[regexp {slot \d+, .*arg, [""]} $l]} {
 		set arg_1 [llvmtcl GetParam $func $n]
 		set arg_2 [llvmtcl BuildAlloca $bld $int32 ""]
 		set arg_3 [llvmtcl BuildStore $bld $arg_1 $arg_2]

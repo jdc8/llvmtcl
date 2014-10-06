@@ -375,30 +375,6 @@ namespace eval LLVM {
     }
 
 
-    proc thunk {module name target arglist} {
-	set len [llength $arglist]
-	set c++ {
-	    struct defs *defsPtr = (struct defs *) clientData;
-	    if (argc != defsPtr->len) {
-		Tcl_WrongNumArgs(interp, 1, argv, defsPtr->arglist);
-		return TCL_ERROR;
-	    }
-	    LLVMTypeRef rt = LLVMInt32Type();
-	    const std::vector<GenericValue> arguments(defsPtr->len);
-	    for (int i=1; i<argc; i++) {
-		long value;
-		if (Tcl_GetLongFromObj(interp, argv[i], &value) != TCL_OK) {
-		    return TCL_ERROR;
-		}
-		arguments[i-1] = LLVMCreateGenericValueOfInt(rt, value, 1);
-	    }
-	    LLVMGenericValueRef result = LLVMRunFunction(defsPtr->engine, defsPtr->func, defsPtr->len, arguments);
-	    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(
-		    LLVMGenericValueToInt(result, 1)));
-	    return TCL_OK;
-	}
-    }
-
 
     proc optimise {args} {
 	variable counter

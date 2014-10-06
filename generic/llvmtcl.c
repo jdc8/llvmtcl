@@ -381,6 +381,66 @@ int LLVMGetBasicBlocksObjCmd(ClientData clientData, Tcl_Interp* interp, int objc
 
 #include "llvmtcl-gen.c"
 
+struct ThunkDefs {
+    int len;
+    Tcl_Obj *arglist;
+    LLVMExecutionEngineRef engine;
+    LLVMValueRef func;
+
+    ThunkDefs(Tcl_Obj *argslist) {
+	this->arglist = argslist;
+	Tcl_IncrRefCount(this->arglist);
+	this->engine = NULL;
+	this->func = NULL;
+    }
+    ~ThunkDefs() {
+	Tcl_DecrRefCount(arglist);
+    }
+};
+static int LLVMProcedureThunk(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    ThunkDefs *defsPtr = (ThunkDefs *) clientData;
+    if (objc != defsPtr->len + 1) {
+	Tcl_WrongNumArgs(interp, 1, objv, Tcl_GetString(defsPtr->arglist));
+	return TCL_ERROR;
+    }
+    LLVMTypeRef rt = LLVMInt32Type();
+    LLVMGenericValueRef arguments[defsPtr->len];
+    for (int i=1; i<objc; i++) {
+	long value;
+	if (Tcl_GetLongFromObj(interp, objv[i], &value) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	arguments[i-1] = LLVMCreateGenericValueOfInt(rt, value, 1);
+    }
+    unsigned long long result = LLVMGenericValueToInt(LLVMRunFunction(defsPtr->engine, defsPtr->func, defsPtr->len, arguments), 1);
+    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(result));
+    return TCL_OK;
+}
+static void LLVMDeleteProcedureThunk(ClientData clientData) {
+    ThunkDefs *defsPtr = (ThunkDefs *) clientData;
+    delete defsPtr;
+}
+static int LLVMCreateProcedureThunk(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 5) {
+	Tcl_WrongNumArgs(interp, 1, objv, "name EE F argsDescription");
+	return TCL_ERROR;
+    }
+    ThunkDefs *defsPtr = new ThunkDefs(objv[4]);
+    if (GetLLVMExecutionEngineRefFromObj(interp, objv[2], defsPtr->engine) != TCL_OK)
+	goto failed;
+    if (GetLLVMValueRefFromObj(interp, objv[3], defsPtr->func) != TCL_OK)
+	goto failed;
+    if (Tcl_ListObjLength(interp, objv[4], &defsPtr->len) != TCL_OK)
+	goto failed;
+    Tcl_CreateObjCommand(interp, Tcl_GetString(objv[1]), LLVMProcedureThunk,
+	defsPtr, LLVMDeleteProcedureThunk);
+    return TCL_OK;
+ failed:
+    delete defsPtr;
+    return TCL_ERROR;
+}
+
+
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
@@ -409,5 +469,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetParams", LLVMGetParamsObjCmd);
     LLVMObjCmd("llvmtcl::GetStructElementTypes", LLVMGetStructElementTypesObjCmd);
     LLVMObjCmd("llvmtcl::GetBasicBlocks", LLVMGetBasicBlocksObjCmd);
+    LLVMObjCmd("llvmtcl::CreateProcedureThunk", LLVMCreateProcedureThunk);
     return TCL_OK;
 }

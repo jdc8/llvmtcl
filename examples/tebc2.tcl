@@ -6,7 +6,7 @@ namespace eval LLVM {
     LinkInJIT
     InitializeNativeTarget
     variable counter 0
-    variable optimiseRounds 1;#10
+    variable optimiseRounds 10;#10
     variable dumpPre {}
     variable dumpPost {}
     variable int32 [Int32Type]
@@ -413,26 +413,7 @@ namespace eval LLVM {
 	    return -code error $msg
 	}
 	foreach cmd $cmds func $funcs {
-	    set argc [llength [info args $cmd]]
-	    set args [info args $cmd]
-	    set argmap {}
-	    foreach a $args {
-		append argmap { [::llvmtcl::CreateGenericValueOfInt } $int32 { $} $a { 0]}
-	    }
-	    set body [string map [list EE $ee FF $func AA $argmap] {
-		return [::llvmtcl::GenericValueToInt [::llvmtcl::RunFunction EE FF [list AA]] 0]
-	    }]
-	    # Define an alternate tester to get a better handle on the
-	    # overhead associated with the argument wrapping
-	    set body2 [string map [list EE $ee FF $func AA $argmap] {
-		set ___a [list AA]
-		puts [time {::llvmtcl::RunFunction EE FF $___a} 1000]
-		set ___r [llvmtcl RunFunction EE FF $___a]
-		return [llvmtcl GenericValueToInt $___r 0]
-	    }]
-	    proc $cmd $args $body
-	    proc ${cmd}__test $args $body2
-	    CreateProcedureThunk ${cmd}__thunk $ee $func $args
+	    CreateProcedureThunk ${cmd} $ee $func [info args $cmd]
 	}
 	return $module
     }
@@ -467,20 +448,21 @@ proc fib n {tailcall fibin $n 0 1}
 proc fibin {n a b} {expr {
     $n<=0 ? $a : [fibin [expr {$n-1}] $b [expr {$a+$b}]]
 }}
+proc fib2 n {
+    for {set a 0; set b 1} {$n > 0} {incr n -1} {
+	set b [expr {$a + [set a $b]}]
+    }
+    return $a
+}
 
 # Baseline
-puts [fib 20]
-puts [time {fib 20} 10000]
+puts tailrec:[time {fib 20} 100000]
+puts iterate:[time {fib2 20} 100000]
+puts [tcl::unsupported::disassemble proc fib2]
 # Convert to optimised form
-LLVM optimise f g fact fib fibin
+LLVM optimise f g fact fib fibin fib2
 # Write out the generated code
 puts [LLVM post]
 # Compare with baseline
-puts [fib 20]
-puts [time {fib 20} 10000]
-puts [fib__test 20]
-puts [fib__thunk 20]
-puts [time {fib__thunk 20} 10000]
-## Checks of what is done in the glue layer
-#puts [info body fib]
-#puts [tcl::unsupported::disassemble proc fib]
+puts tailrec:[time {fib 20} 100000]
+puts iterate:[time {fib2 20} 100000]

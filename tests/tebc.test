@@ -5,7 +5,7 @@ tcltest::test tebc-expr {Convert Tcl to llvm, optimize and run it} -setup {
     proc test {a} {
 	return [expr {4+$a+6}]
     }
-    llvmtcl LinkInJIT
+#    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_expr"]
 } -body {
@@ -27,7 +27,7 @@ tcltest::test tebc-if-then-else {Convert Tcl to llvm, optimize and run it} -setu
 	}
 	return $rt
     }
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_if_then_else"]
 } -body {
@@ -51,7 +51,7 @@ tcltest::test tebc-for {Convert Tcl to llvm, optimize and run it} -setup {
 	}
 	return $rt
     }
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_for"]
 } -body {
@@ -74,7 +74,7 @@ tcltest::test tebc-call {Convert Tcl to llvm, optimize and run it} -setup {
     proc caller {a b} {
 	return [expr {12+[callee $a $b]+34}]
     }
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_call"]
 } -body {
@@ -103,7 +103,7 @@ tcltest::test tebc-recursive {Convert Tcl to llvm, optimize and run it} -setup {
     proc fact10 { } {
 	return [fact 10]
     }
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {
@@ -146,7 +146,7 @@ tcltest::test tebc-filter {Convert Tcl to llvm, optimize and run it} -setup {
 	}
 	return $y
     }
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     set m [llvmtcl ModuleCreateWithName "tebc_recursive"]
 } -body {

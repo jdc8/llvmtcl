@@ -3,7 +3,7 @@ package require llvmtcl
 
 tcltest::test api-1 {build an example with llvm C api wrapper and execute it} -body {
     # Initialize the JIT
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     # Create a module and builder
     set m [llvmtcl ModuleCreateWithName "testmodule"]
@@ -36,14 +36,15 @@ tcltest::test api-1 {build an example with llvm C api wrapper and execute it} -b
 	error $msg
     }
     # Execute
-    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+    llvmtcl SetTarget $m x86
+    set td [llvmtcl CreateTargetData "e"]
+    llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+    lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
     set i [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 4 0]
     set res [llvmtcl RunFunction $EE $plus10 $i]
     set result {}
     lappend result [llvmtcl GenericValueToInt $res 0]
     # Optimize
-    set td [llvmtcl CreateTargetData ""]
-    llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
     llvmtcl OptimizeFunction $m $plus10 3 $td
     llvmtcl OptimizeModule $m 3 $td
     # Execute optimized code
@@ -56,7 +57,7 @@ tcltest::test api-1 {build an example with llvm C api wrapper and execute it} -b
 
 tcltest::test api-2 {build an example with llvm C api wrapper and execute it} -body {
     # Initialize the JIT
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     # Create a module and builder
     set m [llvmtcl ModuleCreateWithName "testmodule"]
@@ -106,7 +107,10 @@ tcltest::test api-2 {build an example with llvm C api wrapper and execute it} -b
 	error $msg
     }
     # Run the fac and fac10 functions
-    lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+    llvmtcl SetTarget $m x86
+    set td [llvmtcl CreateTargetData "e"]
+    llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+    lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
     set i [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 5 0]
     set res [llvmtcl RunFunction $EE $fac $i]
     set result {}
@@ -114,8 +118,6 @@ tcltest::test api-2 {build an example with llvm C api wrapper and execute it} -b
     set res [llvmtcl RunFunction $EE $fac10 {}]
     lappend result [llvmtcl GenericValueToInt $res 0]
     # Optimize functions and module
-    set td [llvmtcl CreateTargetData ""]
-    llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
     for {set t 0} {$t < 10} {incr t} {
 	llvmtcl OptimizeFunction $m $fac 3 $td
 	llvmtcl OptimizeFunction $m $fac10 3 $td

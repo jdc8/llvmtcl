@@ -2,7 +2,7 @@ lappend auto_path ..
 package require llvmtcl
 
 namespace eval ::LLVM {
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     variable counter 0
     variable optimiseRounds 10;#10
@@ -334,7 +334,10 @@ namespace eval ::LLVM {
 	    return $module
 	}
 	method jit {} {
-	    lassign [llvmtcl CreateJITCompilerForModule $module 0] rt ee msg
+	    llvmtcl SetTarget $module X86
+	    set td [llvmtcl CreateTargetData "e"]
+	    llvmtcl SetDataLayout $module [llvmtcl CopyStringRepOfTargetData $td]
+	    lassign [llvmtcl CreateExecutionEngineForModule $module] rt ee msg
 	    if {$rt} {
 		return -code error $msg
 	    }
@@ -597,7 +600,7 @@ puts [tcl::unsupported::disassemble proc f]
 try {
     LLVM optimise f g fact fib fibin fib2
 } on error {msg opt} {
-    puts [dict get $opt -errorinfo]
+    puts $msg\n[dict get $opt -errorinfo]
     exit 1
 }
 # Write out the generated code

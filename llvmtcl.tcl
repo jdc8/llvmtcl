@@ -44,7 +44,10 @@ namespace eval llvmtcl {
     }
 
     proc Execute {m f args} {
-	lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+	llvmtcl SetTarget $m X86
+	set td [llvmtcl CreateTargetData "e"]
+	llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+	lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
 	set largs {}
 	foreach arg $args {
 	    lappend largs [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] $arg 0]
@@ -111,7 +114,7 @@ namespace eval llvmtcl {
 	set curr_block $block(0)
 	# Create stack and stack pointer
 	set tstp [llvmtcl PointerType [llvmtcl Int8Type] 0]
-	set at [llvmtcl ArrayType [llvmtcl PointerType [llvmtcl Int8Type] 0] 100]
+	set at [llvmtcl ArrayType [llvmtcl PointerType [llvmtcl Int8Type] 0] 1000]
 	set ts [llvmtcl BuildArrayAlloca $bld $at [llvmtcl ConstInt [llvmtcl Int32Type] 1 0] ""]
 	set tsp [llvmtcl BuildAlloca $bld [llvmtcl Int32Type] ""]
 	llvmtcl BuildStore $bld [llvmtcl ConstInt [llvmtcl Int32Type] 0 0] $tsp

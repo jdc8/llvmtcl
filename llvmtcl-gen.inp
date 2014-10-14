@@ -25,7 +25,7 @@ enum { LLVMAtomicRMWBinOpXchg, LLVMAtomicRMWBinOpAdd, LLVMAtomicRMWBinOpSub, LLV
 enum { LLVMAtomicOrderingNotAtomic, LLVMAtomicOrderingUnordered, LLVMAtomicOrderingMonotonic, LLVMAtomicOrderingAcquire, LLVMAtomicOrderingRelease, LLVMAtomicOrderingAcquireRelease, LLVMAtomicOrderingSequentiallyConsistent } LLVMAtomicOrdering;
 
 LLVMBool LLVMInitializeNativeTarget();
-void LLVMLinkInJIT(void);
+void LLVMLinkInMCJIT(void);
 void LLVMLinkInInterpreter(void);
 
 LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);

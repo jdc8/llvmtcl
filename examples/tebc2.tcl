@@ -2,42 +2,13 @@ lappend auto_path ..
 package require llvmtcl
 
 namespace eval ::LLVM {
-    namespace path ::llvmtcl
-    LinkInJIT
-    InitializeNativeTarget
+    llvmtcl LinkInJIT
+    llvmtcl InitializeNativeTarget
     variable counter 0
     variable optimiseRounds 10;#10
     variable dumpPre {}
     variable dumpPost {}
-    variable int32 [Int32Type]
-
-    variable unaryOpcode
-    array set unaryOpcode {
-	uminus BuildNeg
-	bitnot BuildNot
-    }
-    variable binaryOpcode
-    array set binaryOpcode {
-	bitor BuildXor
-	bitxor BuildOr
-	bitand BuildAnd
-	lshift BuildShl
-	rshift BuildAShr
-	add BuildAdd
-	sub BuildSub
-	mult BuildMul
-	div BuildSDiv
-	mod BuildSRem
-    }
-    variable comparison
-    array set comparison {
-	eq LLVMIntEQ
-	neq LLVMIntNE
-	lt LLVMIntSLT
-	gt LLVMIntSGT
-	le LLVMIntSLE
-	ge LLVMIntGE
-    }
+    variable int32 [llvmtcl Int32Type]
 
     proc DisassembleTclBytecode {procName} {
 	lmap line [split [::tcl::unsupported::disassemble proc $procName] \n] {
@@ -45,13 +16,12 @@ namespace eval ::LLVM {
 	}
     }
 
-    proc GenerateDeclaration {m procName} {
-	variable funcar
+    proc GenerateDeclaration {module procName} {
 	variable int32
 	# Disassemble the proc
 	set dasm [DisassembleTclBytecode $procName]
 	# Create function
-	if {[info exists funcar($m,$procName)]} {
+	if {[$module function.defined $procName]} {
 	    error "duplicate $procName"
 	}
 	set argl {}
@@ -60,41 +30,40 @@ namespace eval ::LLVM {
 		lappend argl $int32
 	    }
 	}
-	set ft [FunctionType $int32 $argl 0]
-	set func [AddFunction $m $procName $ft]
-	return [set funcar($m,$procName) $func]
+	set ft [llvmtcl FunctionType $int32 $argl 0]
+	return [$module function.create $procName $ft]
     }
 
-    proc BytecodeCompile {m procName} {
+    proc BytecodeCompile {module procName} {
 	variable tstp
 	variable ts
 	variable tsp
-	variable funcar
 	variable int32
-	variable unaryOpcode
-	variable binaryOpcode
-	variable comparison
 
-	if {![info exists funcar($m,$procName)]} {
+	if {![$module function.defined $procName]} {
 	    error "Undeclared $procName"
 	}
 
 	# Disassemble the proc
 	set dasm [DisassembleTclBytecode $procName]
 	# Create builder
-	set bld [CreateBuilder]
-	# Create function
-	set func $funcar($m,$procName)
+	set b [Builder new]
+	# Get the function declaration
+	set func [$module function.get $procName]
+
 	# Create basic blocks
-	set block(0) [AppendBasicBlock $func "block0"]
+	set block(0) [$func block]
 	set next_is_ipath -1
 	foreach l $dasm {
+	    if {[regexp {stkDepth (\d+), code} $l -> s]} {
+		set stackDepth $s
+	    }
 	    if {![string match "(*" $l]} { continue }
 	    set opcode [lindex $l 1]
 	    if {$next_is_ipath >= 0} {
 		regexp {\((\d+)\) } $l -> pc
 		if {![info exists block($pc)]} {
-		    set block($pc) [AppendBasicBlock $func "block$pc"]
+		    set block($pc) [$func block]
 		}
 		set ipath($next_is_ipath) $pc
 		set next_is_ipath -1
@@ -104,43 +73,38 @@ namespace eval ::LLVM {
 		regexp {\((\d+)\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
 		set tgt [expr {$pc + $offset}]
 		if {![info exists block($tgt)]} {
-		    set block($tgt) [AppendBasicBlock $func "block$tgt"]
+		    set block($tgt) [$func block]
 		}
 		set next_is_ipath $pc
 	    }
 	}
-	PositionBuilderAtEnd $bld $block(0)
+	$b @end $block(0)
 	set curr_block $block(0)
+
 	# Create stack and stack pointer
-	set tstp [PointerType [Int8Type] 0]
-	set at [ArrayType [PointerType [Int8Type] 0] 100]
-	set ts [BuildArrayAlloca $bld $at [ConstInt $int32 1 0] ""]
-	set tsp [BuildAlloca $bld $int32 ""]
-	BuildStore $bld [ConstInt $int32 0 0] $tsp
+	set stack [Stack new $b $stackDepth]
+
 	# Load arguments into llvm, allocate space for slots
-	set n 0
 	foreach l $dasm {
-	    if {[regexp {slot \d+, .*arg, [""]} $l]} {
-		set arg_1 [GetParam $func $n]
-		set arg_2 [BuildAlloca $bld $int32 ""]
-		set arg_3 [BuildStore $bld $arg_1 $arg_2]
-		set vars($n) $arg_2
-		incr n
-	    } elseif {[string match "slot *" $l]} {
-		set arg_2 [BuildAlloca $bld $int32 ""]
-		set vars($n) $arg_2
+	    if {[regexp {slot (\d+), .*arg.*, [""]} $l -> n]} {
+		set vars($n) [$b alloc $int32]
+		$b store [$func param $n] $vars($n)
+	    } elseif {[regexp {slot (\d+), .*scalar.*, [""]} $l -> n]} {
+		set vars($n) [$b alloc $int32]
 	    }
 	}
 
 	# Convert Tcl parse output
 	set done_done 0
+	set maxpc 0
 	foreach l $dasm {
 	    if {![string match "(*" $l]} {
 		continue
 	    }
 	    regexp {\((\d+)\) (\S+)} $l -> pc opcode
+	    set maxpc $pc
 	    if {[info exists block($pc)]} {
-		PositionBuilderAtEnd $bld $block($pc)
+		$b @end $block($pc)
 		set curr_block $block($pc)
 		set done_done 0
 	    }
@@ -150,244 +114,245 @@ namespace eval ::LLVM {
 		regexp {\(\d+\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> cmd offset
 		set tgt [expr {$pc + $offset}]
 	    }
-	    if {[info exists unaryOpcode($opcode)]} {
-		push $bld [$unaryOpcode($opcode) $bld [pop $bld $int32] ""]
-	    } elseif {[info exists binaryOpcode($opcode)]} {
-		set top0 [pop $bld $int32]
-		set top1 [pop $bld $int32]
-		push $bld [$binaryOpcode($opcode) $bld $top1 $top0 ""]
-	    } elseif {[info exists comparison($opcode)]} {
-		set top0 [pop $bld $int32]
-		set top1 [pop $bld $int32]
-		push $bld [BuildIntCast $bld [BuildICmp $bld $comparison($opcode) $top1 $top0 ""] $int32 ""]
-	    } else {
-		switch -exact -- $opcode {
-		    "loadScalar1" {
-			set var $vars([string range [lindex $l 2] 2 end])
-			push $bld [BuildLoad $bld $var ""]
+
+	    switch -exact -- $opcode {
+		"bitor" - "bitxor" - "bitand" - "lshift" - "rshift" -
+		"add" - "sub" - "mult" - "div" - "mod" {
+		    set top0 [$stack pop $int32]
+		    set top1 [$stack pop $int32]
+		    $stack push [$b $opcode $top1 $top0]
+		}
+		"uminus" - "bitnot" {
+		    $stack push [$b $opcode [$stack pop $int32]]
+		}
+		"eq" - "neq" - "lt" - "gt" - "le" - "ge" {
+		    set top0 [$stack pop $int32]
+		    set top1 [$stack pop $int32]
+		    $stack push [$b intCast [$b $opcode $top1 $top0] $int32]
+		}
+		"loadScalar1" - "loadScalar4" {
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    $stack push [$b load $var]
+		}
+		"storeScalar1" - "storeScalar4" {
+		    set var_1 [$stack top $int32]
+		    set idx [string range [lindex $l 2] 2 end]
+		    if {[info exists vars($idx)]} {
+			set var_2 $vars($idx)
+		    } else {
+			set var_2 [$b alloc $int32]
 		    }
-		    "storeScalar1" {
-			set var_1 [top $bld $int32]
-			set idx [string range [lindex $l 2] 2 end]
-			if {[info exists vars($idx)]} {
-			    set var_2 $vars($idx)
-			} else {
-			    set var_2 [BuildAlloca $bld $int32 ""]
-			}
-			set var_3 [BuildStore $bld $var_1 $var_2]
-			set vars($idx) $var_2
+		    $b store $var_1 $var_2
+		    set vars($idx) $var_2
+		}
+		"incrScalar1" - "incrScalar4" {
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    $b store [$b add [$b load $var] [$stack top $int32]] $var
+		}
+		"incrScalar1Imm" - "incrScalar4Imm" {
+		    set var $vars([string range [lindex $l 2] 2 end])
+		    set i [lindex $l 3]
+		    set s [$b add [$b load $var] [llvmtcl ConstInt $int32 $i 0]]
+		    $stack push $s
+		    $b store $s $var
+		}
+		"push1" - "push4" {
+		    set tval [lindex $l 4]
+		    if {[string is integer -strict $tval]} {
+			set val [llvmtcl ConstInt $int32 $tval 0]
+		    } elseif {[$module function.defined $tval]} {
+			set val [[$module function.get $tval] ref]
+		    } elseif {$tval eq "tailcall"} {
+			### HACK! HACK! HACK! ###
+			continue
+		    } else {
+			set val [llvmtcl ConstInt $int32 0 0]
 		    }
-		    "incrScalar1" {
-			set var $vars([string range [lindex $l 2] 2 end])
-			BuildStore $bld [BuildAdd $bld [BuildLoad $bld $var ""] [top $bld $int32] ""] $var
+		    $stack push $val
+		}
+		"jumpTrue1" - "jumpTrue4" {
+		    set top [$stack pop $int32]
+		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
+			set cond $top
+		    } else {
+			set cond [$b neq $top [llvmtcl ConstInt $int32 0 0]]
 		    }
-		    "incrScalar1Imm" {
-			set var $vars([string range [lindex $l 2] 2 end])
-			set i [lindex $l 3]
-			set s [BuildAdd $bld [BuildLoad $bld $var ""] [ConstInt $int32 $i 0] ""]
-			push $bld $s
-			BuildStore $bld $s $var
+		    $b condBr $cond $block($tgt) $block($ipath($pc))
+		    set ends_with_jump($curr_block) 1
+		}
+		"jumpFalse1" - "jumpFalse4" {
+		    set top [$stack pop $int32]
+		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
+			set cond $top
+		    } else {
+			set cond [$b neq $top [llvmtcl ConstInt $int32 0 0]]
 		    }
-		    "push1" - "push4" {
-			set tval [lindex $l 4]
-			if {[string is integer -strict $tval]} {
-			    set val [ConstInt $int32 $tval 0]
-			} elseif {[info exists funcar($m,$tval)]} {
-			    set val $funcar($m,$tval)
-			} elseif {$tval eq "tailcall"} {
-			    ### HACK! HACK! HACK! ###
-			    continue
-			} else {
-			    set val [ConstInt $int32 0 0]
-			}
-			push $bld $val
+		    $b condBr $cond $block($ipath($pc)) $block($tgt)
+		    set ends_with_jump($curr_block) 1
+		}
+		"tryCvtToNumeric" {
+		    $stack push [$stack pop $int32]
+		}
+		"startCommand" {
+		}
+		"jump1" - "jump4" {
+		    $b br $block($tgt)
+		    set ends_with_jump($curr_block) 1
+		}
+		"invokeStk1" {
+		    set objc [lindex $l 2]
+		    set objv {}
+		    set argl {}
+		    for {set i 0} {$i < ($objc-1)} {incr i} {
+			lappend objv [$stack pop $int32]
+			lappend argl $int32
 		    }
-		    "jumpTrue4" -
-		    "jumpTrue1" {
-			set top [pop $bld $int32]
-			if {[GetIntTypeWidth [TypeOf $top]] == 1} {
-			    set cond $top
-			} else {
-			    set cond [BuildICmp $bld LLVMIntNE $top [ConstInt $int32 0 0] ""]
-			}
-			BuildCondBr $bld $cond $block($tgt) $block($ipath($pc))
-			set ends_with_jump($curr_block) 1
+		    set objv [lreverse $objv]
+		    set ft [llvmtcl PointerType [llvmtcl FunctionType $int32 $argl 0] 0]
+		    set fptr [$stack pop $ft]
+		    $stack push [$b call $fptr $objv]
+		}
+		"tailcall" {
+		    set objc [lindex $l 2]
+		    set objv {}
+		    set argl {}
+		    for {set i 0} {$i < ($objc-2)} {incr i} {
+			lappend objv [$stack pop $int32]
+			lappend argl $int32
 		    }
-		    "jumpFalse4" -
-		    "jumpFalse1" {
-			set top [pop $bld $int32]
-			if {[GetIntTypeWidth [TypeOf $top]] == 1} {
-			    set cond $top
-			} else {
-			    set cond [BuildICmp $bld LLVMIntNE $top [ConstInt $int32 0 0] ""]
-			}
-			BuildCondBr $bld $cond $block($ipath($pc)) $block($tgt)
-			set ends_with_jump($curr_block) 1
-		    }
-		    "tryCvtToNumeric" {
-			push $bld [pop $bld $int32]
-		    }
-		    "startCommand" {
-		    }
-		    "jump4" -
-		    "jump1" {
-			BuildBr $bld $block($tgt)
-			set ends_with_jump($curr_block) 1
-		    }
-		    "invokeStk1" {
-			set objc [lindex $l 2]
-			set objv {}
-			set argl {}
-			for {set i 0} {$i < ($objc-1)} {incr i} {
-			    lappend objv [pop $bld $int32]
-			    lappend argl $int32
-			}
-			set objv [lreverse $objv]
-			set ft [PointerType [FunctionType $int32 $argl 0] 0]
-			set fptr [pop $bld $ft]
-			push $bld [BuildCall $bld $fptr $objv ""]
-		    }
-		    "tailcall" {
-			set objc [lindex $l 2]
-			set objv {}
-			set argl {}
-			for {set i 0} {$i < ($objc-2)} {incr i} {
-			    lappend objv [pop $bld $int32]
-			    lappend argl $int32
-			}
-			set objv [lreverse $objv]
-			set ft [PointerType [FunctionType $int32 $argl 0] 0]
-			set fptr [pop $bld $ft]
-			set tc [BuildCall $bld $fptr $objv ""]
-			# MAGIC! Requires a recent-enough LLVM to really work
-			SetTailCall $tc 2
-			push $bld $tc
-			BuildRet $bld [top $bld $int32]
+		    set objv [lreverse $objv]
+		    set ft [llvmtcl PointerType [llvmtcl FunctionType $int32 $argl 0] 0]
+		    set fptr [$stack pop $ft]
+		    set tc [$b call $fptr $objv]
+		    # MAGIC! Requires a recent-enough LLVM to really work
+		    # llvmtcl SetTailCall $tc 2
+		    $stack push $tc
+		    $b ret [$stack top $int32]
+		    set ends_with_jump($curr_block) 1
+		    set done_done 1
+		}
+		"pop" {
+		    $stack pop $int32
+		}
+		"done" {
+		    if {!$done_done} {
+			$b ret [$stack top $int32]
 			set ends_with_jump($curr_block) 1
 			set done_done 1
 		    }
-		    "pop" {
-			pop $bld $int32
+		}
+		"nop" {
+		}
+		"unsetScalar" {
+		    # Do nothing; it's not *right* but it's OK with ints
+		}
+		"reverse" {
+		    set objc [lindex $l 2]
+		    set objv {}
+		    for {set i 0} {$i < $objc} {incr i} {
+			lappend objv [$stack pop $int32]
 		    }
-		    "done" {
-			if {!$done_done} {
-			    BuildRet $bld [top $bld $int32]
-			    set ends_with_jump($curr_block) 1
-			    set done_done 1
-			}
+		    foreach val $objv {
+			$stack push $val
 		    }
-		    "nop" {
-		    }
-		    "unsetScalar" {
-			# Do nothing; it's not *right* but it's OK with ints
-		    }
-		    "reverse" {
-			set objc [lindex $l 2]
-			set objv {}
-			for {set i 0} {$i < $objc} {incr i} {
-			    lappend objv [pop $bld $int32]
-			}
-			foreach val [lrevese $objv] {
-			    push $bld $val
-			}
-		    }
-		    "over" {
-			push $bld [top $bld $int32 [lindex $l 2]]
-		    }
-		    default {
-			error "unknown bytecode '$opcode' in '$l'"
-		    }
+		}
+		"over" {
+		    $stack push [$stack top $int32 [lindex $l 2]]
+		}
+		default {
+		    error "unknown bytecode '$opcode' in '$l'"
 		}
 	    }
 	}
 
 	# Set increment paths
-	foreach {pc b} [array get block] {
-	    PositionBuilderAtEnd $bld $block($pc)
-	    if {!$ends_with_jump($block($pc))} {
-		for {set tpc [expr {$pc+1}]} {$tpc < 1000} {incr tpc} {
-		    if {[info exists block($tpc)]} {
-			BuildBr $bld $block($tpc)
-			break
-		    }
+	foreach {pc blk} [array get block] {
+	    $b @end $blk
+	    if {$ends_with_jump($blk)} continue
+	    while {[incr pc] <= $maxpc} {
+		if {[info exists block($pc)]} {
+		    $b br $block($pc)
+		    break
 		}
 	    }
 	}
 
 	# Cleanup and return
-	DisposeBuilder $bld
-	return $func
+	$stack destroy
+	$b destroy
+	return [$func ref]
     }
 
     # Helper functions, should not be called directly
 
-    proc AddUtils {m {bld ""}} {
-	variable funcar
+    proc AddUtils {module} {
 	variable int32
-	set dispose [expr {$bld eq ""}]
-	try {
-	    if {$dispose} {
-		set bld [CreateBuilder]
+	set b [Builder new]
+	set ft [llvmtcl FunctionType $int32 [list $int32] 0]
+	set func [$module function.create tcl::mathfunc::int $ft]
+	$b @end [$func block]
+	$b ret [$func param 0]
+	$b destroy
+    }
+
+    oo::class create Module {
+	variable module counter funcs
+	constructor {name} {
+	    set module [llvmtcl ModuleCreateWithName $name]
+	    set funcs {}
+	}
+	method function.create {name type} {
+	    set f [::LLVM::Function create f[incr counter] $module $name $type]
+	    dict set funcs $name $f
+	    return $f
+	}
+	method function.defined {name} {
+	    dict exists $funcs $name
+	}
+	method function.get {name} {
+	    dict get $funcs $name
+	}
+	method dump {} {
+	    llvmtcl DumpModule $module
+	}
+	method verify {} {
+	    lassign [llvmtcl VerifyModule $module LLVMReturnStatusAction] rt msg
+	    if {$rt} {
+		return -code error $msg
 	    }
-	    set ft [FunctionType $int32 [list $int32] 0]
-	    set func [AddFunction $m "llvm_mathfunc_int" $ft]
-	    set funcar($m,tcl::mathfunc::int) $func
-	    set block [AppendBasicBlock $func "block"]
-	    PositionBuilderAtEnd $bld $block
-	    BuildRet $bld [GetParam $func 0]
-	} finally {
-	    if {$dispose} {
-		DisposeBuilder $bld
+	}
+	method optimize {{rounds 1}} {
+	    for {set i 0} {$i < $rounds} {incr i} {
+		llvmtcl Optimize $module [lmap f [dict values $funcs] {$f ref}]
 	    }
+	}
+	method ref {} {
+	    return $module
+	}
+	method jit {} {
+	    lassign [llvmtcl CreateJITCompilerForModule $module 0] rt ee msg
+	    if {$rt} {
+		return -code error $msg
+	    }
+	    return $ee
 	}
     }
 
-    proc push {bld val} {
-	variable tstp
-	variable ts
-	variable tsp
-	variable int32
-	# Allocate space for value
-	set valt [TypeOf $val]
-	set valp [BuildAlloca $bld $valt "push"]
-	BuildStore $bld $val $valp
-	# Store location on stack
-	set tspv [BuildLoad $bld $tsp "push"]
-	set tsl [BuildGEP $bld $ts [list [ConstInt $int32 0 0] $tspv] "push"]
-	BuildStore $bld [BuildPointerCast $bld $valp $tstp ""] $tsl
-	# Update stack pointer
-	set tspv [BuildAdd $bld $tspv [ConstInt $int32 1 0] "push"]
-	BuildStore $bld $tspv $tsp
-    }
-    
-    proc pop {bld valt} {
-	variable ts
-	variable tsp
-	variable int32
-	# Get location from stack and decrement the stack pointer
-	set tspv [BuildLoad $bld $tsp "pop"]
-	set tspv [BuildAdd $bld $tspv [ConstInt $int32 -1 0] "pop"]
-	BuildStore $bld $tspv $tsp
-	set tsl [BuildGEP $bld $ts [list [ConstInt $int32 0 0] $tspv] "pop"]
-	set valp [BuildLoad $bld $tsl "pop"]
-	# Load value
-	set pc [BuildPointerCast $bld $valp [PointerType $valt 0] "pop"]
-	set rt [BuildLoad $bld $pc "pop"]
-	return $rt
-    }
-
-    proc top {bld valt {offset 0}} {
-	variable ts
-	variable tsp
-	variable int32
-	# Get location from stack
-	set tspv [BuildLoad $bld $tsp "top"]
-	set tspv [BuildAdd $bld $tspv [ConstInt $int32 [expr {-1-$offset}] 0] "top"]
-	set tsl [BuildGEP $bld $ts [list [ConstInt $int32 0 0] $tspv] "top"]
-	set valp [BuildLoad $bld $tsl "top"]
-	# Load value
-	return [BuildLoad $bld \
-		[BuildPointerCast $bld $valp [PointerType $valt 0] "top"] "top"]
+    oo::class create Function {
+	variable func counter
+	constructor {module name type} {
+	    set func [llvmtcl AddFunction $module $name $type]
+	    set counter -1
+	}
+	method ref {} {
+	    return $func
+	}
+	method block {} {
+	    return [llvmtcl AppendBasicBlock $func block[incr counter]]
+	}
+	method param {index} {
+	    return [llvmtcl GetParam $func $index]
+	}
     }
 
     oo::class create Stack {
@@ -395,47 +360,47 @@ namespace eval ::LLVM {
 	constructor {builder {size 100}} {
 	    namespace path [list {*}[namespace path] ::llvmtcl]
 	    set b $builder
-	    set i32 [Int32Type]
-	    set tstp [PointerType [Int8Type] 0]
-	    set at [ArrayType [PointerType [Int8Type] 0] $size]
-	    set ts [$b arrayAlloc $at [ConstInt $i32 1 0]]
+	    set i32 [llvmtcl Int32Type]
+	    set tstp [llvmtcl PointerType [llvmtcl Int8Type] 0]
+	    set at [llvmtcl ArrayType [llvmtcl PointerType [llvmtcl Int8Type] 0] $size]
+	    set ts [$b arrayAlloc $at [llvmtcl ConstInt $i32 1 0]]
 	    set tsp [$b alloc $i32]
-	    $b store [ConstInt $i32 0 0] $tsp
+	    $b store [llvmtcl ConstInt $i32 0 0] $tsp
 	}
 
 	method push {val} {
 	    # Allocate space for value
-	    set valp [$b alloc [TypeOf $val] "push"]
+	    set valp [$b alloc [llvmtcl TypeOf $val] "push"]
 	    $b store $val $valp
 	    # Store location on stack
 	    set tspv [$b load $tsp "push"]
-	    set tsl [$b gep $ts [list [ConstInt $i32 0 0] $tspv] "push"]
+	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "push"]
 	    $b store [$b pointerCast $valp $tstp ""] $tsl
 	    # Update stack pointer
-	    set tspv [$b add $tspv [ConstInt $i32 1 0] "push"]
+	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 1 0] "push"]
 	    $b store $tspv $tsp
 	    return
 	}
 	method pop {valt} {
 	    # Get location from stack and decrement the stack pointer
 	    set tspv [$b load $tsp "pop"]
-	    set tspv [$b add $tspv [ConstInt $i32 -1 0] "pop"]
+	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 -1 0] "pop"]
 	    $b store $tspv $tsp
-	    set tsl [$b gep $ts [list [ConstInt $i32 0 0] $tspv] "pop"]
+	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "pop"]
 	    set valp [$b load $tsl "pop"]
 	    # Load value
-	    set pc [$b pointerCast $valp [PointerType $valt 0] "pop"]
+	    set pc [$b pointerCast $valp [llvmtcl PointerType $valt 0] "pop"]
 	    return [$b load $pc "pop"]
 	}
 	method top {valt {offset 0}} {
 	    # Get location from stack
 	    set tspv [$b load $tsp "top"]
-	    set tspv [$b add $tspv [ConstInt $i32 [expr {-1-$offset}] 0] "top"]
-	    set tsl [$b gep $ts [list [ConstInt $i32 0 0] $tspv] "top"]
+	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 [expr {-1-$offset}] 0] "top"]
+	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "top"]
 	    set valp [$b load $tsl "top"]
 	    # Load value
 	    return [$b load \
-		    [$b pointerCast $valp [PointerType $valt 0] "top"] "top"]
+		    [$b pointerCast $valp [llvmtcl PointerType $valt 0] "top"] "top"]
 	}
     }
 
@@ -455,44 +420,105 @@ namespace eval ::LLVM {
 	    }
 	}
 
-	method add {left right {name ""}} {llvmtcl BuildAdd $b $left $right $name}
-	method alloc {type {name ""}} {llvmtcl BuildAlloca $b $type $name}
-	method arrayAlloc {type value {name ""}} {llvmtcl BuildArrayAlloca $b $type $value $name}
-	method bitand {left right {name ""}} {llvmtcl BuildAnd $b $left $right $name}
-	method bitor {left right {name ""}} {llvmtcl BuildXor $b $left $right $name}
-	method bitxor {left right {name ""}} {llvmtcl BuildOr $b $left $right $name}
-	method br target {llvmtcl BuildBr $b $target}
-	method call {function arguments {name ""}} {llvmtcl BuildCall $b $function $arguments $name}
-	method condBr {cond true false} {llvmtcl BuildBr $b $cond $true $false}
-	method div {left right {name ""}} {llvmtcl BuildSDiv $b $left $right $name}
-	method eq {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntEQ $leftValue $rightValue $name}
-	method ge {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntGE $leftValue $rightValue $name}
-	method gep {var indices {name ""}} {llvmtcl BuildGEP $b $var $indices $name}
-	method gt {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntSGT $leftValue $rightValue $name}
-	method intCast {value type {name ""}} {llvmtcl BuildIntCast $b $value $type $name}
-	method le {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntSLE $leftValue $rightValue $name}
-	method load {var {name ""}} {llvmtcl BuildLoad $b $var $name}
-	method lshift {left right {name ""}} {llvmtcl BuildShl $b $left $right $name}
-	method lt {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntSLT $leftValue $rightValue $name}
-	method mod {left right {name ""}} {llvmtcl BuildSRem $b $left $right $name}
-	method mult {left right {name ""}} {llvmtcl BuildMul $b $left $right $name}
-	method neq {leftValue rightValue {name ""}} {llvmtcl BuildICmp $b LLVMIntNE $leftValue $rightValue $name}
-	method pointerCast {value type {name ""}} {llvmtcl BuildPointerCast $b $value $type $name}
-	method ret value {llvmtcl BuildRet $b $value}
-	method rshift {left right {name ""}} {llvmtcl BuildAShr $b $left $right $name}
-	method store {value var} {llvmtcl BuildStore $b $value $var}
-	method sub {left right {name ""}} {llvmtcl BuildSub $b $left $right $name}
+	method add {left right {name ""}} {
+	    llvmtcl BuildAdd $b $left $right $name
+	}
+	method alloc {type {name ""}} {
+	    llvmtcl BuildAlloca $b $type $name
+	}
+	method arrayAlloc {type value {name ""}} {
+	    llvmtcl BuildArrayAlloca $b $type $value $name
+	}
+	method bitand {left right {name ""}} {
+	    llvmtcl BuildAnd $b $left $right $name
+	}
+	method bitnot {value {name ""}} {
+	    llvmtcl BuildNot $b $value $name
+	}
+	method bitor {left right {name ""}} {
+	    llvmtcl BuildXor $b $left $right $name
+	}
+	method bitxor {left right {name ""}} {
+	    llvmtcl BuildOr $b $left $right $name
+	}
+	method br target {
+	    llvmtcl BuildBr $b $target
+	}
+	method call {function arguments {name ""}} {
+	    llvmtcl BuildCall $b $function $arguments $name
+	}
+	method condBr {cond true false} {
+	    llvmtcl BuildCondBr $b $cond $true $false
+	}
+	method div {left right {name ""}} {
+	    llvmtcl BuildSDiv $b $left $right $name
+	}
+	method eq {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntEQ $leftValue $rightValue $name
+	}
+	method ge {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntGE $leftValue $rightValue $name
+	}
+	method gep {var indices {name ""}} {
+	    llvmtcl BuildGEP $b $var $indices $name
+	}
+	method gt {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntSGT $leftValue $rightValue $name
+	}
+	method intCast {value type {name ""}} {
+	    llvmtcl BuildIntCast $b $value $type $name
+	}
+	method le {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntSLE $leftValue $rightValue $name
+	}
+	method load {var {name ""}} {
+	    llvmtcl BuildLoad $b $var $name
+	}
+	method lshift {left right {name ""}} {
+	    llvmtcl BuildShl $b $left $right $name
+	}
+	method lt {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntSLT $leftValue $rightValue $name
+	}
+	method mod {left right {name ""}} {
+	    llvmtcl BuildSRem $b $left $right $name
+	}
+	method mult {left right {name ""}} {
+	    llvmtcl BuildMul $b $left $right $name
+	}
+	method neq {leftValue rightValue {name ""}} {
+	    llvmtcl BuildICmp $b LLVMIntNE $leftValue $rightValue $name
+	}
+	method pointerCast {value type {name ""}} {
+	    llvmtcl BuildPointerCast $b $value $type $name
+	}
+	method ret value {
+	    llvmtcl BuildRet $b $value
+	}
+	method rshift {left right {name ""}} {
+	    llvmtcl BuildAShr $b $left $right $name
+	}
+	method store {value var} {
+	    llvmtcl BuildStore $b $value $var
+	}
+	method sub {left right {name ""}} {
+	    llvmtcl BuildSub $b $left $right $name
+	}
+	method uminus {value {name ""}} {
+	    llvmtcl BuildNeg $b $value $name
+	}
 
-	method end block {llvmtcl PositionBuilderAtEnd $b $block}
-
+	method @end block {
+	    llvmtcl PositionBuilderAtEnd $b $block
+	}
+	export @end
     }
 
     proc optimise {args} {
 	variable counter
 	variable optimiseRounds
-	variable int32
 
-	set module [ModuleCreateWithName "module[incr counter] [uplevel 1 namespace current]"]
+	set module [Module new "module[incr counter] [uplevel 1 namespace current]"]
 	AddUtils $module
 	foreach p $args {
 	    set cmd [uplevel 1 [list namespace which $p]]
@@ -503,30 +529,23 @@ namespace eval ::LLVM {
 	    uplevel 1 [list [namespace which BytecodeCompile] $module $f]
 	}]
 
-	variable dumpPre [DumpModule $module]
+	variable dumpPre [$module dump]
 
-	lassign [VerifyModule $module LLVMReturnStatusAction] rt msg
-	if {$rt} {
-	    return -code error $msg
-	}
-	for {set i 0} {$i < $optimiseRounds} {incr i} {
-	    Optimize $module $funcs
-	}
+	$module verify
+	$module optimize $optimiseRounds
 
-	variable dumpPost [DumpModule $module]
+	variable dumpPost [$module dump]
 
-	lassign [VerifyModule $module LLVMReturnStatusAction] rt msg
-	if {$rt} {
-	    return -code error $msg
-	}
-	lassign [CreateJITCompilerForModule $module 0] rt ee msg
-	if {$rt} {
-	    return -code error $msg
-	}
+	$module verify
+	set ee [$module jit]
 	foreach cmd $cmds func $funcs {
-	    CreateProcedureThunk ${cmd} $ee $func [info args $cmd]
+	    llvmtcl CreateProcedureThunk $cmd $ee $func [info args $cmd]
 	}
-	return $module
+	try {
+	    return [$module ref]
+	} finally {
+	    $module destroy
+	}
     }
     proc pre {} {
 	variable dumpPre
@@ -571,7 +590,12 @@ puts tailrec:[time {fib 20} 100000]
 puts iterate:[time {fib2 20} 100000]
 puts [tcl::unsupported::disassemble proc f]
 # Convert to optimised form
-LLVM optimise f g fact fib fibin fib2
+try {
+    LLVM optimise f g fact fib fibin fib2
+} on error {msg opt} {
+    puts [dict get $opt -errorinfo]
+    exit 1
+}
 # Write out the generated code
 puts [LLVM post]
 # Compare with baseline

@@ -34,6 +34,10 @@ namespace eval ::LLVM {
 	return [$module function.create $procName $ft]
     }
 
+    proc Const {number} {
+	return [llvmtcl ConstInt [llvmtcl Int32Type] $number 0]
+    }
+
     proc BytecodeCompile {module procName} {
 	variable tstp
 	variable ts
@@ -70,7 +74,7 @@ namespace eval ::LLVM {
 	    }
 	    if {[string match {jump*[14]} $opcode] || "startCommand" eq $opcode} {
 		# (pc) opcode offset
-		regexp {\((\d+)\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> pc cmd offset
+		regexp {\((\d+)\) (jump\S*[14]|startCommand) ([-+]\d+)} $l -> pc cmd offset
 		set tgt [expr {$pc + $offset}]
 		if {![info exists block($tgt)]} {
 		    set block($tgt) [$func block]
@@ -111,7 +115,7 @@ namespace eval ::LLVM {
 	    set ends_with_jump($curr_block) 0
 	    unset -nocomplain tgt
 	    if {[string match {jump*[14]} $opcode]} {
-		regexp {\(\d+\) (jump\S*[14]|startCommand) (\+*\-*\d+)} $l -> cmd offset
+		regexp {\(\d+\) (jump\S*[14]|startCommand) ([-+]\d+)} $l -> cmd offset
 		set tgt [expr {$pc + $offset}]
 	    }
 
@@ -152,21 +156,21 @@ namespace eval ::LLVM {
 		"incrScalar1Imm" - "incrScalar4Imm" {
 		    set var $vars([string range [lindex $l 2] 2 end])
 		    set i [lindex $l 3]
-		    set s [$b add [$b load $var] [llvmtcl ConstInt $int32 $i 0]]
+		    set s [$b add [$b load $var] [Const $i]]
 		    $stack push $s
 		    $b store $s $var
 		}
 		"push1" - "push4" {
 		    set tval [lindex $l 4]
 		    if {[string is integer -strict $tval]} {
-			set val [llvmtcl ConstInt $int32 $tval 0]
+			set val [Const $tval]
 		    } elseif {[$module function.defined $tval]} {
 			set val [[$module function.get $tval] ref]
 		    } elseif {$tval eq "tailcall"} {
 			### HACK! HACK! HACK! ###
 			continue
 		    } else {
-			set val [llvmtcl ConstInt $int32 0 0]
+			set val [Const 0]
 		    }
 		    $stack push $val
 		}
@@ -175,7 +179,7 @@ namespace eval ::LLVM {
 		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
 			set cond $top
 		    } else {
-			set cond [$b neq $top [llvmtcl ConstInt $int32 0 0]]
+			set cond [$b neq $top [Const 0]]
 		    }
 		    $b condBr $cond $block($tgt) $block($ipath($pc))
 		    set ends_with_jump($curr_block) 1
@@ -185,7 +189,7 @@ namespace eval ::LLVM {
 		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
 			set cond $top
 		    } else {
-			set cond [$b neq $top [llvmtcl ConstInt $int32 0 0]]
+			set cond [$b neq $top [Const 0]]
 		    }
 		    $b condBr $cond $block($ipath($pc)) $block($tgt)
 		    set ends_with_jump($curr_block) 1
@@ -363,9 +367,9 @@ namespace eval ::LLVM {
 	    set i32 [llvmtcl Int32Type]
 	    set tstp [llvmtcl PointerType [llvmtcl Int8Type] 0]
 	    set at [llvmtcl ArrayType [llvmtcl PointerType [llvmtcl Int8Type] 0] $size]
-	    set ts [$b arrayAlloc $at [llvmtcl ConstInt $i32 1 0]]
+	    set ts [$b arrayAlloc $at [::LLVM::Const 1]]
 	    set tsp [$b alloc $i32]
-	    $b store [llvmtcl ConstInt $i32 0 0] $tsp
+	    $b store [::LLVM::Const 0] $tsp
 	}
 
 	method push {val} {
@@ -374,33 +378,33 @@ namespace eval ::LLVM {
 	    $b store $val $valp
 	    # Store location on stack
 	    set tspv [$b load $tsp "push"]
-	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "push"]
+	    set tsl [$b gep $ts [list [::LLVM::Const 0] $tspv] "push"]
 	    $b store [$b pointerCast $valp $tstp ""] $tsl
 	    # Update stack pointer
-	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 1 0] "push"]
+	    set tspv [$b add $tspv [::LLVM::Const 1] "push"]
 	    $b store $tspv $tsp
 	    return
 	}
 	method pop {valt} {
 	    # Get location from stack and decrement the stack pointer
 	    set tspv [$b load $tsp "pop"]
-	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 -1 0] "pop"]
+	    set tspv [$b add $tspv [::LLVM::Const -1] "pop"]
 	    $b store $tspv $tsp
-	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "pop"]
+	    set tsl [$b gep $ts [list [::LLVM::Const 0] $tspv] "pop"]
 	    set valp [$b load $tsl "pop"]
+	    set pvalt [llvmtcl PointerType $valt 0]
 	    # Load value
-	    set pc [$b pointerCast $valp [llvmtcl PointerType $valt 0] "pop"]
-	    return [$b load $pc "pop"]
+	    return [$b load [$b pointerCast $valp $pvalt "pop"] "pop"]
 	}
 	method top {valt {offset 0}} {
 	    # Get location from stack
 	    set tspv [$b load $tsp "top"]
-	    set tspv [$b add $tspv [llvmtcl ConstInt $i32 [expr {-1-$offset}] 0] "top"]
-	    set tsl [$b gep $ts [list [llvmtcl ConstInt $i32 0 0] $tspv] "top"]
+	    set tspv [$b add $tspv [::LLVM::Const [expr {-1-$offset}]] "top"]
+	    set tsl [$b gep $ts [list [::LLVM::Const 0] $tspv] "top"]
 	    set valp [$b load $tsl "top"]
+	    set pvalt [llvmtcl PointerType $valt 0]
 	    # Load value
-	    return [$b load \
-		    [$b pointerCast $valp [llvmtcl PointerType $valt 0] "top"] "top"]
+	    return [$b load [$b pointerCast $valp $pvalt "top"] "top"]
 	}
     }
 

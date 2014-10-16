@@ -134,16 +134,16 @@ namespace eval ::LLVM {
 	    switch -exact -- $opcode {
 		"bitor" - "bitxor" - "bitand" - "lshift" - "rshift" -
 		"add" - "sub" - "mult" - "div" - "mod" {
-		    set top0 [$stack pop [Type int]]
-		    set top1 [$stack pop [Type int]]
+		    set top0 [$stack pop]
+		    set top1 [$stack pop]
 		    $stack push [$b $opcode $top1 $top0]
 		}
 		"uminus" - "bitnot" {
-		    $stack push [$b $opcode [$stack pop [Type int]]]
+		    $stack push [$b $opcode [$stack pop]]
 		}
 		"eq" - "neq" - "lt" - "gt" - "le" - "ge" {
-		    set top0 [$stack pop [Type int]]
-		    set top1 [$stack pop [Type int]]
+		    set top0 [$stack pop]
+		    set top1 [$stack pop]
 		    $stack push [$b intCast [$b $opcode $top1 $top0] [Type int]]
 		}
 		"loadScalar1" - "loadScalar4" {
@@ -151,7 +151,7 @@ namespace eval ::LLVM {
 		    $stack push [$b load $var]
 		}
 		"storeScalar1" - "storeScalar4" {
-		    set var_1 [$stack top [Type int]]
+		    set var_1 [$stack top]
 		    set idx [string range [lindex $l 2] 2 end]
 		    if {[info exists vars($idx)]} {
 			set var_2 $vars($idx)
@@ -163,7 +163,7 @@ namespace eval ::LLVM {
 		}
 		"incrScalar1" - "incrScalar4" {
 		    set var $vars([string range [lindex $l 2] 2 end])
-		    $b store [$b add [$b load $var] [$stack top [Type int]]] $var
+		    $b store [$b add [$b load $var] [$stack top]] $var
 		}
 		"incrScalar1Imm" - "incrScalar4Imm" {
 		    set var $vars([string range [lindex $l 2] 2 end])
@@ -184,7 +184,7 @@ namespace eval ::LLVM {
 		    $stack push $val
 		}
 		"jumpTrue1" - "jumpTrue4" {
-		    set top [$stack pop [Type int]]
+		    set top [$stack pop]
 		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
 			set cond $top
 		    } else {
@@ -194,7 +194,7 @@ namespace eval ::LLVM {
 		    set ends_with_jump($curr_block) 1
 		}
 		"jumpFalse1" - "jumpFalse4" {
-		    set top [$stack pop [Type int]]
+		    set top [$stack pop]
 		    if {[llvmtcl GetIntTypeWidth [llvmtcl TypeOf $top]] == 1} {
 			set cond $top
 		    } else {
@@ -204,7 +204,7 @@ namespace eval ::LLVM {
 		    set ends_with_jump($curr_block) 1
 		}
 		"tryCvtToNumeric" {
-		    $stack push [$stack pop [Type int]]
+		    $stack push [$stack pop]
 		}
 		"startCommand" {
 		}
@@ -217,12 +217,11 @@ namespace eval ::LLVM {
 		    set objv {}
 		    set argl {}
 		    for {set i 0} {$i < ($objc-1)} {incr i} {
-			lappend objv [$stack pop [Type int]]
+			lappend objv [$stack pop]
 			lappend argl [Type int]
 		    }
 		    set objv [lreverse $objv]
-		    set ft [llvmtcl PointerType [llvmtcl FunctionType [Type int] $argl 0] 0]
-		    set fptr [$stack pop $ft]
+		    set fptr [$stack pop]
 		    $stack push [$b call $fptr $objv]
 		}
 		"tailcall" {
@@ -230,28 +229,27 @@ namespace eval ::LLVM {
 		    set objv {}
 		    set argl {}
 		    for {set i 0} {$i < ($objc-2)} {incr i} {
-			lappend objv [$stack pop [Type int]]
+			lappend objv [$stack pop]
 			lappend argl [Type int]
 		    }
 		    set objv [lreverse $objv]
-		    set ft [llvmtcl PointerType [llvmtcl FunctionType [Type int] $argl 0] 0]
-		    set fptr [$stack pop $ft]
+		    set fptr [$stack pop]
 		    # Drop the mandatory "tailcall" word's placeholder
-		    $stack pop [Type int]
+		    $stack pop
 		    set tc [$b call $fptr $objv]
 		    # MAGIC! Requires a recent-enough LLVM to really work
 		    # llvmtcl SetTailCall $tc 2
 		    $stack push $tc
-		    $b ret [$stack top [Type int]]
+		    $b ret [$stack top]
 		    set ends_with_jump($curr_block) 1
 		    set done_done 1
 		}
 		"pop" {
-		    $stack pop [Type int]
+		    $stack pop
 		}
 		"done" {
 		    if {!$done_done} {
-			$b ret [$stack top [Type int]]
+			$b ret [$stack top]
 			set ends_with_jump($curr_block) 1
 			set done_done 1
 		    }
@@ -265,14 +263,14 @@ namespace eval ::LLVM {
 		    set objc [lindex $l 2]
 		    set objv {}
 		    for {set i 0} {$i < $objc} {incr i} {
-			lappend objv [$stack pop [Type int]]
+			lappend objv [$stack pop]
 		    }
 		    foreach val $objv {
 			$stack push $val
 		    }
 		}
 		"over" {
-		    $stack push [$stack top [Type int] [lindex $l 2]]
+		    $stack push [$stack top [lindex $l 2]]
 		}
 		default {
 		    error "unknown bytecode '$opcode' in '$l'"
@@ -370,7 +368,7 @@ namespace eval ::LLVM {
     }
 
     oo::class create Stack {
-	variable ts tsp tstp b i32
+	variable ts tsp tstp b i32 types
 	constructor {builder {size 100}} {
 	    namespace path [list {*}[namespace path] ::llvmtcl ::LLVM]
 	    set b $builder
@@ -380,6 +378,7 @@ namespace eval ::LLVM {
 	    set ts [$b arrayAlloc $at [::LLVM::Const 1]]
 	    set tsp [$b alloc $i32]
 	    $b store [::LLVM::Const 0] $tsp
+	    set types {}
 	}
 
 	method push {val} {
@@ -393,9 +392,13 @@ namespace eval ::LLVM {
 	    # Update stack pointer
 	    set tspv [$b add $tspv [::LLVM::Const 1] "push"]
 	    $b store $tspv $tsp
+	    lappend types [llvmtcl TypeOf $val]
 	    return
 	}
-	method pop {valt} {
+	method pop {} {
+	    # Get the type from the type-stack
+	    set valt [lindex $types end]
+	    set types [lrange $types 0 end-1]
 	    # Get location from stack and decrement the stack pointer
 	    set tspv [$b load $tsp "pop"]
 	    set tspv [$b add $tspv [::LLVM::Const -1] "pop"]
@@ -406,7 +409,8 @@ namespace eval ::LLVM {
 	    # Load value
 	    return [$b load [$b pointerCast $valp $pvalt "pop"] "pop"]
 	}
-	method top {valt {offset 0}} {
+	method top {{offset 0}} {
+	    set valt [lindex $types end-$offset]
 	    # Get location from stack
 	    set tspv [$b load $tsp "top"]
 	    set tspv [$b add $tspv [::LLVM::Const [expr {-1-$offset}]] "top"]
@@ -616,7 +620,8 @@ puts iterate:[time {fib2 20} 100000]
 puts [itertest 15 2]
 # Convert to optimised form
 try {
-    LLVM optimise f g fact fib fibin fib2 itertest
+    LLVM optimise f g fact fib fibin fib2
+    puts opt:[time {LLVM optimise itertest}]
 } on error {msg opt} {
     puts [dict get $opt -errorinfo]
     exit 1

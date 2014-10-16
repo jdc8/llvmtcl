@@ -32,8 +32,8 @@ namespace eval ::LLVM {
 	return [$module function.create $procName $ft]
     }
 
-    proc Const {number} {
-	return [llvmtcl ConstInt [Type int] $number 0]
+    proc Const {number {type int}} {
+	return [llvmtcl ConstInt [Type $type] $number 0]
     }
     proc Type {descriptor} {
 	set t [string trim $descriptor]
@@ -41,6 +41,8 @@ namespace eval ::LLVM {
 	    return [llvmtcl Int32Type]
 	} elseif {$t eq "char"} {
 	    return [llvmtcl Int8Type]
+	} elseif {$t eq "double"} {
+	    return [llvmtcl DoubleType]
 	} elseif {[string match {*\*} $t]} {
 	    return [llvmtcl PointerType [Type [string range $t 0 end-1]] 0]
 	}
@@ -163,7 +165,8 @@ namespace eval ::LLVM {
 		}
 		"incrScalar1" - "incrScalar4" {
 		    set var $vars([string range [lindex $l 2] 2 end])
-		    $b store [$b add [$b load $var] [$stack top]] $var
+		    $b store [$b add [$b load $var] \
+				  [$b intCast [$stack top] [Type int]]] $var
 		}
 		"incrScalar1Imm" - "incrScalar4Imm" {
 		    set var $vars([string range [lindex $l 2] 2 end])
@@ -175,10 +178,17 @@ namespace eval ::LLVM {
 		"push1" - "push4" {
 		    set tval [lindex $l 4]
 		    if {[string is integer -strict $tval]} {
-			set val [Const $tval]
+			set val [Const $tval int]
 		    } elseif {[$module function.defined $tval]} {
 			set val [[$module function.get $tval] ref]
+		    } elseif {[string is double -strict $tval]} {
+			puts stderr "warning: found double '$tval'"
+			set val [Const $tval double]
+		    } elseif {[string is boolean -strict $tval]} {
+			puts stderr "warning: found boolean '$tval'"
+			set val [Const [string is true $tval] int]
 		    } else {
+			puts stderr "warning: unhandled value '$tval' converted to 0"
 			set val [Const 0]
 		    }
 		    $stack push $val
@@ -204,7 +214,7 @@ namespace eval ::LLVM {
 		    set ends_with_jump($curr_block) 1
 		}
 		"tryCvtToNumeric" {
-		    $stack push [$stack pop]
+		    $stack push [$b intCast [$stack pop] [Type int]]
 		}
 		"startCommand" {
 		}

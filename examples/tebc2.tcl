@@ -33,7 +33,11 @@ namespace eval ::LLVM {
     }
 
     proc Const {number {type int}} {
-	return [llvmtcl ConstInt [Type $type] $number 0]
+	if {$type eq "int"} {
+	    return [llvmtcl ConstInt [Type int] $number 0]
+	} else {
+	    return [llvmtcl ConstReal [Type double] $number]
+	}
     }
     proc Type {descriptor} {
 	set t [string trim $descriptor]
@@ -165,8 +169,10 @@ namespace eval ::LLVM {
 		}
 		"incrScalar1" - "incrScalar4" {
 		    set var $vars([string range [lindex $l 2] 2 end])
-		    $b store [$b add [$b load $var] \
-				  [$b intCast [$stack top] [Type int]]] $var
+		    set s [$b add [$b load $var] \
+			       [$b intCast [$stack top] [Type int]]]
+		    $stack push $s
+		    $b store $s $var
 		}
 		"incrScalar1Imm" - "incrScalar4Imm" {
 		    set var $vars([string range [lindex $l 2] 2 end])
@@ -616,11 +622,18 @@ proc fib2 n {
 proc itertest {n m} {
     while 1 {
 	incr xx [incr x]
-	if {[incr y] >= $n} break
+	if {[incr y $m] >= $n} break
 	if {[incr xx $y] > 100} continue
 	incr x $m
     }
     return $xx
+}
+proc typetest {a b} {
+    set x 0
+    for {set i 0} {$i < $a} {incr i} {
+	set x [expr {$x + $x * $x + $b}]
+    }
+    return [expr {int($x) > 5}]
 }
 
 # Baseline
@@ -631,7 +644,7 @@ puts [itertest 15 2]
 # Convert to optimised form
 try {
     LLVM optimise f g fact fib fibin fib2
-    puts opt:[time {LLVM optimise itertest}]
+    puts opt:[time {LLVM optimise itertest typetest}]
 } on error {msg opt} {
     puts [dict get $opt -errorinfo]
     exit 1

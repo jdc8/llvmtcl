@@ -1,5 +1,5 @@
 lappend auto_path ..
-source optimise.tcl
+source ../optimise.tcl
 
 # Example code
 proc f n {

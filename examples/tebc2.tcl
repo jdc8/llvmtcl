@@ -1,6 +1,6 @@
 lappend auto_path ..
-source ../optimise.tcl
-
+package require llvmopt 0.1a1
+
 # Example code
 proc f n {
     set r 0
@@ -25,22 +25,24 @@ proc fib2 n {
     }
     return $a
 }
-# This one tickles some weird bugs
+# This one tickled some weird bugs, now fixed
 proc itertest {n m} {
     while 1 {
 	incr xx [incr x]
-	if {[incr y $m] >= $n} break
+	if {$x>$n*$m*$n} break
+	if {[incr y $m] >= $n} {return $xx}
 	if {[incr xx $y] > 100} continue
 	incr x $m
     }
     return $xx
 }
+# This one will be for testing float types; crashes right now
 proc typetest {a b} {
-    set x 0
+    set x 0.0
     for {set i 0} {$i < $a} {incr i} {
 	set x [expr {$x + $x * $x + $b}]
     }
-    return [expr {int($x) > 5}]
+    return [expr {$x > 5.0}]
 }
 
 # Baseline
@@ -51,9 +53,10 @@ puts [itertest 15 2]
 # Convert to optimised form
 try {
     LLVM optimise f g fact fib fibin fib2
-    puts opt:[time {LLVM optimise itertest typetest}]
+    puts opt:[time {LLVM optimise itertest}]
 } on error {msg opt} {
     puts [dict get $opt -errorinfo]
+    puts [LLVM pre]
     exit 1
 }
 # Write out the generated code

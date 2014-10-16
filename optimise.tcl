@@ -117,7 +117,7 @@ namespace eval ::LLVM {
 	}
 
 	# Convert Tcl parse output
-	set done_done 0
+	set block_finished 0
 	set maxpc 0
 	foreach l $dasm {
 	    if {![string match "(*" $l]} {
@@ -128,7 +128,13 @@ namespace eval ::LLVM {
 	    if {[info exists block($pc)]} {
 		$b @end $block($pc)
 		set curr_block $block($pc)
-		set done_done 0
+		set block_finished 0
+	    }
+	    if {$block_finished} {
+		# Instructions after something that terminates a block should
+		# be ignored. Tcl's built-in optimizer doesn't trim all of
+		# them.
+		continue
 	    }
 	    set ends_with_jump($curr_block) 0
 	    unset -nocomplain tgt
@@ -208,6 +214,7 @@ namespace eval ::LLVM {
 		    }
 		    $b condBr $cond $block($tgt) $block($ipath($pc))
 		    set ends_with_jump($curr_block) 1
+		    set block_finished 1
 		}
 		"jumpFalse1" - "jumpFalse4" {
 		    set top [$stack pop]
@@ -218,6 +225,7 @@ namespace eval ::LLVM {
 		    }
 		    $b condBr $cond $block($ipath($pc)) $block($tgt)
 		    set ends_with_jump($curr_block) 1
+		    set block_finished 1
 		}
 		"tryCvtToNumeric" {
 		    $stack push [$b intCast [$stack pop] [Type int]]
@@ -227,6 +235,7 @@ namespace eval ::LLVM {
 		"jump1" - "jump4" {
 		    $b br $block($tgt)
 		    set ends_with_jump($curr_block) 1
+		    set block_finished 1
 		}
 		"invokeStk1" {
 		    set objc [lindex $l 2]
@@ -258,17 +267,15 @@ namespace eval ::LLVM {
 		    $stack push $tc
 		    $b ret [$stack top]
 		    set ends_with_jump($curr_block) 1
-		    set done_done 1
+		    set block_finished 1
 		}
 		"pop" {
 		    $stack pop
 		}
 		"done" {
-		    if {!$done_done} {
-			$b ret [$stack top]
-			set ends_with_jump($curr_block) 1
-			set done_done 1
-		    }
+		    $b ret [$stack top]
+		    set ends_with_jump($curr_block) 1
+		    set block_finished 1
 		}
 		"nop" {
 		}

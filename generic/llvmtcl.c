@@ -380,7 +380,7 @@ int LLVMGetBasicBlocksObjCmd(ClientData clientData, Tcl_Interp* interp, int objc
 }
 
 #include "llvmtcl-gen.c"
-
+
 struct ThunkDefs {
     int len;
     Tcl_Obj *arglist;
@@ -440,7 +440,22 @@ static int LLVMCreateProcedureThunk(ClientData clientData, Tcl_Interp* interp, i
     return TCL_ERROR;
 }
 
-
+static int LLVMCallInitialisePackageFunction(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "EE F");
+	return TCL_ERROR;
+    }
+    LLVMExecutionEngineRef engine;
+    if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], engine) != TCL_OK)
+	return TCL_ERROR;
+    LLVMValueRef func;
+    if (GetLLVMValueRefFromObj(interp, objv[2], func) != TCL_OK)
+	return TCL_ERROR;
+    LLVMGenericValueRef args[1];
+    args[0] = LLVMCreateGenericValueOfPointer(interp);
+    return (int) LLVMGenericValueToInt(LLVMRunFunction(engine, func, 1, args), 1);
+}
+
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
 extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
@@ -470,5 +485,6 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetStructElementTypes", LLVMGetStructElementTypesObjCmd);
     LLVMObjCmd("llvmtcl::GetBasicBlocks", LLVMGetBasicBlocksObjCmd);
     LLVMObjCmd("llvmtcl::CreateProcedureThunk", LLVMCreateProcedureThunk);
+    LLVMObjCmd("llvmtcl::CallInitialisePackageFunction", LLVMCallInitialisePackageFunction);
     return TCL_OK;
 }

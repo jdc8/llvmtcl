@@ -196,7 +196,6 @@ LLVMValueRef LLVMGetNextFunction(LLVMValueRef Fn);
 LLVMValueRef LLVMGetPreviousFunction(LLVMValueRef Fn);
 rename LLVMDeleteFunction LLVMDeleteFunctionTcl
 void LLVMDeleteFunction(LLVMValueRef Fn);
-unsigned LLVMGetIntrinsicID(LLVMValueRef Fn);
 unsigned LLVMGetFunctionCallConv(LLVMValueRef Fn);
 void LLVMSetFunctionCallConv(LLVMValueRef Fn, unsigned CC);
 std::string LLVMGetGC(LLVMValueRef Fn);

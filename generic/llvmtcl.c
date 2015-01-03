@@ -8,6 +8,7 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Intrinsics.h"
 //#include "llvm/DerivedTypes.h"
 //#include "llvm/Function.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -32,6 +33,41 @@ static std::string GetRefName(std::string prefix)
 }
 
 #include "llvmtcl-gen-map.c"
+
+static const char *const intrinsicNames[] = {
+#define GET_INTRINSIC_NAME_TABLE
+#include "llvm/IR/Intrinsics.gen"
+#undef GET_INTRINSIC_NAME_TABLE
+};
+
+static int search(const void *p1, const void *p2) {
+  const char *s1 = (const char *) p1;
+  const char *s2 = *(const char **) p2;
+  return strcmp(s1, s2);
+}
+int GetLLVMIntrinsicIDFromObj(Tcl_Interp* interp, Tcl_Obj* obj, llvm::Intrinsic::ID& id) {
+  const char *str = Tcl_GetString(obj);
+    void *ptr = bsearch(str, (const void *) intrinsicNames,
+	    sizeof(intrinsicNames)/sizeof(const char *),
+	    sizeof(const char *), search);
+    if (ptr == NULL) {
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		"expected LLVMIntrinsic but got \"%s\"", str));
+	return TCL_ERROR;
+    }
+    id = (llvm::Intrinsic::ID)((((const char**) ptr) - intrinsicNames) + 1);
+    return TCL_OK;
+}
+
+Tcl_Obj* SetLLVMIntrinsicIDAsObj(unsigned id) {
+    std::string s;
+    if (id <= 0 || id > sizeof(intrinsicNames)/sizeof(const char *)) {
+	s = "<unknown LLVMIntrinsic>";
+    } else {
+	s = intrinsicNames[id-1];
+    }
+    return Tcl_NewStringObj(s.c_str(), -1);
+}
 
 void LLVMDisposeBuilderTcl(LLVMBuilderRef builderRef)
 {
@@ -455,6 +491,44 @@ static int LLVMCallInitialisePackageFunction(ClientData clientData, Tcl_Interp* 
     args[0] = LLVMCreateGenericValueOfPointer(interp);
     return (int) LLVMGenericValueToInt(LLVMRunFunction(engine, func, 1, args), 1);
 }
+
+int LLVMGetIntrinsicDefinitionObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc < 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "M Name Ty...");
+        return TCL_ERROR;
+    }
+    LLVMModuleRef mod = 0;
+    if (GetLLVMModuleRefFromObj(interp, objv[1], mod) != TCL_OK)
+        return TCL_ERROR;
+    llvm::Intrinsic::ID id;
+    if (GetLLVMIntrinsicIDFromObj(interp, objv[2], id) != TCL_OK)
+        return TCL_ERROR;
+    std::vector<llvm::Type *> arg_types;
+    for (int i=3 ; i<objc ; i++) {
+	LLVMTypeRef ty = 0;
+	if (GetLLVMTypeRefFromObj(interp, objv[i], ty) != TCL_OK)
+	    return TCL_ERROR;
+	arg_types.push_back(llvm::unwrap(ty));
+    }
+    LLVMValueRef rt = llvm::wrap(llvm::Intrinsic::getDeclaration(llvm::unwrap(mod), id, arg_types));
+    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, rt));
+    return TCL_OK;
+}
+
+int LLVMGetIntrinsicIDObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "Fn ");
+        return TCL_ERROR;
+    }
+    LLVMValueRef arg1 = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], arg1) != TCL_OK)
+        return TCL_ERROR;
+    unsigned rt = LLVMGetIntrinsicID (arg1);
+    if (rt != 0)
+	Tcl_SetObjResult(interp, SetLLVMIntrinsicIDAsObj(rt));
+    return TCL_OK;
+}
+
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
@@ -486,5 +560,7 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetBasicBlocks", LLVMGetBasicBlocksObjCmd);
     LLVMObjCmd("llvmtcl::CreateProcedureThunk", LLVMCreateProcedureThunk);
     LLVMObjCmd("llvmtcl::CallInitialisePackageFunction", LLVMCallInitialisePackageFunction);
+    LLVMObjCmd("llvmtcl::GetIntrinsicDefinition",LLVMGetIntrinsicDefinitionObjCmd);
+    LLVMObjCmd("llvmtcl::GetIntrinsicID",LLVMGetIntrinsicIDObjCmd);
     return TCL_OK;
 }

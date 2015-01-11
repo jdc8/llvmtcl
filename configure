@@ -4786,6 +4786,10 @@ done
 	#TEA_BUGGY_STRTOD
     fi
 
+# Horrible hack to make recent clang work right
+case $CC in
+    *clang*) CC="$CC -std=c++11 -stdlib=libc++";;
+esac
 
 #-----------------------------------------------------------------------
 # __CHANGE__

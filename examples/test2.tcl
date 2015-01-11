@@ -2,7 +2,7 @@ lappend auto_path ..
 package require llvmtcl
 
 # Initialize the JIT
-llvmtcl LinkInJIT
+llvmtcl LinkInMCJIT
 llvmtcl InitializeNativeTarget
 
 # Create a module and builder
@@ -49,7 +49,10 @@ if {$rt} {
 }
 
 # Execute
-lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+llvmtcl SetTarget $m X86
+set td [llvmtcl CreateTargetData "e"]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
 set i [llvmtcl CreateGenericValueOfInt [llvmtcl Int32Type] 4 0]
 set res [llvmtcl RunFunction $EE $plus10 $i]
 puts "plus10(4) = [llvmtcl GenericValueToInt $res 0]\n"

@@ -4,7 +4,7 @@ package require llvmtcl
 set optimize 1
 set procs {test2 test test3 test4 test5 fact facti fact10 low_pass filter}
 set timings {low_pass filter}
-set timing_count 10
+set timing_count 100
 
 proc test {a b c d e} {
     if {$a <= 66 && $a > 50} {
@@ -77,7 +77,7 @@ proc filter { } {
 }
 
 # Initialize the JIT
-llvmtcl LinkInJIT
+llvmtcl LinkInMCJIT
 llvmtcl InitializeNativeTarget
 
 # Create a module
@@ -116,7 +116,10 @@ close $f
 
 # Some tests
 
-lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+llvmtcl SetTarget $m X86
+set td [llvmtcl CreateTargetData "e"]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
 
 puts "OK? Tcl        llvmtcl        Function"
 puts "--- ---------- ---------- ------------------------------------"

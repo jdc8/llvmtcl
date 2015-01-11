@@ -4,7 +4,7 @@ lappend auto_path .
 package require llvmtcl
 
 # Initialize the JIT
-llvmtcl LinkInJIT
+llvmtcl LinkInMCJIT
 llvmtcl InitializeNativeTarget
 
 # Create a module and builder
@@ -49,7 +49,10 @@ llvmtcl Optimize $m [list $wsin $pyth]
 puts [llvmtcl DumpModule $m]
 
 # Execute 'wsin'
-lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+llvmtcl SetTarget $m x86
+set td [llvmtcl CreateTargetData "e"]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
 set i [llvmtcl CreateGenericValueOfFloat [llvmtcl DoubleType] 0.5]
 set res [llvmtcl RunFunction $EE $wsin $i]
 puts "sin(0.5) = [llvmtcl GenericValueToFloat [llvmtcl DoubleType] $res]"

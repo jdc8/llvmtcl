@@ -1,12 +1,15 @@
 lappend auto_path .
 package require llvmtcl
 
-llvmtcl LinkInJIT
+llvmtcl LinkInMCJIT
 llvmtcl InitializeNativeTarget
 
 # Create a module, execution engine and builder
 set m [llvmtcl ModuleCreateWithName "testmodule"]
-lassign [llvmtcl CreateJITCompilerForModule $m 0] rt EE msg
+llvmtcl SetTarget $m x86
+set td [llvmtcl CreateTargetData "e"]
+llvmtcl SetDataLayout $m [llvmtcl CopyStringRepOfTargetData $td]
+lassign [llvmtcl CreateExecutionEngineForModule $m] rt EE msg
 llvmtcl AddLLVMTclCommands $EE $m
 set bld [llvmtcl CreateBuilder]
 
@@ -36,7 +39,6 @@ if {$rt} {
     error $msg
 }
 
-set td [llvmtcl CreateTargetData ""]
 llvmtcl OptimizeFunction $m $wtest 3 $td
 llvmtcl OptimizeModule $m 3 $td
 puts [llvmtcl DumpModule $m]

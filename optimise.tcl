@@ -2,7 +2,7 @@ package require Tcl 8.6
 package require llvmtcl
 
 namespace eval ::LLVM {
-    llvmtcl LinkInJIT
+    llvmtcl LinkInMCJIT
     llvmtcl InitializeNativeTarget
     variable counter 0
     variable optimiseRounds 10;#10
@@ -331,10 +331,11 @@ namespace eval ::LLVM {
     }
 
     oo::class create Module {
-	variable module counter funcs
+	variable module counter funcs host
 	constructor {name} {
 	    set module [llvmtcl ModuleCreateWithName $name]
 	    set funcs {}
+	    set host $::tcl_platform(machine)
 	}
 	method function.create {name type} {
 	    set f [::LLVM::Function create f[incr counter] $module $name $type]
@@ -365,7 +366,18 @@ namespace eval ::LLVM {
 	    return $module
 	}
 	method jit {} {
-	    lassign [llvmtcl CreateJITCompilerForModule $module 0] rt ee msg
+	    switch -glob -- $host {
+		i?86 - x86_64 - ?86pc - intel - amd64 {
+		    llvmtcl SetTarget $module X86
+		}
+		default {
+		    return -code error \
+			"Don't know for sure how to generate code for this machine ($host)"
+		}
+	    }
+	    set td [llvmtcl CreateTargetData "e"]
+	    llvmtcl SetDataLayout $module [llvmtcl CopyStringRepOfTargetData $td]
+	    lassign [llvmtcl CreateExecutionEngineForModule $module] rt ee msg
 	    if {$rt} {
 		return -code error $msg
 	    }

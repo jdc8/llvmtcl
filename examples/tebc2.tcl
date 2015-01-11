@@ -140,7 +140,6 @@ try {
     # puts opt:[time {LLVM optimise itertest tadd}]
 } on error {msg opt} {
     puts $msg\n[dict get $opt -errorinfo]
-    puts [LLVM pre]
     exit 1
 }
 # Write out the generated code

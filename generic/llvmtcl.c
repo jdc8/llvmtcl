@@ -4,15 +4,18 @@
 #include <sstream>
 #include <map>
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/PassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Intrinsics.h"
-//#include "llvm/DerivedTypes.h"
+#include "llvm/IR/DerivedTypes.h"
 //#include "llvm/Function.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Core.h"
 #include "llvm-c/ExecutionEngine.h"
@@ -417,79 +420,29 @@ int LLVMGetBasicBlocksObjCmd(ClientData clientData, Tcl_Interp* interp, int objc
 
 #include "llvmtcl-gen.c"
 
-struct ThunkDefs {
-    int len;
-    Tcl_Obj *arglist;
-    LLVMExecutionEngineRef engine;
-    LLVMValueRef func;
-
-    ThunkDefs(Tcl_Obj *argslist) {
-	this->arglist = argslist;
-	Tcl_IncrRefCount(this->arglist);
-	this->engine = NULL;
-	this->func = NULL;
-    }
-    ~ThunkDefs() {
-	Tcl_DecrRefCount(arglist);
-    }
-};
-static int LLVMProcedureThunk(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
-    ThunkDefs *defsPtr = (ThunkDefs *) clientData;
-    if (objc != defsPtr->len + 1) {
-	Tcl_WrongNumArgs(interp, 1, objv, Tcl_GetString(defsPtr->arglist));
-	return TCL_ERROR;
-    }
-    LLVMTypeRef rt = LLVMInt32Type();
-    LLVMGenericValueRef arguments[defsPtr->len];
-    for (int i=1; i<objc; i++) {
-	long value;
-	if (Tcl_GetLongFromObj(interp, objv[i], &value) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	arguments[i-1] = LLVMCreateGenericValueOfInt(rt, value, 1);
-    }
-    unsigned long long result = LLVMGenericValueToInt(LLVMRunFunction(defsPtr->engine, defsPtr->func, defsPtr->len, arguments), 1);
-    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(result));
-    return TCL_OK;
-}
-static void LLVMDeleteProcedureThunk(ClientData clientData) {
-    ThunkDefs *defsPtr = (ThunkDefs *) clientData;
-    delete defsPtr;
-}
-static int LLVMCreateProcedureThunk(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
-    if (objc != 5) {
-	Tcl_WrongNumArgs(interp, 1, objv, "name EE F argsDescription");
-	return TCL_ERROR;
-    }
-    ThunkDefs *defsPtr = new ThunkDefs(objv[4]);
-    if (GetLLVMExecutionEngineRefFromObj(interp, objv[2], defsPtr->engine) != TCL_OK)
-	goto failed;
-    if (GetLLVMValueRefFromObj(interp, objv[3], defsPtr->func) != TCL_OK)
-	goto failed;
-    if (Tcl_ListObjLength(interp, objv[4], &defsPtr->len) != TCL_OK)
-	goto failed;
-    Tcl_CreateObjCommand(interp, Tcl_GetString(objv[1]), LLVMProcedureThunk,
-	defsPtr, LLVMDeleteProcedureThunk);
-    return TCL_OK;
- failed:
-    delete defsPtr;
-    return TCL_ERROR;
-}
-
 static int LLVMCallInitialisePackageFunction(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, "EE F");
 	return TCL_ERROR;
     }
+
     LLVMExecutionEngineRef engine;
     if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], engine) != TCL_OK)
 	return TCL_ERROR;
     LLVMValueRef func;
     if (GetLLVMValueRefFromObj(interp, objv[2], func) != TCL_OK)
 	return TCL_ERROR;
-    LLVMGenericValueRef args[1];
-    args[0] = LLVMCreateGenericValueOfPointer(interp);
-    return (int) LLVMGenericValueToInt(LLVMRunFunction(engine, func, 1, args), 1);
+
+    uint64_t address = llvm::unwrap(engine)->getFunctionAddress(
+	    llvm::unwrap<llvm::Function>(func)->getName().str());
+
+    int (*initFunction)(Tcl_Interp*) = (int(*)(Tcl_Interp*)) address;
+    if (initFunction == NULL) {
+	Tcl_AppendResult(interp, "no address for initialiser", NULL);
+	return TCL_ERROR;
+    }
+
+    return initFunction(interp);
 }
 
 int LLVMGetIntrinsicDefinitionObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
@@ -497,6 +450,7 @@ int LLVMGetIntrinsicDefinitionObjCmd(ClientData clientData, Tcl_Interp* interp, 
         Tcl_WrongNumArgs(interp, 1, objv, "M Name Ty...");
         return TCL_ERROR;
     }
+
     LLVMModuleRef mod = 0;
     if (GetLLVMModuleRefFromObj(interp, objv[1], mod) != TCL_OK)
         return TCL_ERROR;
@@ -510,8 +464,15 @@ int LLVMGetIntrinsicDefinitionObjCmd(ClientData clientData, Tcl_Interp* interp, 
 	    return TCL_ERROR;
 	arg_types.push_back(llvm::unwrap(ty));
     }
-    LLVMValueRef rt = llvm::wrap(llvm::Intrinsic::getDeclaration(llvm::unwrap(mod), id, arg_types));
-    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, rt));
+
+    LLVMValueRef intrinsic = llvm::wrap(llvm::Intrinsic::getDeclaration(
+	    llvm::unwrap(mod), id, arg_types));
+
+    if (intrinsic == NULL) {
+	Tcl_AppendResult(interp, "no such intrinsic", NULL);
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, intrinsic));
     return TCL_OK;
 }
 
@@ -520,15 +481,140 @@ int LLVMGetIntrinsicIDObjCmd(ClientData clientData, Tcl_Interp* interp, int objc
         Tcl_WrongNumArgs(interp, 1, objv, "Fn ");
         return TCL_ERROR;
     }
-    LLVMValueRef arg1 = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], arg1) != TCL_OK)
+
+    LLVMValueRef intrinsic = 0;
+    if (GetLLVMValueRefFromObj(interp, objv[1], intrinsic) != TCL_OK)
         return TCL_ERROR;
-    unsigned rt = LLVMGetIntrinsicID (arg1);
-    if (rt != 0)
-	Tcl_SetObjResult(interp, SetLLVMIntrinsicIDAsObj(rt));
+
+    unsigned id = LLVMGetIntrinsicID(intrinsic);
+
+    if (id != 0)
+	Tcl_SetObjResult(interp, SetLLVMIntrinsicIDAsObj(id));
     return TCL_OK;
 }
 
+int NamedStructTypeObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 1, objv, "Name ElementTypes Packed ");
+        return TCL_ERROR;
+    }
+
+    std::string name = Tcl_GetString(objv[1]);
+    int numTypes = 0;
+    LLVMTypeRef *types = 0;
+    if (GetListOfLLVMTypeRefFromObj(interp, objv[2], types,
+	    numTypes) != TCL_OK)
+        return TCL_ERROR;
+    if (numTypes < 1) {
+	Tcl_AppendResult(interp, "must supply at least one member", NULL);
+	return TCL_ERROR;
+    }
+    llvm::ArrayRef<llvm::Type*> elements(llvm::unwrap(types),
+	    (unsigned) numTypes);
+    int packed = 0;
+    if (Tcl_GetIntFromObj(interp, objv[3], &packed) != TCL_OK)
+        return TCL_ERROR;
+
+    LLVMTypeRef rt = llvm::wrap(
+	    llvm::StructType::create(elements, name, packed));
+
+    Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, rt));
+    return TCL_OK;
+}
+
+/*
+ * For some reason, merely using this class, *though it does nothing much*,
+ * fixes a strange bug in LLVM where it was not making the code page
+ * executable. WTF!? WTF?!
+ */
+
+class TracingMemManager : public llvm::SectionMemoryManager {
+private:
+    bool printTrace;
+public:
+    TracingMemManager(bool trace = false) : printTrace(trace) { }
+    virtual ~TracingMemManager() {}
+ 
+    uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+				 unsigned SectionID,
+				 llvm::StringRef SectionName) {
+	if (printTrace)
+	    fprintf(stderr, "allocateCodeSection(%#lx,%x,%u,%s)\n",
+		    Size, Alignment, SectionID, SectionName.str().c_str());
+	return llvm::SectionMemoryManager::allocateCodeSection(Size,
+		Alignment, SectionID, SectionName);
+    }
+ 
+    uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+				 unsigned SectionID,
+				 llvm::StringRef SectionName,
+				 bool isReadOnly) {
+	if (printTrace)
+	    fprintf(stderr, "allocateDataSection(%#lx,%x,%u,%s,%s)\n",
+		    Size, Alignment, SectionID, SectionName.str().c_str(),
+		    (isReadOnly ? "RO" : "RW"));
+	return llvm::SectionMemoryManager::allocateDataSection(Size,
+		Alignment, SectionID, SectionName, isReadOnly);
+    }
+ 
+    bool finalizeMemory(std::string *ErrMsg = nullptr) {
+	if (printTrace)
+	    fprintf(stderr, "finalizeMemory()\n");
+	return llvm::SectionMemoryManager::finalizeMemory(ErrMsg);
+    }
+ 
+    void invalidateInstructionCache() {
+	if (printTrace)
+	    fprintf(stderr, "invalidateInstructionCache()\n");
+	llvm::SectionMemoryManager::invalidateInstructionCache();
+    }
+};
+
+int CreateMCJITCompilerForModuleObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 2 && objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "M ?OptLevel? ");
+        return TCL_ERROR;
+    }
+
+    LLVMModuleRef mod = 0;
+    if (GetLLVMModuleRefFromObj(interp, objv[1], mod) != TCL_OK)
+        return TCL_ERROR;
+    int level = 0;
+    if (objc == 3 && Tcl_GetIntFromObj(interp, objv[2], &level) != TCL_OK)
+	return TCL_ERROR;
+
+    LLVMMCJITCompilerOptions options;
+    LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
+    options.OptLevel = (unsigned) level;
+    options.MCJMM = llvm::wrap(new TracingMemManager());
+
+    LLVMExecutionEngineRef eeRef = 0; // output argument (engine)
+    char *error = 0; // output argument (error message)
+    LLVMBool failed = LLVMCreateMCJITCompilerForModule(&eeRef, mod,
+	    &options, sizeof(options), &error);
+
+    if (failed) {
+	//llvm::TargetRegistry::printRegisteredTargetsForVersion();
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(error, -1));
+	return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, SetLLVMExecutionEngineRefAsObj(interp, eeRef));
+    return TCL_OK;
+}
+
+int InitAllTargetsObjCmd(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj* const objv[]) {
+    if (objc != 1) {
+	Tcl_WrongNumArgs(interp, 1, objv, "");
+	return TCL_ERROR;
+    }
+
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmPrinters();
+    LLVMInitializeAllAsmParsers();
+    return TCL_OK;
+}
 
 #define LLVMObjCmd(tclName, cName) Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
@@ -558,9 +644,11 @@ extern "C" DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetParams", LLVMGetParamsObjCmd);
     LLVMObjCmd("llvmtcl::GetStructElementTypes", LLVMGetStructElementTypesObjCmd);
     LLVMObjCmd("llvmtcl::GetBasicBlocks", LLVMGetBasicBlocksObjCmd);
-    LLVMObjCmd("llvmtcl::CreateProcedureThunk", LLVMCreateProcedureThunk);
     LLVMObjCmd("llvmtcl::CallInitialisePackageFunction", LLVMCallInitialisePackageFunction);
     LLVMObjCmd("llvmtcl::GetIntrinsicDefinition",LLVMGetIntrinsicDefinitionObjCmd);
     LLVMObjCmd("llvmtcl::GetIntrinsicID",LLVMGetIntrinsicIDObjCmd);
+    LLVMObjCmd("llvmtcl::NamedStructType",NamedStructTypeObjCmd);
+    LLVMObjCmd("llvmtcl::CreateMCJITCompilerForModule",CreateMCJITCompilerForModuleObjCmd);
+    LLVMObjCmd("llvmtcl::InitializeAllTargets",InitAllTargetsObjCmd);
     return TCL_OK;
 }

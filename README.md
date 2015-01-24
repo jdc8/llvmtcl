@@ -10,8 +10,8 @@ information.
 REQUIREMENTS
 ============
 
-* tcl 8.6
-* llvm 3.5
+* Tcl 8.6
+* LLVM 3.5
 
 CONTENTS
 ========
@@ -45,9 +45,13 @@ the sample extension.
     llvmtcl-gen.tcl Script to generate the Tcl API to the llvm C API. The
                     llvmtcl-gen.inp is the input for this script.
     
-    llvmtcl.c       File containing all non-generated parts of the Tcl API to the
-                    llvm C API.
-    
+    generic/        This directory contains various source files, some only
+                    generated during compilation (i.e., after `make`).
+
+       llvmtcl.cpp  File containing all non-generated parts of the Tcl API to
+                    the LLVM C API. Also includes some sections which can only
+                    be implemented using the LLVM C++ API.
+
     llvmtcl.tcl     Scripts using the Tcl API to the llvm C API.
     
     tests           Some tests for the package.
@@ -55,10 +59,10 @@ the sample extension.
     tclconfig/      This directory contains various template files that build
                     the configure script.  They should not need modification.
     
-        install-sh  Program used for copying binaries and script files
+       install-sh   Program used for copying binaries and script files
                     to their install locations.
     
-        tcl.m4      Collection of Tcl autoconf macros.  Included by
+       tcl.m4       Collection of Tcl autoconf macros.  Included by
                     aclocal.m4 to define SC_* macros.
 
 UNIX BUILD

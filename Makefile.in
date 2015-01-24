@@ -20,11 +20,11 @@
 #========================================================================
 
 #SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
-LLVMCFLAGS = @LLVMCFLAGS@
-LLVMLFLAGS = @LLVMLFLAGS@
-LLVMLIBS = @LLVMLIBS@
-LLVMSYSTEMLIBS = @LLVMSYSTEMLIBS@
 LLVMCONFIG = @LLVMCONFIG@
+LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
+LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`
+LLVMLIBS = `@LLVMCONFIG@ --libs`
+LLVMSYSTEMLIBS = `@LLVMCONFIG@ --system-libs`
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.
@@ -265,7 +265,7 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 	$(RANLIB_STUB) $(PKG_STUB_LIB_FILE)
 
 #========================================================================
-# We need to enumerate the list of .c to .o lines here.
+# We need to enumerate the list of .cpp to .o lines here.
 #
 # In the following lines, $(srcdir) refers to the toplevel directory
 # containing your extension.  If your sources are in a subdirectory,
@@ -281,7 +281,7 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 
 VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 
-.c.@OBJEXT@:
+.cpp.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
 
 #========================================================================
@@ -413,7 +413,7 @@ install-bin-binaries: binaries
 	  fi; \
 	done
 
-.SUFFIXES: .c .$(OBJEXT)
+.SUFFIXES: .c .cpp .$(OBJEXT)
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \

@@ -75,7 +75,7 @@ esac
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([llvmtcl.c])
+TEA_ADD_SOURCES([llvmtcl.cpp])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
@@ -190,11 +190,10 @@ AC_ARG_WITH(llvm-config, [  --with-llvm-config=FILE],[
 	AC_PATH_PROGS([LLVMCONFIG],[llvm-config],[no])])
 AS_IF([test "x$LLVMCONFIG" = "xno"], [
 	AC_MSG_ERROR(llvm-config not usable)])
-AC_SUBST(LLVMCFLAGS, `$LLVMCONFIG --cflags`)
-AC_SUBST(LLVMLFLAGS, `$LLVMCONFIG --ldflags`)
-AC_SUBST(LLVMLIBS, `$LLVMCONFIG --libs`)
-# llvm 3.4 doesn't like --system-libs but things work anyway
-AC_SUBST(LLVMSYSTEMLIBS, `$LLVMCONFIG --system-libs 2>/dev/null`)
+AC_MSG_CHECKING([for llvm-config usability])
+AS_IF([$LLVMCONFIG --version >/dev/null], [
+	AC_MSG_RESULT(seems fine)], [
+	AC_MSG_ERROR(llvm-config not usable)])
 AC_SUBST(LLVMCONFIG)
 
 #--------------------------------------------------------------------

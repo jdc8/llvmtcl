@@ -20,11 +20,12 @@
 #========================================================================
 
 #SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
+LLVMCOMPONENTS = core engine codegen all-targets native bitwriter mcjit linker interpreter
 LLVMCONFIG = @LLVMCONFIG@
 LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
 LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`
-LLVMLIBS = `@LLVMCONFIG@ --libs`
-LLVMSYSTEMLIBS = `@LLVMCONFIG@ --system-libs`
+LLVMLIBS = `@LLVMCONFIG@ --libs ${LLVMCOMPONENTS}`
+LLVMSYSTEMLIBS = `@LLVMCONFIG@ --system-libs ${LLVMCOMPONENTS}`
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.

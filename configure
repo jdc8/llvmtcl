@@ -8199,10 +8199,10 @@ if test "x$LLVMCONFIG" = "xno"; then :
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for llvm-config usability" >&5
 $as_echo_n "checking for llvm-config usability... " >&6; }
-if $LLVMCONFIG --version >/dev/null; then :
+if llvm_version=`$LLVMCONFIG --version`; then :
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: seems fine" >&5
-$as_echo "seems fine" >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: seems fine (version: $llvm_version)" >&5
+$as_echo "seems fine (version: $llvm_version)" >&6; }
 else
 
 	as_fn_error $? "llvm-config not usable" "$LINENO" 5

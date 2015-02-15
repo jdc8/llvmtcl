@@ -191,8 +191,8 @@ AC_ARG_WITH(llvm-config, [  --with-llvm-config=FILE],[
 AS_IF([test "x$LLVMCONFIG" = "xno"], [
 	AC_MSG_ERROR(llvm-config not usable)])
 AC_MSG_CHECKING([for llvm-config usability])
-AS_IF([$LLVMCONFIG --version >/dev/null], [
-	AC_MSG_RESULT(seems fine)], [
+AS_IF([llvm_version=`$LLVMCONFIG --version`], [
+	AC_MSG_RESULT(seems fine (version: $llvm_version))], [
 	AC_MSG_ERROR(llvm-config not usable)])
 AC_SUBST(LLVMCONFIG)
 

@@ -43,54 +43,6 @@ static const char *const intrinsicNames[] = {
 #undef GET_INTRINSIC_NAME_TABLE
 };
 
-/*
- * For some reason, merely using this class, *though it does nothing much*,
- * fixes a strange bug in LLVM where it was not making the code page
- * executable. WTF!? WTF?!
- */
-
-class TracingMemManager : public llvm::SectionMemoryManager {
-private:
-    bool printTrace;
-public:
-    TracingMemManager(bool trace = false) : printTrace(trace) { }
-    virtual ~TracingMemManager() {}
- 
-    uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-				 unsigned SectionID,
-				 llvm::StringRef SectionName) {
-	if (printTrace)
-	    fprintf(stderr, "allocateCodeSection(%#lx,%x,%u,%s)\n",
-		    Size, Alignment, SectionID, SectionName.str().c_str());
-	return llvm::SectionMemoryManager::allocateCodeSection(Size,
-		Alignment, SectionID, SectionName);
-    }
- 
-    uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-				 unsigned SectionID,
-				 llvm::StringRef SectionName,
-				 bool isReadOnly) {
-	if (printTrace)
-	    fprintf(stderr, "allocateDataSection(%#lx,%x,%u,%s,%s)\n",
-		    Size, Alignment, SectionID, SectionName.str().c_str(),
-		    (isReadOnly ? "RO" : "RW"));
-	return llvm::SectionMemoryManager::allocateDataSection(Size,
-		Alignment, SectionID, SectionName, isReadOnly);
-    }
- 
-    bool finalizeMemory(std::string *ErrMsg = nullptr) {
-	if (printTrace)
-	    fprintf(stderr, "finalizeMemory()\n");
-	return llvm::SectionMemoryManager::finalizeMemory(ErrMsg);
-    }
- 
-    void invalidateInstructionCache() {
-	if (printTrace)
-	    fprintf(stderr, "invalidateInstructionCache()\n");
-	llvm::SectionMemoryManager::invalidateInstructionCache();
-    }
-};
-
 static std::string
 LLVMDumpModuleTcl(
     LLVMModuleRef moduleRef)
@@ -781,7 +733,6 @@ CreateMCJITCompilerForModuleObjCmd(
     LLVMMCJITCompilerOptions options;
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel = (unsigned) level;
-    options.MCJMM = llvm::wrap(new TracingMemManager());
 
     LLVMExecutionEngineRef eeRef = 0; // output argument (engine)
     char *error = 0; // output argument (error message)

@@ -22,10 +22,10 @@
 #SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
 LLVMCOMPONENTS = core engine codegen all-targets native bitwriter mcjit linker interpreter
 LLVMCONFIG = @LLVMCONFIG@
-LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
-LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`
-LLVMLIBS = `@LLVMCONFIG@ --libs ${LLVMCOMPONENTS}`
-LLVMSYSTEMLIBS = `@LLVMCONFIG@ --system-libs ${LLVMCOMPONENTS}`
+LLVMCFLAGS = `${LLVMCONFIG} --cxxflags`
+LLVMLFLAGS = `${LLVMCONFIG} --ldflags`
+LLVMLIBS = `${LLVMCONFIG} --libs ${LLVMCOMPONENTS}`
+LLVMSYSTEMLIBS = `${LLVMCONFIG} --system-libs ${LLVMCOMPONENTS}`
 
 #========================================================================
 # Nothing of the variables below this line should need to be changed.
@@ -173,6 +173,8 @@ AR		= @AR@
 CFLAGS		= @CFLAGS@
 COMPILE		= $(CC) $(LLVMCFLAGS) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
+APIFILES	= ${srcdir}/generic/llvmtcl-gen.c ${srcdir}/generic/llvmtcl-gen-cmddef.c ${srcdir}/generic/llvmtcl-gen-map.c
+
 #========================================================================
 # Start of user-definable TARGETS section
 #========================================================================
@@ -187,8 +189,9 @@ COMPILE		= $(CC) $(LLVMCFLAGS) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(
 
 all: binaries libraries doc
 
-generate-api: llvmtcl-gen.inp llvmtcl-gen.tcl
-	@echo $(TCLSH_PROG) llvmtcl-gen.tcl
+generate-api: ${APIFILES}
+${APIFILES}: llvmtcl-gen.inp llvmtcl-gen.tcl
+	@echo Generate API: llvmtcl-gen.tcl '->' ${APIFILES}
 	@$(TCLSH) llvmtcl-gen.tcl
 
 #========================================================================
@@ -256,14 +259,17 @@ depend:
 #========================================================================
 
 $(PKG_LIB_FILE): $(PKG_OBJECTS)
-	-rm -f $(PKG_LIB_FILE)
-	${MAKE_LIB}
-	$(RANLIB) $(PKG_LIB_FILE)
+	-@rm -f $(PKG_LIB_FILE)
+	@echo Linking: $(PKG_OBJECTS) '->' $(PKG_LIB_FILE)
+	@echo Using LLVM components: ${LLVMCOMPONENTS}
+	@${MAKE_LIB}
+	@$(RANLIB) $(PKG_LIB_FILE)
 
 $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
-	-rm -f $(PKG_STUB_LIB_FILE)
-	${MAKE_STUB_LIB}
-	$(RANLIB_STUB) $(PKG_STUB_LIB_FILE)
+	-@rm -f $(PKG_STUB_LIB_FILE)
+	@echo Linking $(PKG_STUB_OBJECTS) '->' $(PKG_STUB_LIB_FILE)
+	@${MAKE_STUB_LIB}
+	@$(RANLIB_STUB) $(PKG_STUB_LIB_FILE)
 
 #========================================================================
 # We need to enumerate the list of .cpp to .o lines here.
@@ -283,7 +289,8 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 
 .cpp.@OBJEXT@:
-	$(COMPILE) -c `@CYGPATH@ $<` -o $@
+	@echo Compiling: $< '->' $@
+	@$(COMPILE) -c `@CYGPATH@ $<` -o $@
 
 #========================================================================
 # Distribution creation
@@ -291,38 +298,57 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
 #========================================================================
 
 #COMPRESS	= tar cvf $(PKG_DIR).tar $(PKG_DIR); compress $(PKG_DIR).tar
-COMPRESS	= gtar zcvf $(PKG_DIR).tar.gz $(PKG_DIR)
+COMPRESS	= tar zcf $(PKG_DIR).tar.gz $(PKG_DIR)
 DIST_ROOT	= /tmp/dist
 DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
 
 dist-clean:
-	rm -rf $(DIST_DIR) $(DIST_ROOT)/$(PKG_DIR).tar.*
+	@list='$(DIST_DIR) $(DIST_ROOT)/$(PKG_DIR).tar.*'; \
+	for f in $$list; do \
+	    if test -e $$f; then \
+		echo Removing $$f; \
+		rm -rf $$f; \
+	    fi; \
+	done
 
+#STDFILES=$(srcdir)/ChangeLog $(srcdir)/README* $(srcdir)/license* \
+#	$(srcdir)/aclocal.m4 $(srcdir)/configure $(srcdir)/*.in
+STDFILES=$(srcdir)/README* $(srcdir)/license* \
+	$(srcdir)/aclocal.m4 $(srcdir)/configure $(srcdir)/*.in
 dist: dist-clean
 	mkdir -p $(DIST_DIR)
-	cp -p $(srcdir)/ChangeLog $(srcdir)/README* $(srcdir)/license* \
-		$(srcdir)/aclocal.m4 $(srcdir)/configure $(srcdir)/*.in \
-		$(DIST_DIR)/
-	chmod 664 $(DIST_DIR)/Makefile.in $(DIST_DIR)/aclocal.m4
-	chmod 775 $(DIST_DIR)/configure $(DIST_DIR)/configure.in
+	@for f in $(STDFILES); do \
+	    echo cp -p $$f $(DIST_DIR)/ ; \
+	    cp -p $$f $(DIST_DIR)/ ; \
+	done
+	@chmod 664 $(DIST_DIR)/Makefile.in $(DIST_DIR)/aclocal.m4
+	@chmod 775 $(DIST_DIR)/configure $(DIST_DIR)/configure.in
 
-	for i in $(srcdir)/*.[ch]; do \
+	@for i in $(srcdir)/*.[ch]; do \
 	    if [ -f $$i ]; then \
+		echo cp -p $$i $(DIST_DIR)/ ; \
 		cp -p $$i $(DIST_DIR)/ ; \
 	    fi; \
 	done;
 
-	mkdir $(DIST_DIR)/tclconfig
-	cp $(srcdir)/tclconfig/install-sh $(srcdir)/tclconfig/tcl.m4 \
-		$(DIST_DIR)/tclconfig/
-	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
-	chmod +x $(DIST_DIR)/tclconfig/install-sh
+	@mkdir $(DIST_DIR)/tclconfig
+	@for i in $(srcdir)/tclconfig/install-sh $(srcdir)/tclconfig/tcl.m4; do \
+	    if [ -f $$i ]; then \
+		echo cp -p $$i $(DIST_DIR)/tclconfig/ ; \
+		cp -p $$i $(DIST_DIR)/tclconfig/ ; \
+	    fi; \
+	done;
+	@chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
+	@chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc generic library mac tests unix win'; \
+	@list='demos doc generic library mac tests unix win'; \
 	for p in $$list; do \
 	    if test -d $(srcdir)/$$p ; then \
 		mkdir $(DIST_DIR)/$$p; \
-		cp -p $(srcdir)/$$p/*.* $(DIST_DIR)/$$p/; \
+		for f in $(srcdir)/$$p/*.*; do \
+		    echo cp -p $$f $(DIST_DIR)/$$p/; \
+		    cp -p $$f $(DIST_DIR)/$$p/; \
+		done; \
 	    fi; \
 	done
 
@@ -338,16 +364,22 @@ dist: dist-clean
 #========================================================================
 
 clean:
-	-rm generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c generic/llvmtcl-gen.c
-	-test -z "$(BINARIES)" || rm -f $(BINARIES)
-	-rm -f *.$(OBJEXT) core *.core
-	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+	@list='$(APIFILES) $(BINARIES) *.$(OBJEXT) core *.core $(CLEANFILES)'; \
+	for f in $$list; do \
+	    if test -e $$f; then \
+		echo Removing $$f; \
+		rm -f $$f; \
+	    fi; \
+	done
 
 distclean: clean
-	-rm -f *.tab.c
-	-rm -f $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log config.status
-	-rm -f generic/llvmtcl-gen.c generic/llvmtcl-gen-cmddef.c generic/llvmtcl-gen-map.c
+	@list='*.tab.c $(CONFIG_CLEAN_FILES) config.cache config.log config.status';\
+	for f in $$list; do \
+	    if test -e $$f; then \
+		echo Removing $$f; \
+		rm -f $$f; \
+	    fi; \
+	done
 
 #========================================================================
 # Install binary object libraries.  On Windows this includes both .dll and
@@ -417,7 +449,8 @@ install-bin-binaries: binaries
 .SUFFIXES: .c .cpp .$(OBJEXT)
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
-	cd $(top_builddir) \
+	@echo Rebuilding Makefile from configuration
+	@cd $(top_builddir) \
 	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
 uninstall-binaries:

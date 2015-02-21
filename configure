@@ -4784,7 +4784,7 @@ done
 
 # Horrible hack to make recent clang work right
 case $CC in
-    *clang*) CC="$CC -std=c++11 -stdlib=libc++";;
+    *clang*) CC="$CC -stdlib=libc++";;
 esac
 
 #-----------------------------------------------------------------------
@@ -4913,15 +4913,20 @@ esac
 # Add pkgIndex.tcl if it is generated in the Makefile instead of ./configure
 # and change Makefile.in to move it from CONFIG_CLEAN_FILES to BINARIES var.
 #CLEANFILES="pkgIndex.tcl"
-if test "${TEA_PLATFORM}" = "windows" ; then
+CLEANFILES='${srcdir}/llvmtcl-gen-*.c'
+if test "${TEA_PLATFORM}" = "windows"; then :
+
     CLEANFILES="$CLEANFILES *.lib *.dll *.exp *.ilk *.pdb vc*.pch"
     #TEA_ADD_SOURCES([win/winFile.c])
     #TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/win)\"])
+
 else
+
     # Ensure no empty else clauses
     :
     #TEA_ADD_SOURCES([unix/unixFile.c])
     #TEA_ADD_LIBS([-lsuperfly])
+
 fi
 
 

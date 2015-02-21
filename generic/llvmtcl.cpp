@@ -5,7 +5,11 @@
 #include <map>
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
+#if (LLVM_VERSION_MAJOR >=3 && LLVM_VERSION_MINOR >= 7)
+#include "llvm/IR/PassManager.h"
+#else
 #include "llvm/PassManager.h"
+#endif
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/IR/Module.h"

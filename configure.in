@@ -184,16 +184,19 @@ TEA_PROG_TCLSH
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
+AC_ARG_WITH(llvm-config,
+  [  --with-llvm-config=FILE],
+  [LLVMCONFIG=$withval],
+  [LLVMCONFIG=llvm-config])
 
-AC_ARG_WITH(llvm-config, [  --with-llvm-config=FILE],[
-	AC_PATH_PROGS([LLVMCONFIG],[$withval llvm-config],[no])], [
-	AC_PATH_PROGS([LLVMCONFIG],[llvm-config],[no])])
+AC_PATH_PROG(LLVMCONFIG,[$LLVMCONFIG],[$LLVMCONFIG],[no])
 AS_IF([test "x$LLVMCONFIG" = "xno"], [
 	AC_MSG_ERROR(llvm-config not usable)])
+
 AC_MSG_CHECKING([for llvm-config usability])
 AS_IF([llvm_version=`$LLVMCONFIG --version`], [
-	AC_MSG_RESULT(seems fine (version: $llvm_version))], [
-	AC_MSG_ERROR(llvm-config not usable)])
+       AC_MSG_RESULT(seems fine (version: $llvm_version))], [
+       AC_MSG_ERROR(llvm-config not usable)])
 AC_SUBST(LLVMCONFIG)
 
 #--------------------------------------------------------------------

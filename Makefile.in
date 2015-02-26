@@ -20,7 +20,8 @@
 #========================================================================
 
 #SAMPLE_NEW_VAR	= @SAMPLE_NEW_VAR@
-LLVMCOMPONENTS = core engine codegen all-targets native bitwriter mcjit linker interpreter
+LLVMCOMPONENTS = 
+#core engine codegen all-targets native bitwriter mcjit linker interpreter
 LLVMCONFIG = @LLVMCONFIG@
 LLVMCFLAGS = `@LLVMCONFIG@ --cflags`
 LLVMLFLAGS = `@LLVMCONFIG@ --ldflags`

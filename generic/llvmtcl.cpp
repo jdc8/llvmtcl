@@ -25,6 +25,7 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/BitWriter.h"
+#include "llvm-c/BitReader.h"
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
@@ -772,6 +773,38 @@ InitAllTargetsObjCmd(
     return TCL_OK;
 }
 
+static int
+CreateModuleFromBitcodeCmd(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "Filename");
+	return TCL_ERROR;
+    }
+
+    char *msg;
+    LLVMMemoryBufferRef buffer;
+    if (LLVMCreateMemoryBufferWithContentsOfFile(Tcl_GetString(objv[1]),
+	    &buffer, &msg))
+	goto error;
+    LLVMModuleRef module;
+    if (LLVMParseBitcode(buffer, &module, &msg)) {
+	LLVMDisposeMemoryBuffer(buffer);
+	goto error;
+    }
+    LLVMDisposeMemoryBuffer(buffer);
+    Tcl_SetObjResult(interp, SetLLVMModuleRefAsObj(NULL, module));
+    return TCL_OK;
+
+  error:
+    Tcl_SetResult(interp, msg, TCL_VOLATILE);
+    free(msg);
+    return TCL_ERROR;
+}
+
 #define LLVMObjCmd(tclName, cName) \
   Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
@@ -809,6 +842,7 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::CreateMCJITCompilerForModule",
 	    CreateMCJITCompilerForModuleObjCmd);
     LLVMObjCmd("llvmtcl::InitializeAllTargets", InitAllTargetsObjCmd);
+    LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
     return TCL_OK;
 }
 

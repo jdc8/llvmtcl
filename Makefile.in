@@ -193,7 +193,7 @@ all: binaries libraries doc
 generate-api: ${APIFILES}
 ${APIFILES}: llvmtcl-gen.inp llvmtcl-gen.tcl
 	@echo Generate API: llvmtcl-gen.tcl '->' ${APIFILES}
-	@$(TCLSH) llvmtcl-gen.tcl
+	@$(TCLSH) ${srcdir}/llvmtcl-gen.tcl
 
 #========================================================================
 # The binaries target builds executable programs, Windows .dll's, unix

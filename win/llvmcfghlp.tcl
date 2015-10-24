@@ -1,5 +1,10 @@
 package require Tcl 8.6
 
+set LLVMComponents {
+    core engine codegen all-targets native bitwriter bitreader mcjit linker
+    interpreter ipo
+}
+
 proc normalizelibs {libs} {
     set nl {}
     foreach lib $libs {
@@ -24,8 +29,8 @@ proc llvmconfig {option args} {
 
 set cxxflags [llvmconfig --cxxflags]
 set ldflags [llvmconfig --ldflags]
-set libs [llvmconfig --libs]
-set syslibs [llvmconfig --system-libs core engine codegen all-targets native bitwriter bitreader mcjit linker interpreter]
+set libs [llvmconfig --libs {*}$LLVMComponents]
+set syslibs [llvmconfig --system-libs {*}$LLVMComponents]
 
 set outf [open llvmcfgmake.vc w]
 puts $outf "LLVMCFLAGS = \\\n$cxxflags"

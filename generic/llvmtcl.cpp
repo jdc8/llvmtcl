@@ -846,6 +846,37 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     return TCL_OK;
 }
 
+/*
+ * ----------------------------------------------------------------------
+ *
+ * Llvmtcl_StandardInput, Llvmtcl_StandardOutput, Llvmtcl_StandardError --
+ *
+ *	Helper functions to make it easier to get the standard stdio streams
+ *	for debugging purposes. Since these "variables" are typically macros
+ *	that are defined in platform-specific ways, we need these small
+ *	functions to hide the details.
+ *
+ * Returns:
+ *	Relevant stdio FILE* handle.
+ *
+ * Side effects:
+ *	None.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+DLLEXPORT FILE * Llvmtcl_StandardInput() {
+    return stdin;
+}
+
+DLLEXPORT FILE * Llvmtcl_StandardOutput() {
+    return stdout;
+}
+
+DLLEXPORT FILE * Llvmtcl_StandardError() {
+    return stderr;
+}
+
 } /* extern "C" */
 
 /*

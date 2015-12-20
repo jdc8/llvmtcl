@@ -856,6 +856,7 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::DebugInfo::StructType", DefineStructType);
     LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
     LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
+    LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
     return TCL_OK;
 }
 

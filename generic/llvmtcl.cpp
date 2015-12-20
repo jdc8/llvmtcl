@@ -12,6 +12,7 @@
 #endif
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -47,6 +48,8 @@ static const char *const intrinsicNames[] = {
 #include "llvm/IR/Intrinsics.gen"
 #undef GET_INTRINSIC_NAME_TABLE
 };
+
+#include "debuginfo.cpp"
 
 static std::string
 LLVMDumpModuleTcl(
@@ -843,6 +846,16 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 	    CreateMCJITCompilerForModuleObjCmd);
     LLVMObjCmd("llvmtcl::InitializeAllTargets", InitAllTargetsObjCmd);
     LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
+    // Debugging info support
+    LLVMObjCmd("llvmtcl::DebugInfo::CompileUnit", DefineCompileUnit);
+    LLVMObjCmd("llvmtcl::DebugInfo::File", DefineFile);
+    LLVMObjCmd("llvmtcl::DebugInfo::Namespace", DefineNamespace);
+    LLVMObjCmd("llvmtcl::DebugInfo::UnspecifiedType", DefineUnspecifiedType);
+    LLVMObjCmd("llvmtcl::DebugInfo::BasicType", DefineBasicType);
+    LLVMObjCmd("llvmtcl::DebugInfo::PointerType", DefinePointerType);
+    LLVMObjCmd("llvmtcl::DebugInfo::StructType", DefineStructType);
+    LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
+    LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
     return TCL_OK;
 }
 

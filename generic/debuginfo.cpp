@@ -1,3 +1,15 @@
+#include "tcl.h"
+#include <map>
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/Module.h"
+#include "llvm-c/Core.h"
+
+extern std::string	GetRefName(std::string prefix);
+extern int		GetModuleFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+			    llvm::Module *&module);
+extern int		GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+			    llvm::Value *&module);
+
 static std::map<std::string, llvm::MDNode*> Metadata_map;
 static std::map<llvm::MDNode*, std::string> Metadata_refmap;
 
@@ -22,9 +34,8 @@ GetMetadataFromObj(
     ref = 0;
     std::string refName = Tcl_GetStringFromObj(obj, 0);
     if (Metadata_map.find(refName) == Metadata_map.end()) {
-        std::ostringstream os;
-        os << "expected " << typeName << " but got '" << refName << "'";
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(os.str().c_str(), -1));
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf("expected %s but got '%s'",
+		typeName, refName.c_str()));
         return TCL_ERROR;
     }
     llvm::MDNode *mdn = Metadata_map[refName];
@@ -60,7 +71,6 @@ SetMetadataAsObj(
     return Tcl_NewStringObj(Metadata_refmap[ref].c_str(), -1);
 }
 
-extern "C" {
 /*
  * ----------------------------------------------------------------------
  *
@@ -72,7 +82,7 @@ extern "C" {
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineCompileUnit(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -84,20 +94,20 @@ DefineCompileUnit(
 		"Module file directory producer runtimeVersion");
         return TCL_ERROR;
     }
-	
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
     int runtimeVersion = 0;
     if (Tcl_GetIntFromObj(interp, objv[5], &runtimeVersion) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
     unsigned lang = llvm::dwarf::DW_LANG_lo_user;//No standard value for Tcl!
     std::string file = Tcl_GetString(objv[2]);
     std::string dir = Tcl_GetString(objv[3]);
     std::string producer = Tcl_GetString(objv[4]);
     std::string flags = "";
 
+    llvm::DIBuilder builder(*module);
     auto val = builder.createCompileUnit(lang, file, dir, producer, true,
 	flags, (unsigned) runtimeVersion);
 
@@ -115,7 +125,7 @@ DefineCompileUnit(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineFile(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -127,10 +137,10 @@ DefineFile(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     std::string file = Tcl_GetString(objv[2]);
     std::string dir = Tcl_GetString(objv[3]);
 
@@ -150,7 +160,7 @@ DefineFile(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineNamespace(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -162,10 +172,10 @@ DefineNamespace(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     llvm::DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
@@ -193,7 +203,7 @@ DefineNamespace(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineUnspecifiedType(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -205,10 +215,10 @@ DefineUnspecifiedType(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     std::string name = Tcl_GetString(objv[2]);
 
     auto val = builder.createUnspecifiedType(name);
@@ -229,7 +239,7 @@ DefineUnspecifiedType(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineBasicType(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -242,10 +252,10 @@ DefineBasicType(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     std::string name = Tcl_GetString(objv[2]);
     int size, align = 0, dwarfTypeCode;
     if (Tcl_GetIntFromObj(interp, objv[3], &size) != TCL_OK)
@@ -270,7 +280,7 @@ DefineBasicType(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefinePointerType(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -282,10 +292,10 @@ DefinePointerType(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     llvm::DIType *pointee;
     if (GetMetadataFromObj(interp, objv[2], "type", pointee) != TCL_OK)
 	return TCL_ERROR;
@@ -307,7 +317,7 @@ DefinePointerType(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineStructType(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -320,10 +330,10 @@ DefineStructType(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     llvm::DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
@@ -363,7 +373,7 @@ DefineStructType(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineFunctionType(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -376,10 +386,10 @@ DefineFunctionType(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     llvm::DIFile *file;
     if (GetMetadataFromObj(interp, objv[2], "file", file) != TCL_OK)
 	return TCL_ERROR;
@@ -408,7 +418,7 @@ DefineFunctionType(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 DefineFunction(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -421,10 +431,10 @@ DefineFunction(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef module;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], module) != TCL_OK)
+    llvm::Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*llvm::unwrap(module));
+    llvm::DIBuilder builder(*module);
     llvm::DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
@@ -449,7 +459,7 @@ DefineFunction(
     return TCL_OK;
 }
 
-static int
+int
 AttachToFunction(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -461,10 +471,9 @@ AttachToFunction(
         return TCL_ERROR;
     }
 
-    LLVMValueRef functionRef = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], functionRef) != TCL_OK)
+    llvm::Value *value;
+    if (GetValueFromObj(interp, objv[1], value) != TCL_OK)
         return TCL_ERROR;
-    llvm::Value *value = llvm::unwrap(functionRef);
     if (!llvm::isa<llvm::Function>(value)) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(
 		"can only attach debug metadata to functions", -1));
@@ -479,7 +488,6 @@ AttachToFunction(
     return TCL_OK;
 }
 
-}
 /*
  * Local Variables:
  * mode: c++

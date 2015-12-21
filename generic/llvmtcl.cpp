@@ -32,12 +32,30 @@
 #include "llvm-c/Transforms/Scalar.h"
 #include "llvm-c/Transforms/Vectorize.h"
 
-static std::string GetRefName(std::string prefix)
+#define DECL_CMD(cName) \
+    extern int cName(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+DECL_CMD(DefineCompileUnit);
+DECL_CMD(DefineFile);
+DECL_CMD(DefineNamespace);
+DECL_CMD(DefineUnspecifiedType);
+DECL_CMD(DefineBasicType);
+DECL_CMD(DefinePointerType);
+DECL_CMD(DefineStructType);
+DECL_CMD(DefineFunctionType);
+DECL_CMD(DefineFunction);
+DECL_CMD(AttachToFunction);
+DECL_CMD(LLVMAddLLVMTclCommandsObjCmd);
+
+TCL_DECLARE_MUTEX(idLock)
+std::string GetRefName(std::string prefix)
 {
-    static int LLVMRef_id = 0;
+    static volatile int LLVMRef_id = 0;
+    int id;
+    Tcl_MutexLock(&idLock);
+    id = LLVMRef_id++;
+    Tcl_MutexUnlock(&idLock);
     std::ostringstream os;
-    os << prefix << LLVMRef_id;
-    LLVMRef_id++;
+    os << prefix << id;
     return os.str();
 }
 
@@ -48,8 +66,6 @@ static const char *const intrinsicNames[] = {
 #include "llvm/IR/Intrinsics.gen"
 #undef GET_INTRINSIC_NAME_TABLE
 };
-
-#include "debuginfo.cpp"
 
 static std::string
 LLVMDumpModuleTcl(
@@ -100,9 +116,46 @@ LLVMRunFunction(
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }
-
-extern "C" {
 
+MODULE_SCOPE int
+GetModuleFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Module *&module)
+{
+    LLVMModuleRef modref;
+    if (GetLLVMModuleRefFromObj(interp, obj, modref) != TCL_OK)
+	return TCL_ERROR;
+    module = llvm::unwrap(modref);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetValueFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Value *&value)
+{
+    LLVMValueRef valref;
+    if (GetLLVMValueRefFromObj(interp, obj, valref) != TCL_OK)
+	return TCL_ERROR;
+    value = llvm::unwrap(valref);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetEngineFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::ExecutionEngine *&engine)
+{
+    LLVMExecutionEngineRef eeref;
+    if (GetLLVMExecutionEngineRefFromObj(interp, obj, eeref) != TCL_OK)
+	return TCL_ERROR;
+    engine = llvm::unwrap(eeref);
+    return TCL_OK;
+}
+
 static int search(const void *p1, const void *p2) {
   const char *s1 = (const char *) p1;
   const char *s2 = *(const char **) p2;
@@ -244,85 +297,6 @@ LLVMGenericValueToTclObjObjCmd(
     return TCL_OK;
 }
 
-void llvm_test() {}
-
-Tcl_Obj *
-llvm_add(
-    Tcl_Interp *interp,
-    Tcl_Obj *oa,
-    Tcl_Obj *ob)
-{
-    mp_int big1, big2, bigResult;
-
-    Tcl_GetBignumFromObj(interp, oa, &big1);
-    Tcl_GetBignumFromObj(interp, ob, &big2);
-    TclBN_mp_init(&bigResult);
-
-    TclBN_mp_add(&big1, &big2, &bigResult);
-
-    return Tcl_NewBignumObj(&bigResult);
-}
-
-Tcl_Obj *
-llvm_sub(
-    Tcl_Interp *interp,
-    Tcl_Obj *oa,
-    Tcl_Obj *ob)
-{
-    mp_int big1, big2, bigResult;
-
-    Tcl_GetBignumFromObj(interp, oa, &big1);
-    Tcl_GetBignumFromObj(interp, ob, &big2);
-    TclBN_mp_init(&bigResult);
-
-    TclBN_mp_sub(&big1, &big2, &bigResult);
-
-    return Tcl_NewBignumObj(&bigResult);
-}
-
-static int
-LLVMAddLLVMTclCommandsObjCmd(
-    ClientData clientData,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *const objv[])
-{
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "EE mod ");
-        return TCL_ERROR;
-    }
-
-    LLVMExecutionEngineRef ee = 0;
-    if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], ee) != TCL_OK)
-        return TCL_ERROR;
-
-    LLVMModuleRef mod = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[2], mod) != TCL_OK)
-        return TCL_ERROR;
-
-    {
-	LLVMTypeRef func_type = LLVMFunctionType(LLVMVoidType(), 0, 0, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_test", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_test);
-    }
-
-    {
-	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
-	LLVMTypeRef pta[3] = {pt, pt, pt};
-	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_add", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_add);
-    }
-
-    {
-	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
-	LLVMTypeRef pta[3] = {pt, pt, pt};
-	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_sub", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_sub);
-    }
-    return TCL_OK;
-}
 
 static int
 LLVMAddIncomingObjCmd(
@@ -811,6 +785,7 @@ CreateModuleFromBitcodeCmd(
 #define LLVMObjCmd(tclName, cName) \
   Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
+extern "C" {
 DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 {
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {

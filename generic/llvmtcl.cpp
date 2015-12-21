@@ -5,6 +5,7 @@
 #include <map>
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/Host.h"
 #if (LLVM_VERSION_MAJOR >=3 && LLVM_VERSION_MINOR >= 7)
 #include "llvm/IR/PassManager.h"
 #else
@@ -296,7 +297,6 @@ LLVMGenericValueToTclObjObjCmd(
     Tcl_SetObjResult(interp, rt);
     return TCL_OK;
 }
-
 
 static int
 LLVMAddIncomingObjCmd(
@@ -732,6 +732,22 @@ CreateMCJITCompilerForModuleObjCmd(
 }
 
 static int
+GetHostTripleObjCmd(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 1) {
+	Tcl_WrongNumArgs(interp, 1, objv, "");
+	return TCL_ERROR;
+    }
+    auto triple = llvm::sys::getProcessTriple();
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(triple.c_str(), -1));
+    return TCL_OK;
+}
+
+static int
 InitAllTargetsObjCmd(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -820,6 +836,7 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::CreateMCJITCompilerForModule",
 	    CreateMCJITCompilerForModuleObjCmd);
     LLVMObjCmd("llvmtcl::InitializeAllTargets", InitAllTargetsObjCmd);
+    LLVMObjCmd("llvmtcl::GetHostTriple", GetHostTripleObjCmd);
     LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
     // Debugging info support
     LLVMObjCmd("llvmtcl::DebugInfo::CompileUnit", DefineCompileUnit);

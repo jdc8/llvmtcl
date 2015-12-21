@@ -15,9 +15,9 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/DerivedTypes.h"
-//#include "llvm/Function.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
@@ -74,7 +74,7 @@ LLVMDumpModuleTcl(
 {
     std::string s;
     llvm::raw_string_ostream os(s);
-    os << *(reinterpret_cast<llvm::Module*>(moduleRef));
+    os << *(llvm::unwrap(moduleRef));
     return s;
 }
 
@@ -118,6 +118,14 @@ LLVMRunFunction(
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }
 
+static inline void
+SetStringResult(
+    Tcl_Interp *interp,
+    std::string msg)
+{
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(msg.c_str(), msg.size()));
+}
+
 MODULE_SCOPE int
 GetModuleFromObj(
     Tcl_Interp *interp,
@@ -131,17 +139,62 @@ GetModuleFromObj(
     return TCL_OK;
 }
 
+template<typename T>
+static int
+GetTypeFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    std::string msg,
+    T *&type)
+{
+    LLVMTypeRef typeref;
+    if (GetLLVMTypeRefFromObj(interp, obj, typeref) != TCL_OK)
+	return TCL_ERROR;
+    auto t = llvm::unwrap(typeref);
+    if (!llvm::isa<T>(t)) {
+	SetStringResult(interp, msg);
+	return TCL_ERROR;
+    }
+    type = llvm::cast<T>(t);
+    return TCL_OK;
+}
+
+template<typename T>
+static int
+GetValueFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    std::string msg,
+    T *&value)
+{
+    LLVMValueRef valref;
+    if (GetLLVMValueRefFromObj(interp, obj, valref) != TCL_OK)
+	return TCL_ERROR;
+    auto v = llvm::unwrap(valref);
+    if (!llvm::isa<T>(v)) {
+	SetStringResult(interp, msg);
+	return TCL_ERROR;
+    }
+    value = llvm::cast<T>(v);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetTypeFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Type *&type)
+{
+    return GetTypeFromObj(interp, obj, "expected type but got type", type);
+}
+
 MODULE_SCOPE int
 GetValueFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
     llvm::Value *&value)
 {
-    LLVMValueRef valref;
-    if (GetLLVMValueRefFromObj(interp, obj, valref) != TCL_OK)
-	return TCL_ERROR;
-    value = llvm::unwrap(valref);
-    return TCL_OK;
+    return GetValueFromObj(interp, obj, "expected value but got value", value);
 }
 
 MODULE_SCOPE int
@@ -311,45 +364,41 @@ LLVMAddIncomingObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef phiNode = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], phiNode) != TCL_OK)
+    llvm::PHINode *phiNode;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only add incoming arcs to a phi", phiNode) != TCL_OK)
         return TCL_ERROR;
 
     int ivobjc = 0;
     Tcl_Obj **ivobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[2], &ivobjc, &ivobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingValuesList not specified as list", -1));
+	SetStringResult(interp, "IncomingValuesList not specified as list");
 	return TCL_ERROR;
     }
 
     int ibobjc = 0;
     Tcl_Obj **ibobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[3], &ibobjc, &ibobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingBlocksList not specified as list", -1));
+	SetStringResult(interp, "IncomingBlocksList not specified as list");
 	return TCL_ERROR;
     }
 
     if (ivobjc != ibobjc) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingValuesList and IncomingBlocksList have different length", -1));
+	SetStringResult(interp,
+		"IncomingValuesList and IncomingBlocksList have different length");
 	return TCL_ERROR;
     }
 
-    std::vector<LLVMValueRef> incomingValues(ivobjc);
-    std::vector<LLVMBasicBlockRef> incomingBlocks(ivobjc);
-
     for(int i = 0; i < ivobjc; i++) {
-	if (GetLLVMValueRefFromObj(interp, ivobjv[i],
-		incomingValues[i]) != TCL_OK)
+	llvm::Value *value;
+	LLVMBasicBlockRef bbref;
+
+	if (GetValueFromObj(interp, ivobjv[i], value) != TCL_OK)
 	    return TCL_ERROR;
-	if (GetLLVMBasicBlockRefFromObj(interp, ibobjv[i],
-		incomingBlocks[i]) != TCL_OK)
+	if (GetLLVMBasicBlockRefFromObj(interp, ibobjv[i], bbref) != TCL_OK)
 	    return TCL_ERROR;
+	phiNode->addIncoming(value, llvm::unwrap(bbref));
     }
-    LLVMAddIncoming(phiNode, incomingValues.data(), incomingBlocks.data(),
-	    ivobjc);
     return TCL_OK;
 }
 
@@ -372,8 +421,7 @@ LLVMBuildAggregateRetObjCmd(
     int rvobjc = 0;
     Tcl_Obj **rvobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[2], &rvobjc, &rvobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"RetValsList not specified as list", -1));
+	SetStringResult(interp, "RetValsList not specified as list");
 	return TCL_ERROR;
     }
 
@@ -414,8 +462,7 @@ LLVMBuildInvokeObjCmd(
     int aobjc = 0;
     Tcl_Obj **aobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[3], &aobjc, &aobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"ArgsList not specified as list", -1));
+	SetStringResult(interp, "ArgsList not specified as list");
 	return TCL_ERROR;
     }
 
@@ -424,11 +471,9 @@ LLVMBuildInvokeObjCmd(
     std::string name = Tcl_GetStringFromObj(objv[6], 0);
 
     std::vector<LLVMValueRef> args(aobjc);
-    for(int i = 0; i < aobjc; i++) {
+    for(int i = 0; i < aobjc; i++)
 	if (GetLLVMValueRefFromObj(interp, aobjv[i], args[i]) != TCL_OK)
 	    return TCL_ERROR;
-    }
-
     if (GetLLVMBasicBlockRefFromObj(interp, objv[4], thenBlock) != TCL_OK)
         return TCL_ERROR;
     if (GetLLVMBasicBlockRefFromObj(interp, objv[5], catchBlock) != TCL_OK)
@@ -453,19 +498,16 @@ LLVMGetParamTypesObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMTypeRef functionType = 0;
-    if (GetLLVMTypeRefFromObj(interp, objv[1], functionType) != TCL_OK)
+    llvm::FunctionType *functionType;
+    if (GetTypeFromObj(interp, objv[1],
+	    "can only get parameter types of function types",
+	    functionType) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nargs = LLVMCountParamTypes(functionType);
-    std::vector<LLVMTypeRef> paramType(nargs);
-
-    LLVMGetParamTypes(functionType, paramType.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nargs; i++)
-	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMTypeRefAsObj(interp, paramType[i]));
+    for(auto type : functionType->params())
+	Tcl_ListObjAppendElement(NULL, rtl,
+		SetLLVMTypeRefAsObj(interp, llvm::wrap(type)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -483,19 +525,15 @@ LLVMGetParamsObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef function = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], function) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only get parameters of a function", function) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nargs = LLVMCountParams(function);
-    std::vector<LLVMValueRef> paramValue(nargs);
-
-    LLVMGetParams(function, paramValue.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nargs; i++)
-	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMValueRefAsObj(interp, paramValue[i]));
+    for (auto &value : function->getArgumentList())
+	Tcl_ListObjAppendElement(NULL, rtl,
+		SetLLVMValueRefAsObj(interp, llvm::wrap(&value)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -513,19 +551,15 @@ LLVMGetStructElementTypesObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMTypeRef structType = 0;
-    if (GetLLVMTypeRefFromObj(interp, objv[1], structType) != TCL_OK)
+    llvm::StructType *structType;
+    if (GetTypeFromObj(interp, objv[1],
+	    "can only get elements of struct types", structType) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nelem = LLVMCountStructElementTypes(structType);
-    std::vector<LLVMTypeRef> elemType(nelem);
-
-    LLVMGetStructElementTypes(structType, elemType.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nelem; i++)
+    for(auto &type : structType->elements())
 	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMTypeRefAsObj(interp, elemType[i]));
+		SetLLVMTypeRefAsObj(interp, llvm::wrap(type)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -543,19 +577,15 @@ LLVMGetBasicBlocksObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef function = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], function) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only list basic blocks of functions", function) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nblocks = LLVMCountBasicBlocks(function);
-    std::vector<LLVMBasicBlockRef> basicBlock(nblocks);
-
-    LLVMGetBasicBlocks(function, basicBlock.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nblocks; i++)
+    for (auto I = function->begin(), E = function->end(); I != E; I++)
 	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMBasicBlockRefAsObj(interp, basicBlock[i]));
+		SetLLVMBasicBlockRefAsObj(interp, llvm::wrap(&*I)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -575,19 +605,23 @@ LLVMCallInitialisePackageFunction(
 	return TCL_ERROR;
     }
 
-    LLVMExecutionEngineRef engine;
-    if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], engine) != TCL_OK)
+    llvm::ExecutionEngine *engine;
+    if (GetEngineFromObj(interp, objv[1], engine) != TCL_OK)
 	return TCL_ERROR;
-    LLVMValueRef func;
-    if (GetLLVMValueRefFromObj(interp, objv[2], func) != TCL_OK)
+    llvm::Value *func;
+    if (GetValueFromObj(interp, objv[2], func) != TCL_OK)
 	return TCL_ERROR;
+    if (!llvm::isa<llvm::Function>(func)) {
+	SetStringResult(interp, "can only initialise using a function");
+	return TCL_ERROR;
+    }
 
-    uint64_t address = llvm::unwrap(engine)->getFunctionAddress(
-	    llvm::unwrap<llvm::Function>(func)->getName().str());
+    auto function = llvm::cast<llvm::Function>(func);
+    uint64_t address = engine->getFunctionAddress(function->getName());
 
     int (*initFunction)(Tcl_Interp*) = (int(*)(Tcl_Interp*)) address;
     if (initFunction == NULL) {
-	Tcl_AppendResult(interp, "no address for initialiser", NULL);
+	SetStringResult(interp, "no address for initialiser");
 	return TCL_ERROR;
     }
 
@@ -606,8 +640,8 @@ LLVMGetIntrinsicDefinitionObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef mod = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], mod) != TCL_OK)
+    llvm::Module *mod;
+    if (GetModuleFromObj(interp, objv[1], mod) != TCL_OK)
         return TCL_ERROR;
 
     llvm::Intrinsic::ID id;
@@ -623,10 +657,10 @@ LLVMGetIntrinsicDefinitionObjCmd(
     }
 
     LLVMValueRef intrinsic = llvm::wrap(llvm::Intrinsic::getDeclaration(
-	    llvm::unwrap(mod), id, arg_types));
+	    mod, id, arg_types));
 
     if (intrinsic == NULL) {
-	Tcl_AppendResult(interp, "no such intrinsic", NULL);
+	SetStringResult(interp, "no such intrinsic");
 	return TCL_ERROR;
     }
     Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, intrinsic));
@@ -675,7 +709,7 @@ NamedStructTypeObjCmd(
 	    numTypes) != TCL_OK)
         return TCL_ERROR;
     if (numTypes < 1) {
-	Tcl_AppendResult(interp, "must supply at least one member", NULL);
+	SetStringResult(interp, "must supply at least one member");
 	return TCL_ERROR;
     }
 
@@ -722,7 +756,6 @@ CreateMCJITCompilerForModuleObjCmd(
 	    &options, sizeof(options), &error);
 
     if (failed) {
-	//llvm::TargetRegistry::printRegisteredTargetsForVersion();
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(error, -1));
 	return TCL_ERROR;
     }

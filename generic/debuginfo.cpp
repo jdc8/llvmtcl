@@ -3,15 +3,14 @@
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm-c/Core.h"
+#include "llvmtcl.h"
 
-extern std::string	GetRefName(std::string prefix);
-extern int		GetModuleFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
-			    llvm::Module *&module);
-extern int		GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
-			    llvm::Value *&module);
+using namespace llvm;
 
-static std::map<std::string, llvm::MDNode*> Metadata_map;
-static std::map<llvm::MDNode*, std::string> Metadata_refmap;
+static std::map<std::string, MDNode*> Metadata_map;
+static std::map<MDNode*, std::string> Metadata_refmap;
+static std::map<std::string, DIBuilder*> Builder_map;
+static std::map<DIBuilder*, std::string> Builder_refmap;
 
 /*
  * ----------------------------------------------------------------------
@@ -38,13 +37,13 @@ GetMetadataFromObj(
 		typeName, refName.c_str()));
         return TCL_ERROR;
     }
-    llvm::MDNode *mdn = Metadata_map[refName];
-    if (!llvm::isa<T>(mdn)) {
+    MDNode *mdn = Metadata_map[refName];
+    if (!isa<T>(mdn)) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"unexpected metadata type; was looking for %s", typeName));
 	return TCL_ERROR;
     }
-    ref = llvm::cast<T>(mdn);
+    ref = cast<T>(mdn);
     return TCL_OK;
 }
 
@@ -60,7 +59,7 @@ GetMetadataFromObj(
 
 static Tcl_Obj *
 SetMetadataAsObj(
-    llvm::DIScope *ref,
+    DIScope *ref,
     const char *typeName)
 {
     if (Metadata_refmap.find(ref) == Metadata_refmap.end()) {
@@ -69,6 +68,127 @@ SetMetadataAsObj(
         Metadata_refmap[ref] = nm;
     }
     return Tcl_NewStringObj(Metadata_refmap[ref].c_str(), -1);
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * GetDIBuilderFromObj --
+ *
+ *	Gets the DIBuilder handle that is described by a particular Tcl_Obj.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+static int
+GetDIBuilderFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    DIBuilder *&ref)
+{
+    std::string refName = Tcl_GetStringFromObj(obj, 0);
+    if (Builder_map.find(refName) == Builder_map.end()) {
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		"expected DIBuilder but got '%s'", refName.c_str()));
+        return TCL_ERROR;
+    }
+    ref = Builder_map[refName];
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * SetDIBuilderAsObj --
+ *
+ *	Gets the Tcl_Obj that describes a particular DIBuilder handle.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+static Tcl_Obj *
+SetDIBuilderAsObj(
+    DIBuilder *ref)
+{
+    if (Builder_refmap.find(ref) == Builder_refmap.end()) {
+        std::string nm = GetRefName("DebugInfoBuilder");
+        Builder_map[nm] = ref;
+        Builder_refmap[ref] = nm;
+    }
+    return Tcl_NewStringObj(Builder_refmap[ref].c_str(), -1);
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * DeleteDIBuilder --
+ *
+ *	Nukes the mapping from Tcl_Obj to DIBuilder ref and deletes the
+ *	DIBuilder itself.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+static inline void
+DeleteDIBuilder(
+    DIBuilder *ref)
+{
+    if (Builder_refmap.find(ref) != Builder_refmap.end()) {
+	Builder_map.erase(Builder_refmap[ref]);
+	Builder_refmap.erase(ref);
+    }
+    delete ref;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * CreateDebugBuilder, DisposeDebugBuilder --
+ *
+ *	Create and destroy a DebugInfoBuilder (DIBuilder).
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+CreateDebugBuilder(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "module");
+	return TCL_ERROR;
+    }
+
+    Module *module;
+    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+	return TCL_ERROR;
+
+    Tcl_SetObjResult(interp, SetDIBuilderAsObj(new DIBuilder(*module)));
+    return TCL_OK;
+}
+
+int
+DisposeDebugBuilder(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder");
+	return TCL_ERROR;
+    }
+
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
+	return TCL_ERROR;
+
+    builder->finalize();
+    DeleteDIBuilder(builder);
+    return TCL_OK;
 }
 
 /*
@@ -91,24 +211,23 @@ DefineCompileUnit(
 {
     if (objc != 6) {
         Tcl_WrongNumArgs(interp, 1, objv,
-		"Module file directory producer runtimeVersion");
+		"DIBuilder file directory producer runtimeVersion");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
     int runtimeVersion = 0;
     if (Tcl_GetIntFromObj(interp, objv[5], &runtimeVersion) != TCL_OK)
 	return TCL_ERROR;
-    unsigned lang = llvm::dwarf::DW_LANG_lo_user;//No standard value for Tcl!
+    unsigned lang = dwarf::DW_LANG_lo_user;//No standard value for Tcl!
     std::string file = Tcl_GetString(objv[2]);
     std::string dir = Tcl_GetString(objv[3]);
     std::string producer = Tcl_GetString(objv[4]);
     std::string flags = "";
 
-    llvm::DIBuilder builder(*module);
-    auto val = builder.createCompileUnit(lang, file, dir, producer, true,
+    auto val = builder->createCompileUnit(lang, file, dir, producer, true,
 	flags, (unsigned) runtimeVersion);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "CompileUnit"));
@@ -133,18 +252,17 @@ DefineFile(
     Tcl_Obj *const objv[])
 {
     if (objc != 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, "Module file directory");
+        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder file directory");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
     std::string file = Tcl_GetString(objv[2]);
     std::string dir = Tcl_GetString(objv[3]);
 
-    auto val = builder.createFile(file, dir);
+    auto val = builder->createFile(file, dir);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "File"));
     return TCL_OK;
@@ -168,26 +286,25 @@ DefineNamespace(
     Tcl_Obj *const objv[])
 {
     if (objc != 6) {
-        Tcl_WrongNumArgs(interp, 1, objv, "Module scope name file line");
+        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder scope name file line");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
-    llvm::DIScope *scope;
+    DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
     std::string name = Tcl_GetString(objv[3]);
-    llvm::DIFile *file;
+    DIFile *file;
     if (GetMetadataFromObj(interp, objv[4], "file", file) != TCL_OK)
 	return TCL_ERROR;
     int line;
     if (Tcl_GetIntFromObj(interp, objv[5], &line) != TCL_OK)
 	return TCL_ERROR;
 
-    auto val = builder.createNameSpace(scope, name, file, line);
+    auto val = builder->createNameSpace(scope, name, file, line);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Namespace"));
     return TCL_OK;
@@ -211,17 +328,16 @@ DefineUnspecifiedType(
     Tcl_Obj *const objv[])
 {
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "Module name");
+        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder name");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
     std::string name = Tcl_GetString(objv[2]);
 
-    auto val = builder.createUnspecifiedType(name);
+    auto val = builder->createUnspecifiedType(name);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "VoidType"));
     return TCL_OK;
@@ -248,14 +364,13 @@ DefineBasicType(
 {
     if (objc != 5) {
         Tcl_WrongNumArgs(interp, 1, objv,
-		"Module name sizeInBits dwarfTypeCode");
+		"DIBuilder name sizeInBits dwarfTypeCode");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
     std::string name = Tcl_GetString(objv[2]);
     int size, align = 0, dwarfTypeCode;
     if (Tcl_GetIntFromObj(interp, objv[3], &size) != TCL_OK)
@@ -263,7 +378,7 @@ DefineBasicType(
     if (Tcl_GetIntFromObj(interp, objv[4], &dwarfTypeCode) != TCL_OK)
 	return TCL_ERROR;
 
-    auto val = builder.createBasicType(name,
+    auto val = builder->createBasicType(name,
 	    (uint64_t) size, (uint64_t) align, (unsigned) dwarfTypeCode);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "BasicType"));
@@ -288,20 +403,19 @@ DefinePointerType(
     Tcl_Obj *const objv[])
 {
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "Module pointee");
+        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder pointee");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
-    llvm::DIType *pointee;
+    DIType *pointee;
     if (GetMetadataFromObj(interp, objv[2], "type", pointee) != TCL_OK)
 	return TCL_ERROR;
     size_t size = sizeof(pointee) * 8;
 
-    auto val = builder.createPointerType(pointee, size);
+    auto val = builder->createPointerType(pointee, size);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "PointerType"));
     return TCL_OK;
@@ -326,19 +440,18 @@ DefineStructType(
 {
     if (objc < 7) {
         Tcl_WrongNumArgs(interp, 1, objv,
-		"Module scope name file line size element...");
+		"DIBuilder scope name file line size element...");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
-    llvm::DIScope *scope;
+    DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
     std::string name = Tcl_GetString(objv[3]);
-    llvm::DIFile *file;
+    DIFile *file;
     if (GetMetadataFromObj(interp, objv[4], "file", file) != TCL_OK)
 	return TCL_ERROR;
     unsigned flags = 0, align = 0;
@@ -347,17 +460,17 @@ DefineStructType(
 	return TCL_ERROR;
     if (Tcl_GetIntFromObj(interp, objv[6], &size) != TCL_OK)
 	return TCL_ERROR;
-    std::vector<llvm::Metadata *> elements;
+    std::vector<Metadata *> elements;
     for (int i=7 ; i<objc ; i++) {
-	llvm::DIType *type;
+	DIType *type;
 	if (GetMetadataFromObj(interp, objv[i], "type", type) != TCL_OK)
 	    return TCL_ERROR;
 	elements.push_back(type);
     }
 
-    auto val = builder.createStructType(scope, name, file, (unsigned) line,
+    auto val = builder->createStructType(scope, name, file, (unsigned) line,
 	    (uint64_t) size, align, flags, nullptr,
-	    builder.getOrCreateArray(elements));
+	    builder->getOrCreateArray(elements));
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "StructType"));
     return TCL_OK;
@@ -382,29 +495,74 @@ DefineFunctionType(
 {
     if (objc < 4) {
         Tcl_WrongNumArgs(interp, 1, objv,
-		"Module file returnType argumentType...");
+		"DIBuilder file returnType argumentType...");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
-    llvm::DIFile *file;
+    DIFile *file;
     if (GetMetadataFromObj(interp, objv[2], "file", file) != TCL_OK)
 	return TCL_ERROR;
-    std::vector<llvm::Metadata *> elements;
+    std::vector<Metadata *> elements;
     for (int i=3 ; i<objc ; i++) {
-	llvm::DIType *type;
+	DIType *type;
 	if (GetMetadataFromObj(interp, objv[i], "type", type) != TCL_OK)
 	    return TCL_ERROR;
 	elements.push_back(type);
     }
 
-    auto val = builder.createSubroutineType(file,
-	    builder.getOrCreateTypeArray(elements));
+    auto val = builder->createSubroutineType(file,
+	    builder->getOrCreateTypeArray(elements));
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "FunctionType"));
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * DefineAliasType --
+ *
+ *	Defines a type alias (e.g., C typedef).
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+DefineAliasType(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 7) {
+        Tcl_WrongNumArgs(interp, 1, objv,
+		"DIBuilder type name file line contextScope");
+        return TCL_ERROR;
+    }
+
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
+	return TCL_ERROR;
+    DIType *type;
+    if (GetMetadataFromObj(interp, objv[2], "type", type) != TCL_OK)
+	return TCL_ERROR;
+    std::string name = Tcl_GetString(objv[3]);
+    DIFile *file;
+    if (GetMetadataFromObj(interp, objv[4], "file", file) != TCL_OK)
+	return TCL_ERROR;
+    int line;
+    if (Tcl_GetIntFromObj(interp, objv[5], &line) != TCL_OK)
+	return TCL_ERROR;
+    DIScope *context;
+    if (GetMetadataFromObj(interp, objv[6], "context", context) != TCL_OK)
+	return TCL_ERROR;
+
+    auto val = builder->createTypedef(type, name, file, line, context);
+
+    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "AliasType"));
     return TCL_OK;
 }
 
@@ -427,38 +585,47 @@ DefineFunction(
 {
     if (objc != 8) {
         Tcl_WrongNumArgs(interp, 1, objv,
-		"Module scope name linkName file line subroutineType");
+		"DIBuilder scope name linkName file line subroutineType");
         return TCL_ERROR;
     }
 
-    llvm::Module *module;
-    if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DIBuilder builder(*module);
-    llvm::DIScope *scope;
+    DIScope *scope;
     if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
 	return TCL_ERROR;
     std::string name = Tcl_GetString(objv[3]);
     std::string linkName = Tcl_GetString(objv[4]);
-    llvm::DIFile *file;
+    DIFile *file;
     if (GetMetadataFromObj(interp, objv[5], "file", file) != TCL_OK)
 	return TCL_ERROR;
     int line;
     if (Tcl_GetIntFromObj(interp, objv[6], &line) != TCL_OK)
 	return TCL_ERROR;
-    llvm::DISubroutineType *type;
+    DISubroutineType *type;
     if (GetMetadataFromObj(interp, objv[7], "subroutine type", type) != TCL_OK)
 	return TCL_ERROR;
     unsigned flags = 0;
     bool isOpt = true, isLocal = true, isDef = true;
 
-    auto val = builder.createFunction(scope, name, linkName, file, line,
+    auto val = builder->createFunction(scope, name, linkName, file, line,
 	    type, isLocal, isDef, line, flags, isOpt);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Function"));
     return TCL_OK;
 }
 
+/*
+ * ----------------------------------------------------------------------
+ *
+ * AttachToFunction --
+ *
+ *	Attaches a function definition to a function implementation.
+ *
+ * ----------------------------------------------------------------------
+ */
+
 int
 AttachToFunction(
     ClientData clientData,
@@ -471,19 +638,15 @@ AttachToFunction(
         return TCL_ERROR;
     }
 
-    llvm::Value *value;
-    if (GetValueFromObj(interp, objv[1], value) != TCL_OK)
+    Function *value;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only attach debug metadata to functions", value) != TCL_OK)
         return TCL_ERROR;
-    if (!llvm::isa<llvm::Function>(value)) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"can only attach debug metadata to functions", -1));
-	return TCL_ERROR;
-    }
-    llvm::DISubprogram *metadata;
+    DISubprogram *metadata;
     if (GetMetadataFromObj(interp, objv[2], "function", metadata) != TCL_OK)
 	return TCL_ERROR;
 
-    llvm::cast<llvm::Function>(value)->setMetadata("dbg", metadata);
+    value->setMetadata("dbg", metadata);
 
     return TCL_OK;
 }

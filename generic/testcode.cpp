@@ -2,9 +2,7 @@
 #include "tclTomMath.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-
-extern int GetEngineFromObj(Tcl_Interp *interp, Tcl_Obj *obj, llvm::ExecutionEngine *&engine);
-extern int GetModuleFromObj(Tcl_Interp *interp, Tcl_Obj *obj, llvm::Module *&module);
+#include "llvmtcl.h"
 
 using namespace llvm;
 

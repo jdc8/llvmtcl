@@ -32,20 +32,8 @@
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
 #include "llvm-c/Transforms/Vectorize.h"
+#include "llvmtcl.h"
 
-#define DECL_CMD(cName) \
-    extern int cName(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-DECL_CMD(DefineCompileUnit);
-DECL_CMD(DefineFile);
-DECL_CMD(DefineNamespace);
-DECL_CMD(DefineUnspecifiedType);
-DECL_CMD(DefineBasicType);
-DECL_CMD(DefinePointerType);
-DECL_CMD(DefineStructType);
-DECL_CMD(DefineFunctionType);
-DECL_CMD(DefineFunction);
-DECL_CMD(AttachToFunction);
-DECL_CMD(LLVMAddLLVMTclCommandsObjCmd);
 
 TCL_DECLARE_MUTEX(idLock)
 std::string GetRefName(std::string prefix)
@@ -140,7 +128,7 @@ GetModuleFromObj(
 }
 
 template<typename T>
-static int
+int
 GetTypeFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -160,7 +148,7 @@ GetTypeFromObj(
 }
 
 template<typename T>
-static int
+int
 GetValueFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -179,7 +167,7 @@ GetValueFromObj(
     return TCL_OK;
 }
 
-MODULE_SCOPE int
+int
 GetTypeFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -188,7 +176,7 @@ GetTypeFromObj(
     return GetTypeFromObj(interp, obj, "expected type but got type", type);
 }
 
-MODULE_SCOPE int
+int
 GetValueFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -197,7 +185,7 @@ GetValueFromObj(
     return GetValueFromObj(interp, obj, "expected value but got value", value);
 }
 
-MODULE_SCOPE int
+int
 GetEngineFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -641,29 +629,29 @@ LLVMGetIntrinsicDefinitionObjCmd(
     }
 
     llvm::Module *mod;
+    llvm::Intrinsic::ID id;
+    std::vector<llvm::Type *> arg_types;
+
     if (GetModuleFromObj(interp, objv[1], mod) != TCL_OK)
         return TCL_ERROR;
-
-    llvm::Intrinsic::ID id;
     if (GetLLVMIntrinsicIDFromObj(interp, objv[2], id) != TCL_OK)
         return TCL_ERROR;
-
-    std::vector<llvm::Type *> arg_types;
     for (int i=3 ; i<objc ; i++) {
-	LLVMTypeRef ty = 0;
-	if (GetLLVMTypeRefFromObj(interp, objv[i], ty) != TCL_OK)
+	llvm::Type *ty;
+
+	if (GetTypeFromObj(interp, objv[i], ty) != TCL_OK)
 	    return TCL_ERROR;
-	arg_types.push_back(llvm::unwrap(ty));
+	arg_types.push_back(ty);
     }
 
-    LLVMValueRef intrinsic = llvm::wrap(llvm::Intrinsic::getDeclaration(
-	    mod, id, arg_types));
+    auto intrinsic = llvm::Intrinsic::getDeclaration(mod, id, arg_types);
 
     if (intrinsic == NULL) {
 	SetStringResult(interp, "no such intrinsic");
 	return TCL_ERROR;
     }
-    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, intrinsic));
+    Tcl_SetObjResult(interp,
+	    SetLLVMValueRefAsObj(interp, llvm::wrap(intrinsic)));
     return TCL_OK;
 }
 
@@ -720,10 +708,9 @@ NamedStructTypeObjCmd(
     if (Tcl_GetIntFromObj(interp, objv[3], &packed) != TCL_OK)
         return TCL_ERROR;
 
-    LLVMTypeRef rt = llvm::wrap(
-	    llvm::StructType::create(elements, name, packed));
+    auto rt = llvm::StructType::create(elements, name, packed);
 
-    Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, rt));
+    Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, llvm::wrap(rt)));
     return TCL_OK;
 }
 
@@ -806,27 +793,29 @@ CreateModuleFromBitcodeCmd(
     int objc,
     Tcl_Obj *const objv[])
 {
+    char *msg = NULL;
+    LLVMMemoryBufferRef buffer = NULL;
+    LLVMModuleRef module = NULL;
+
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "Filename");
 	return TCL_ERROR;
     }
 
-    char *msg;
-    LLVMMemoryBufferRef buffer;
     if (LLVMCreateMemoryBufferWithContentsOfFile(Tcl_GetString(objv[1]),
 	    &buffer, &msg))
 	goto error;
-    LLVMModuleRef module;
     if (LLVMParseBitcode(buffer, &module, &msg)) {
 	LLVMDisposeMemoryBuffer(buffer);
 	goto error;
     }
     LLVMDisposeMemoryBuffer(buffer);
+
     Tcl_SetObjResult(interp, SetLLVMModuleRefAsObj(NULL, module));
     return TCL_OK;
 
   error:
-    Tcl_SetResult(interp, msg, TCL_VOLATILE);
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(msg, -1));
     free(msg);
     return TCL_ERROR;
 }
@@ -872,10 +861,13 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetHostTriple", GetHostTripleObjCmd);
     LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
     // Debugging info support
+    LLVMObjCmd("llvmtcl::DebugInfo::CreateBuilder", CreateDebugBuilder);
+    LLVMObjCmd("llvmtcl::DebugInfo::DisposeBuilder", DisposeDebugBuilder);
     LLVMObjCmd("llvmtcl::DebugInfo::CompileUnit", DefineCompileUnit);
     LLVMObjCmd("llvmtcl::DebugInfo::File", DefineFile);
     LLVMObjCmd("llvmtcl::DebugInfo::Namespace", DefineNamespace);
     LLVMObjCmd("llvmtcl::DebugInfo::UnspecifiedType", DefineUnspecifiedType);
+    LLVMObjCmd("llvmtcl::DebugInfo::AliasType", DefineAliasType);
     LLVMObjCmd("llvmtcl::DebugInfo::BasicType", DefineBasicType);
     LLVMObjCmd("llvmtcl::DebugInfo::PointerType", DefinePointerType);
     LLVMObjCmd("llvmtcl::DebugInfo::StructType", DefineStructType);

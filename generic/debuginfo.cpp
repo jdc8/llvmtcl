@@ -35,15 +35,14 @@ GetMetadataFromObj(
     if (Metadata_map.find(refName) == Metadata_map.end()) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf("expected %s but got '%s'",
 		typeName, refName.c_str()));
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
     MDNode *mdn = Metadata_map[refName];
-    if (!isa<T>(mdn)) {
+    if (!(ref = dyn_cast<T>(mdn))) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"unexpected metadata type; was looking for %s", typeName));
 	return TCL_ERROR;
     }
-    ref = cast<T>(mdn);
     return TCL_OK;
 }
 
@@ -59,13 +58,13 @@ GetMetadataFromObj(
 
 static Tcl_Obj *
 SetMetadataAsObj(
-    DIScope *ref,
+    MDNode *ref,
     const char *typeName)
 {
     if (Metadata_refmap.find(ref) == Metadata_refmap.end()) {
-        std::string nm = GetRefName(typeName);
-        Metadata_map[nm] = ref;
-        Metadata_refmap[ref] = nm;
+	std::string nm = GetRefName(typeName);
+	Metadata_map[nm] = ref;
+	Metadata_refmap[ref] = nm;
     }
     return Tcl_NewStringObj(Metadata_refmap[ref].c_str(), -1);
 }
@@ -90,7 +89,7 @@ GetDIBuilderFromObj(
     if (Builder_map.find(refName) == Builder_map.end()) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"expected DIBuilder but got '%s'", refName.c_str()));
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
     ref = Builder_map[refName];
     return TCL_OK;
@@ -111,9 +110,9 @@ SetDIBuilderAsObj(
     DIBuilder *ref)
 {
     if (Builder_refmap.find(ref) == Builder_refmap.end()) {
-        std::string nm = GetRefName("DebugInfoBuilder");
-        Builder_map[nm] = ref;
-        Builder_refmap[ref] = nm;
+	std::string nm = GetRefName("DebugInfoBuilder");
+	Builder_map[nm] = ref;
+	Builder_refmap[ref] = nm;
     }
     return Tcl_NewStringObj(Builder_refmap[ref].c_str(), -1);
 }
@@ -158,7 +157,7 @@ CreateDebugBuilder(
     Tcl_Obj *const objv[])
 {
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "module");
+	Tcl_WrongNumArgs(interp, 1, objv, "module");
 	return TCL_ERROR;
     }
 
@@ -178,7 +177,7 @@ DisposeDebugBuilder(
     Tcl_Obj *const objv[])
 {
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder");
+	Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder");
 	return TCL_ERROR;
     }
 
@@ -209,26 +208,24 @@ DefineCompileUnit(
     int objc,
     Tcl_Obj *const objv[])
 {
-    if (objc != 6) {
-        Tcl_WrongNumArgs(interp, 1, objv,
-		"DIBuilder file directory producer runtimeVersion");
-        return TCL_ERROR;
+    if (objc != 5) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+		"DIBuilder file directory producer");
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
     if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
-	return TCL_ERROR;
-    int runtimeVersion = 0;
-    if (Tcl_GetIntFromObj(interp, objv[5], &runtimeVersion) != TCL_OK)
 	return TCL_ERROR;
     unsigned lang = dwarf::DW_LANG_lo_user;//No standard value for Tcl!
     std::string file = Tcl_GetString(objv[2]);
     std::string dir = Tcl_GetString(objv[3]);
     std::string producer = Tcl_GetString(objv[4]);
     std::string flags = "";
+    unsigned runtimeVersion = 0;
 
     auto val = builder->createCompileUnit(lang, file, dir, producer, true,
-	flags, (unsigned) runtimeVersion);
+	    flags, runtimeVersion);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "CompileUnit"));
     return TCL_OK;
@@ -252,8 +249,8 @@ DefineFile(
     Tcl_Obj *const objv[])
 {
     if (objc != 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder file directory");
-        return TCL_ERROR;
+	Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder file directory");
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -286,8 +283,8 @@ DefineNamespace(
     Tcl_Obj *const objv[])
 {
     if (objc != 6) {
-        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder scope name file line");
-        return TCL_ERROR;
+	Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder scope name file line");
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -328,8 +325,8 @@ DefineUnspecifiedType(
     Tcl_Obj *const objv[])
 {
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder name");
-        return TCL_ERROR;
+	Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder name");
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -363,9 +360,9 @@ DefineBasicType(
     Tcl_Obj *const objv[])
 {
     if (objc != 5) {
-        Tcl_WrongNumArgs(interp, 1, objv,
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"DIBuilder name sizeInBits dwarfTypeCode");
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -403,8 +400,8 @@ DefinePointerType(
     Tcl_Obj *const objv[])
 {
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder pointee");
-        return TCL_ERROR;
+	Tcl_WrongNumArgs(interp, 1, objv, "DIBuilder pointee");
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -439,9 +436,9 @@ DefineStructType(
     Tcl_Obj *const objv[])
 {
     if (objc < 7) {
-        Tcl_WrongNumArgs(interp, 1, objv,
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"DIBuilder scope name file line size element...");
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -494,9 +491,9 @@ DefineFunctionType(
     Tcl_Obj *const objv[])
 {
     if (objc < 4) {
-        Tcl_WrongNumArgs(interp, 1, objv,
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"DIBuilder file returnType argumentType...");
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -538,9 +535,9 @@ DefineAliasType(
     Tcl_Obj *const objv[])
 {
     if (objc != 7) {
-        Tcl_WrongNumArgs(interp, 1, objv,
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"DIBuilder type name file line contextScope");
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -569,6 +566,67 @@ DefineAliasType(
 /*
  * ----------------------------------------------------------------------
  *
+ * DefineParameter --
+ *
+ *	Defines the arguments as parameter variables.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+DefineParameter(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 8) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+		"DIBuilder scope name argIndex file line type");
+	return TCL_ERROR;
+    }
+
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
+	return TCL_ERROR;
+    DIScope *scope;
+    if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
+	return TCL_ERROR;
+    std::string name = Tcl_GetString(objv[3]);
+    int argIndex, line;
+    if (Tcl_GetIntFromObj(interp, objv[4], &argIndex) != TCL_OK)
+	return TCL_ERROR;
+    if (argIndex < 1) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		"argument indices must be at least 1", -1));
+	return TCL_ERROR;
+    }
+    DIFile *file;
+    if (GetMetadataFromObj(interp, objv[5], "file", file) != TCL_OK)
+	return TCL_ERROR;
+    if (Tcl_GetIntFromObj(interp, objv[6], &line) != TCL_OK)
+	return TCL_ERROR;
+    DIType *type;
+    if (GetMetadataFromObj(interp, objv[7], "type", type) != TCL_OK)
+	return TCL_ERROR;
+
+#if (LLVM_VERSION_MAJOR >=3 && LLVM_VERSION_MINOR > 7)
+    auto val = builder->createParameterVariable(scope, name,
+	    (unsigned) argIndex, file, (unsigned) line, type);
+#else
+    // This API was deprecated (and made private) after 3.7
+    auto val = builder->createLocalVariable(
+	    llvm::dwarf::DW_TAG_arg_variable, scope, name, file,
+	    (unsigned) line, type, false, 0, (unsigned) argIndex);
+#endif
+
+    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Variable"));
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
  * DefineFunction --
  *
  *	Defines a function definition.
@@ -584,9 +642,9 @@ DefineFunction(
     Tcl_Obj *const objv[])
 {
     if (objc != 8) {
-        Tcl_WrongNumArgs(interp, 1, objv,
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"DIBuilder scope name linkName file line subroutineType");
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     DIBuilder *builder;
@@ -619,6 +677,42 @@ DefineFunction(
 /*
  * ----------------------------------------------------------------------
  *
+ * ClearFunctionVariables --
+ *
+ *	Removes the temporary metadata associated with a function's variables.
+ *	This is critical because otherwise the validation of the module fails.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+ClearFunctionVariables(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "function");
+	return TCL_ERROR;
+    }
+
+    DISubprogram *function;
+    if (GetMetadataFromObj(interp, objv[1], "function", function) != TCL_OK)
+	return TCL_ERROR;
+
+    auto vars = function->getVariables();
+    if (vars->isTemporary()) {
+	ArrayRef<Metadata *> MDs;
+	auto replacement = MDNode::get(vars->getContext(), MDs);
+	vars->replaceAllUsesWith(replacement);
+    }
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
  * AttachToFunction --
  *
  *	Attaches a function definition to a function implementation.
@@ -634,14 +728,14 @@ AttachToFunction(
     Tcl_Obj *const objv[])
 {
     if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "functionHandle functionMetadata");
-        return TCL_ERROR;
+	Tcl_WrongNumArgs(interp, 1, objv, "functionHandle functionMetadata");
+	return TCL_ERROR;
     }
 
     Function *value;
     if (GetValueFromObj(interp, objv[1],
 	    "can only attach debug metadata to functions", value) != TCL_OK)
-        return TCL_ERROR;
+	return TCL_ERROR;
     DISubprogram *metadata;
     if (GetMetadataFromObj(interp, objv[2], "function", metadata) != TCL_OK)
 	return TCL_ERROR;

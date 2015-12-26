@@ -138,12 +138,10 @@ GetTypeFromObj(
     LLVMTypeRef typeref;
     if (GetLLVMTypeRefFromObj(interp, obj, typeref) != TCL_OK)
 	return TCL_ERROR;
-    auto t = llvm::unwrap(typeref);
-    if (!llvm::isa<T>(t)) {
+    if (!(type = llvm::dyn_cast<T>(llvm::unwrap(typeref)))) {
 	SetStringResult(interp, msg);
 	return TCL_ERROR;
     }
-    type = llvm::cast<T>(t);
     return TCL_OK;
 }
 
@@ -158,12 +156,10 @@ GetValueFromObj(
     LLVMValueRef valref;
     if (GetLLVMValueRefFromObj(interp, obj, valref) != TCL_OK)
 	return TCL_ERROR;
-    auto v = llvm::unwrap(valref);
-    if (!llvm::isa<T>(v)) {
+    if (!(value = llvm::dyn_cast<T>(llvm::unwrap(valref)))) {
 	SetStringResult(interp, msg);
 	return TCL_ERROR;
     }
-    value = llvm::cast<T>(v);
     return TCL_OK;
 }
 
@@ -596,15 +592,11 @@ LLVMCallInitialisePackageFunction(
     llvm::ExecutionEngine *engine;
     if (GetEngineFromObj(interp, objv[1], engine) != TCL_OK)
 	return TCL_ERROR;
-    llvm::Value *func;
-    if (GetValueFromObj(interp, objv[2], func) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[2],
+	    "can only initialise using a function", function) != TCL_OK)
 	return TCL_ERROR;
-    if (!llvm::isa<llvm::Function>(func)) {
-	SetStringResult(interp, "can only initialise using a function");
-	return TCL_ERROR;
-    }
 
-    auto function = llvm::cast<llvm::Function>(func);
     uint64_t address = engine->getFunctionAddress(function->getName());
 
     int (*initFunction)(Tcl_Interp*) = (int(*)(Tcl_Interp*)) address;
@@ -768,25 +760,6 @@ GetHostTripleObjCmd(
 }
 
 static int
-InitAllTargetsObjCmd(
-    ClientData clientData,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *const objv[])
-{
-    if (objc != 1) {
-	Tcl_WrongNumArgs(interp, 1, objv, "");
-	return TCL_ERROR;
-    }
-
-    LLVMInitializeAllTargets();
-    LLVMInitializeAllTargetMCs();
-    LLVMInitializeAllAsmPrinters();
-    LLVMInitializeAllAsmParsers();
-    return TCL_OK;
-}
-
-static int
 CreateModuleFromBitcodeCmd(
     ClientData clientData,
     Tcl_Interp *interp,
@@ -857,7 +830,6 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::NamedStructType", NamedStructTypeObjCmd);
     LLVMObjCmd("llvmtcl::CreateMCJITCompilerForModule",
 	    CreateMCJITCompilerForModuleObjCmd);
-    LLVMObjCmd("llvmtcl::InitializeAllTargets", InitAllTargetsObjCmd);
     LLVMObjCmd("llvmtcl::GetHostTriple", GetHostTripleObjCmd);
     LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
     // Debugging info support
@@ -872,8 +844,12 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::DebugInfo::PointerType", DefinePointerType);
     LLVMObjCmd("llvmtcl::DebugInfo::StructType", DefineStructType);
     LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
+    LLVMObjCmd("llvmtcl::DebugInfo::Parameter", DefineParameter);
     LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
+    LLVMObjCmd("llvmtcl::DebugInfo::ClearFunctionVariables", ClearFunctionVariables);
     LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
     return TCL_OK;
 }
 

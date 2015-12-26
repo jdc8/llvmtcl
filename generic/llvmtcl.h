@@ -37,6 +37,8 @@ DECL_CMD(DefinePointerType);
 DECL_CMD(DefineStructType);
 DECL_CMD(DefineFunctionType);
 DECL_CMD(DefineFunction);
+DECL_CMD(ClearFunctionVariables);
+DECL_CMD(DefineParameter);
 DECL_CMD(AttachToFunction);
 DECL_CMD(LLVMAddLLVMTclCommandsObjCmd);
 

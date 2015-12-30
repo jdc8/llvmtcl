@@ -846,7 +846,7 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
     LLVMObjCmd("llvmtcl::DebugInfo::Parameter", DefineParameter);
     LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
-    LLVMObjCmd("llvmtcl::DebugInfo::ClearFunctionVariables", ClearFunctionVariables);
+    LLVMObjCmd("llvmtcl::DebugInfo::Function.SetVariables", ReplaceFunctionVariables);
     LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();

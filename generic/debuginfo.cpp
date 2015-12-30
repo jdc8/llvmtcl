@@ -686,27 +686,37 @@ DefineFunction(
  */
 
 int
-ClearFunctionVariables(
+ReplaceFunctionVariables(
     ClientData clientData,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *const objv[])
 {
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "function");
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "function variable...");
 	return TCL_ERROR;
     }
 
     DISubprogram *function;
     if (GetMetadataFromObj(interp, objv[1], "function", function) != TCL_OK)
 	return TCL_ERROR;
+    std::vector<Metadata*> variables;
+    for (int i=2 ; i<objc ; i++) {
+	DILocalVariable *var;
+	if (GetMetadataFromObj(interp, objv[i], "variable", var) != TCL_OK)
+	    return TCL_ERROR;
+	variables.push_back(var);
+    }
 
     auto vars = function->getVariables();
-    if (vars->isTemporary()) {
-	ArrayRef<Metadata *> MDs;
-	auto replacement = MDNode::get(vars->getContext(), MDs);
-	vars->replaceAllUsesWith(replacement);
+    if (!vars->isTemporary()) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		"can only replace variable list when temporary", -1));
+	return TCL_ERROR;
     }
+
+    vars->replaceAllUsesWith(MDNode::get(vars->getContext(), variables));
+    function->resolveCycles();
     return TCL_OK;
 }
 

@@ -1,10 +1,15 @@
 #include "tcl.h"
 #include <string>
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 
+MODULE_SCOPE int	GetBasicBlockFromObj(Tcl_Interp *interp,
+			    Tcl_Obj *obj, llvm::BasicBlock *&block);
+MODULE_SCOPE int	GetBuilderFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+			    llvm::IRBuilder<> *&builder);
 MODULE_SCOPE int	GetEngineFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::ExecutionEngine *&engine);
 MODULE_SCOPE int	GetModuleFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
@@ -20,15 +25,18 @@ MODULE_SCOPE int	GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 template<typename T>
 MODULE_SCOPE int	GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    std::string msg, T *&value);
+MODULE_SCOPE Tcl_Obj *	NewValueObj(llvm::Value *value);
 
 #define DECL_CMD(cName) \
     MODULE_SCOPE int cName(ClientData clientData, Tcl_Interp *interp, \
 	    int objc, Tcl_Obj *const objv[]);
 
+DECL_CMD(BuildDbgValue);
 DECL_CMD(CreateDebugBuilder);
 DECL_CMD(DisposeDebugBuilder);
 DECL_CMD(DefineCompileUnit);
 DECL_CMD(DefineFile);
+DECL_CMD(DefineLocation);
 DECL_CMD(DefineNamespace);
 DECL_CMD(DefineUnspecifiedType);
 DECL_CMD(DefineAliasType);

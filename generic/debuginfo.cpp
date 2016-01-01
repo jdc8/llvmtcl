@@ -1,7 +1,6 @@
 #include "tcl.h"
 #include <map>
 #include "llvm/IR/DIBuilder.h"
-#include "llvm/IR/Module.h"
 #include "llvm-c/Core.h"
 #include "llvmtcl.h"
 
@@ -262,6 +261,43 @@ DefineFile(
     auto val = builder->createFile(file, dir);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "File"));
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * DefineLocation --
+ *
+ *	Defines a location.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+DefineLocation(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 4) {
+	Tcl_WrongNumArgs(interp, 1, objv, "scope line column");
+	return TCL_ERROR;
+    }
+
+    DILocalScope *scope;
+    int line, column;
+    if (GetMetadataFromObj(interp, objv[1], "scope", scope) != TCL_OK)
+	return TCL_ERROR;
+    if (Tcl_GetIntFromObj(interp, objv[2], &line) != TCL_OK)
+	return TCL_ERROR;
+    if (Tcl_GetIntFromObj(interp, objv[3], &column) != TCL_OK)
+	return TCL_ERROR;
+
+    auto val = DILocation::get(scope->getContext(), (unsigned) line, (unsigned) column, scope);
+
+    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Location"));
     return TCL_OK;
 }
 
@@ -671,6 +707,54 @@ DefineFunction(
 	    type, isLocal, isDef, line, flags, isOpt);
 
     Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Function"));
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * BuildDbgValue --
+ *
+ *	Creates a call to llvm.dbc.value and adds it the given basic block.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+BuildDbgValue(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 6) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+		"dibuilder builder value location variableInfo");
+	return TCL_ERROR;
+    }
+
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
+	return TCL_ERROR;
+    IRBuilder<> *b;
+    if (GetBuilderFromObj(interp, objv[2], b) != TCL_OK)
+        return TCL_ERROR;
+    Value *val;
+    if (GetValueFromObj(interp, objv[3], val) != TCL_OK)
+	return TCL_ERROR;
+    DILocation *location;
+    if (GetMetadataFromObj(interp, objv[4], "location", location) != TCL_OK)
+	return TCL_ERROR;
+    DILocalVariable *varInfo;
+    if (GetMetadataFromObj(interp, objv[5], "variable", varInfo) != TCL_OK)
+	return TCL_ERROR;
+
+    auto expr = builder->createExpression(); // Dummy
+
+    auto inst = builder->insertDbgValueIntrinsic(val, 0, varInfo, expr,
+	    location, b->GetInsertBlock());
+
+    Tcl_SetObjResult(interp, NewValueObj(inst));
     return TCL_OK;
 }
 

@@ -13,8 +13,6 @@
 #endif
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/IR/DIBuilder.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -33,7 +31,6 @@
 #include "llvm-c/Transforms/Scalar.h"
 #include "llvm-c/Transforms/Vectorize.h"
 #include "llvmtcl.h"
-
 
 TCL_DECLARE_MUTEX(idLock)
 std::string GetRefName(std::string prefix)
@@ -127,6 +124,32 @@ GetModuleFromObj(
     return TCL_OK;
 }
 
+MODULE_SCOPE int
+GetBasicBlockFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::BasicBlock *&block)
+{
+    LLVMBasicBlockRef blkref;
+    if (GetLLVMBasicBlockRefFromObj(interp, obj, blkref) != TCL_OK)
+	return TCL_ERROR;
+    block = llvm::unwrap(blkref);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetBuilderFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::IRBuilder<> *&builder)
+{
+    LLVMBuilderRef bref;
+    if (GetLLVMBuilderRefFromObj(interp, obj, bref) != TCL_OK)
+	return TCL_ERROR;
+    builder = llvm::unwrap(bref);
+    return TCL_OK;
+}
+
 template<typename T>
 int
 GetTypeFromObj(
@@ -161,6 +184,14 @@ GetValueFromObj(
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+Tcl_Obj *
+NewValueObj(
+    llvm::Value *value)
+{
+    auto ref = llvm::wrap(value);
+    return SetLLVMValueRefAsObj(NULL, ref);
 }
 
 int
@@ -729,6 +760,18 @@ CreateMCJITCompilerForModuleObjCmd(
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel = (unsigned) level;
 
+    // Map stdin, stdout, and stderr explicitly; they're usually macros in C
+    // and that makes them normall unavailable from the LLVM level without
+    // using platform-specific hacks.
+    auto m = llvm::unwrap(mod);
+    auto ptr_type = llvm::Type::getInt8PtrTy(m->getContext());
+    auto std_in = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stdin", ptr_type));
+    auto std_out = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stdout", ptr_type));
+    auto std_err = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stderr", ptr_type));
+
     LLVMExecutionEngineRef eeRef = 0; // output argument (engine)
     char *error = 0; // output argument (error message)
     LLVMBool failed = LLVMCreateMCJITCompilerForModule(&eeRef, mod,
@@ -738,6 +781,11 @@ CreateMCJITCompilerForModuleObjCmd(
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(error, -1));
 	return TCL_ERROR;
     }
+
+    auto engine = llvm::unwrap(eeRef);
+    engine->addGlobalMapping(std_in, stdin);
+    engine->addGlobalMapping(std_out, stdout);
+    engine->addGlobalMapping(std_err, stderr);
 
     Tcl_SetObjResult(interp, SetLLVMExecutionEngineRefAsObj(interp, eeRef));
     return TCL_OK;
@@ -799,18 +847,15 @@ CreateModuleFromBitcodeCmd(
 extern "C" {
 DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 {
-    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL) {
+    if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
+    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK)
 	return TCL_ERROR;
-    }
+
 #include "llvmtcl-gen-cmddef.c"
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclInterp", LLVMCreateGenericValueOfTclInterpObjCmd);
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclObj", LLVMCreateGenericValueOfTclObjObjCmd);
@@ -833,11 +878,13 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::GetHostTriple", GetHostTripleObjCmd);
     LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
     // Debugging info support
+    LLVMObjCmd("llvmtcl::DebugInfo::BuildDbgValue", BuildDbgValue);
     LLVMObjCmd("llvmtcl::DebugInfo::CreateBuilder", CreateDebugBuilder);
     LLVMObjCmd("llvmtcl::DebugInfo::DisposeBuilder", DisposeDebugBuilder);
     LLVMObjCmd("llvmtcl::DebugInfo::CompileUnit", DefineCompileUnit);
     LLVMObjCmd("llvmtcl::DebugInfo::File", DefineFile);
     LLVMObjCmd("llvmtcl::DebugInfo::Namespace", DefineNamespace);
+    LLVMObjCmd("llvmtcl::DebugInfo::Location", DefineLocation);
     LLVMObjCmd("llvmtcl::DebugInfo::UnspecifiedType", DefineUnspecifiedType);
     LLVMObjCmd("llvmtcl::DebugInfo::AliasType", DefineAliasType);
     LLVMObjCmd("llvmtcl::DebugInfo::BasicType", DefineBasicType);
@@ -851,37 +898,6 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     return TCL_OK;
-}
-
-/*
- * ----------------------------------------------------------------------
- *
- * Llvmtcl_StandardInput, Llvmtcl_StandardOutput, Llvmtcl_StandardError --
- *
- *	Helper functions to make it easier to get the standard stdio streams
- *	for debugging purposes. Since these "variables" are typically macros
- *	that are defined in platform-specific ways, we need these small
- *	functions to hide the details.
- *
- * Returns:
- *	Relevant stdio FILE* handle.
- *
- * Side effects:
- *	None.
- *
- * ----------------------------------------------------------------------
- */
-
-DLLEXPORT FILE * Llvmtcl_StandardInput() {
-    return stdin;
-}
-
-DLLEXPORT FILE * Llvmtcl_StandardOutput() {
-    return stdout;
-}
-
-DLLEXPORT FILE * Llvmtcl_StandardError() {
-    return stderr;
 }
 
 } /* extern "C" */

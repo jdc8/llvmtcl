@@ -866,17 +866,15 @@ SetInstructionLocation(
     Value *value;
     if (GetValueFromObj(interp, objv[1], value) != TCL_OK)
 	return TCL_ERROR;
-    auto instr = dyn_cast<Instruction>(value);
-    if (instr == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"can only set locations of instructions", -1));
-	return TCL_ERROR;
-    }
     DILocation *location;
     if (GetMetadataFromObj(interp, objv[2], "location", location) != TCL_OK)
 	return TCL_ERROR;
 
-    instr->setDebugLoc(location);
+    // Note that the value might be a constant; can't attach metadata to those
+    // and can't prevent them from sometimes turning up, so just roll with
+    // those punches.
+    if (auto instr = dyn_cast<Instruction>(value))
+	instr->setDebugLoc(location);
 
     return TCL_OK;
 }

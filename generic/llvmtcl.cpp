@@ -212,6 +212,13 @@ GetValueFromObj(
     return GetValueFromObj(interp, obj, "expected value but got value", value);
 }
 
+Tcl_Obj *
+NewTypeObj(
+    llvm::Type *value)
+{
+    return SetLLVMTypeRefAsObj(NULL, llvm::wrap(value));
+}
+
 int
 GetEngineFromObj(
     Tcl_Interp *interp,
@@ -893,7 +900,10 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
     LLVMObjCmd("llvmtcl::DebugInfo::Parameter", DefineParameter);
     LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
-    LLVMObjCmd("llvmtcl::DebugInfo::Function.SetVariables", ReplaceFunctionVariables);
+    LLVMObjCmd("llvmtcl::DebugInfo::Function.SetVariables",
+	    ReplaceFunctionVariables);
+    LLVMObjCmd("llvmtcl::DebugInfo::Instruction.SetLocation",
+	    SetInstructionLocation);
     LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();

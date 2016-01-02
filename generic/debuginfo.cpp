@@ -22,7 +22,7 @@ static std::map<DIBuilder*, std::string> Builder_refmap;
  */
 
 template<typename T>
-static int
+int
 GetMetadataFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
@@ -31,13 +31,13 @@ GetMetadataFromObj(
 {
     ref = 0;
     std::string refName = Tcl_GetStringFromObj(obj, 0);
-    if (Metadata_map.find(refName) == Metadata_map.end()) {
+    auto it = Metadata_map.find(refName);
+    if (it == Metadata_map.end()) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf("expected %s but got '%s'",
 		typeName, refName.c_str()));
 	return TCL_ERROR;
     }
-    MDNode *mdn = Metadata_map[refName];
-    if (!(ref = dyn_cast<T>(mdn))) {
+    if (!(ref = dyn_cast<T>(it->second))) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"unexpected metadata type; was looking for %s", typeName));
 	return TCL_ERROR;
@@ -48,7 +48,7 @@ GetMetadataFromObj(
 /*
  * ----------------------------------------------------------------------
  *
- * SetMetadataAsObj --
+ * NewMetadataObj --
  *
  *	Gets the Tcl_Obj that describes a particular DIScope handle.
  *
@@ -56,7 +56,7 @@ GetMetadataFromObj(
  */
 
 static Tcl_Obj *
-SetMetadataAsObj(
+NewMetadataObj(
     MDNode *ref,
     const char *typeName)
 {
@@ -78,26 +78,27 @@ SetMetadataAsObj(
  * ----------------------------------------------------------------------
  */
 
-static int
+int
 GetDIBuilderFromObj(
     Tcl_Interp *interp,
     Tcl_Obj *obj,
     DIBuilder *&ref)
 {
     std::string refName = Tcl_GetStringFromObj(obj, 0);
-    if (Builder_map.find(refName) == Builder_map.end()) {
+    auto it = Builder_map.find(refName);
+    if (it == Builder_map.end()) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"expected DIBuilder but got '%s'", refName.c_str()));
 	return TCL_ERROR;
     }
-    ref = Builder_map[refName];
+    ref = it->second;
     return TCL_OK;
 }
 
 /*
  * ----------------------------------------------------------------------
  *
- * SetDIBuilderAsObj --
+ * NewDIBuilderObj --
  *
  *	Gets the Tcl_Obj that describes a particular DIBuilder handle.
  *
@@ -105,7 +106,7 @@ GetDIBuilderFromObj(
  */
 
 static Tcl_Obj *
-SetDIBuilderAsObj(
+NewDIBuilderObj(
     DIBuilder *ref)
 {
     if (Builder_refmap.find(ref) == Builder_refmap.end()) {
@@ -164,7 +165,7 @@ CreateDebugBuilder(
     if (GetModuleFromObj(interp, objv[1], module) != TCL_OK)
 	return TCL_ERROR;
 
-    Tcl_SetObjResult(interp, SetDIBuilderAsObj(new DIBuilder(*module)));
+    Tcl_SetObjResult(interp, NewDIBuilderObj(new DIBuilder(*module)));
     return TCL_OK;
 }
 
@@ -226,7 +227,7 @@ DefineCompileUnit(
     auto val = builder->createCompileUnit(lang, file, dir, producer, true,
 	    flags, runtimeVersion);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "CompileUnit"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "CompileUnit"));
     return TCL_OK;
 }
 
@@ -260,7 +261,7 @@ DefineFile(
 
     auto val = builder->createFile(file, dir);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "File"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "File"));
     return TCL_OK;
 }
 
@@ -295,9 +296,10 @@ DefineLocation(
     if (Tcl_GetIntFromObj(interp, objv[3], &column) != TCL_OK)
 	return TCL_ERROR;
 
-    auto val = DILocation::get(scope->getContext(), (unsigned) line, (unsigned) column, scope);
+    auto val = DILocation::get(scope->getContext(),
+	    (unsigned) line, (unsigned) column, scope);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Location"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "Location"));
     return TCL_OK;
 }
 
@@ -339,7 +341,7 @@ DefineNamespace(
 
     auto val = builder->createNameSpace(scope, name, file, line);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Namespace"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "Namespace"));
     return TCL_OK;
 }
 
@@ -372,7 +374,7 @@ DefineUnspecifiedType(
 
     auto val = builder->createUnspecifiedType(name);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "VoidType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "VoidType"));
     return TCL_OK;
 }
 
@@ -414,7 +416,7 @@ DefineBasicType(
     auto val = builder->createBasicType(name,
 	    (uint64_t) size, (uint64_t) align, (unsigned) dwarfTypeCode);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "BasicType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "BasicType"));
     return TCL_OK;
 }
 
@@ -450,7 +452,7 @@ DefinePointerType(
 
     auto val = builder->createPointerType(pointee, size);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "PointerType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "PointerType"));
     return TCL_OK;
 }
 
@@ -505,7 +507,7 @@ DefineStructType(
 	    (uint64_t) size, align, flags, nullptr,
 	    builder->getOrCreateArray(elements));
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "StructType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "StructType"));
     return TCL_OK;
 }
 
@@ -549,7 +551,7 @@ DefineFunctionType(
     auto val = builder->createSubroutineType(file,
 	    builder->getOrCreateTypeArray(elements));
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "FunctionType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "FunctionType"));
     return TCL_OK;
 }
 
@@ -595,7 +597,7 @@ DefineAliasType(
 
     auto val = builder->createTypedef(type, name, file, line, context);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "AliasType"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "AliasType"));
     return TCL_OK;
 }
 
@@ -656,7 +658,7 @@ DefineParameter(
 	    (unsigned) line, type, false, 0, (unsigned) argIndex);
 #endif
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Variable"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "Variable"));
     return TCL_OK;
 }
 
@@ -706,7 +708,7 @@ DefineFunction(
     auto val = builder->createFunction(scope, name, linkName, file, line,
 	    type, isLocal, isDef, line, flags, isOpt);
 
-    Tcl_SetObjResult(interp, SetMetadataAsObj(val, "Function"));
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "Function"));
     return TCL_OK;
 }
 
@@ -835,6 +837,46 @@ AttachToFunction(
 	return TCL_ERROR;
 
     value->setMetadata("dbg", metadata);
+
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
+ * SetInstructionLocation --
+ *
+ *	Attaches location metadata to an instruction.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+SetInstructionLocation(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "instruction location");
+	return TCL_ERROR;
+    }
+
+    Value *value;
+    if (GetValueFromObj(interp, objv[1], value) != TCL_OK)
+	return TCL_ERROR;
+    auto instr = dyn_cast<Instruction>(value);
+    if (instr == NULL) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		"can only set locations of instructions", -1));
+	return TCL_ERROR;
+    }
+    DILocation *location;
+    if (GetMetadataFromObj(interp, objv[2], "location", location) != TCL_OK)
+	return TCL_ERROR;
+
+    instr->setDebugLoc(location);
 
     return TCL_OK;
 }

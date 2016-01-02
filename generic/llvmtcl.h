@@ -1,5 +1,6 @@
 #include "tcl.h"
 #include <string>
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -10,19 +11,24 @@ MODULE_SCOPE int	GetBasicBlockFromObj(Tcl_Interp *interp,
 			    Tcl_Obj *obj, llvm::BasicBlock *&block);
 MODULE_SCOPE int	GetBuilderFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::IRBuilder<> *&builder);
+MODULE_SCOPE int	GetDIBuilderFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+			    llvm::DIBuilder *&ref);
 MODULE_SCOPE int	GetEngineFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::ExecutionEngine *&engine);
+template<typename T>//T subclass of llvm::MDNode
+MODULE_SCOPE int	GetMetadataFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+			    const char *typeName, T *&ref);
 MODULE_SCOPE int	GetModuleFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::Module *&module);
 MODULE_SCOPE std::string GetRefName(std::string prefix);
 MODULE_SCOPE int	GetTypeFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::Type *&type);
-template<typename T>
+template<typename T>//T subclass of llvm::Type
 MODULE_SCOPE int	GetTypeFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    std::string msg, T *&type);
 MODULE_SCOPE int	GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    llvm::Value *&module);
-template<typename T>
+template<typename T>//T subclass of llvm::Value
 MODULE_SCOPE int	GetValueFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 			    std::string msg, T *&value);
 MODULE_SCOPE Tcl_Obj *	NewValueObj(llvm::Value *value);
@@ -48,6 +54,7 @@ DECL_CMD(DefineFunction);
 DECL_CMD(ReplaceFunctionVariables);
 DECL_CMD(DefineParameter);
 DECL_CMD(AttachToFunction);
+DECL_CMD(SetInstructionLocation);
 DECL_CMD(LLVMAddLLVMTclCommandsObjCmd);
 
 /*

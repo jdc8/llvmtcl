@@ -665,6 +665,60 @@ DefineParameter(
 /*
  * ----------------------------------------------------------------------
  *
+ * DefineLocal --
+ *
+ *	Defines the local non-parameter variables.
+ *
+ * ----------------------------------------------------------------------
+ */
+
+int
+DefineLocal(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    if (objc != 7) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+		"DIBuilder scope name file line type");
+	return TCL_ERROR;
+    }
+
+    DIBuilder *builder;
+    if (GetDIBuilderFromObj(interp, objv[1], builder) != TCL_OK)
+	return TCL_ERROR;
+    DIScope *scope;
+    if (GetMetadataFromObj(interp, objv[2], "scope", scope) != TCL_OK)
+	return TCL_ERROR;
+    std::string name = Tcl_GetString(objv[3]);
+    DIFile *file;
+    if (GetMetadataFromObj(interp, objv[4], "file", file) != TCL_OK)
+	return TCL_ERROR;
+    int line;
+    if (Tcl_GetIntFromObj(interp, objv[5], &line) != TCL_OK)
+	return TCL_ERROR;
+    DIType *type;
+    if (GetMetadataFromObj(interp, objv[6], "type", type) != TCL_OK)
+	return TCL_ERROR;
+
+#if (LLVM_VERSION_MAJOR >=3 && LLVM_VERSION_MINOR > 7)
+    auto val = builder->createAutoVariable(scope, name,
+	    file, (unsigned) line, type);
+#else
+    // This API was deprecated (and made private) after 3.7
+    auto val = builder->createLocalVariable(
+	    dwarf::DW_TAG_auto_variable, scope, name, file,
+	    (unsigned) line, type);
+#endif
+
+    Tcl_SetObjResult(interp, NewMetadataObj(val, "Variable"));
+    return TCL_OK;
+}
+
+/*
+ * ----------------------------------------------------------------------
+ *
  * DefineFunction --
  *
  *	Defines a function definition.

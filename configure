@@ -4800,7 +4800,7 @@ esac
 #-----------------------------------------------------------------------
 
 
-    vars="llvmtcl.cpp debuginfo.cpp testcode.cpp"
+    vars="llvmtcl.cpp debuginfo.cpp testcode.cpp powidf2.cpp"
     for i in $vars; do
 	case $i in
 	    \$*)

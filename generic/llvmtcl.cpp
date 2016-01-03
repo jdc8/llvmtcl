@@ -794,6 +794,8 @@ CreateMCJITCompilerForModuleObjCmd(
     engine->addGlobalMapping(std_out, stdout);
     engine->addGlobalMapping(std_err, stderr);
 
+    engine->addGlobalMapping("__powidf2", (uint64_t) ((void *) __powidf2));
+
     Tcl_SetObjResult(interp, SetLLVMExecutionEngineRefAsObj(interp, eeRef));
     return TCL_OK;
 }

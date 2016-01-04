@@ -726,19 +726,18 @@ NamedStructTypeObjCmd(
     if (GetListOfLLVMTypeRefFromObj(interp, objv[2], types,
 	    numTypes) != TCL_OK)
         return TCL_ERROR;
-    if (numTypes < 1) {
-	SetStringResult(interp, "must supply at least one member");
-	return TCL_ERROR;
-    }
-
-    llvm::ArrayRef<llvm::Type*> elements(llvm::unwrap(types),
-	    (unsigned) numTypes);
-
     int packed = 0;
     if (Tcl_GetIntFromObj(interp, objv[3], &packed) != TCL_OK)
         return TCL_ERROR;
 
-    auto rt = llvm::StructType::create(elements, name, packed);
+    llvm::Type *rt;
+    if (numTypes < 1) {
+	rt = llvm::StructType::create(llvm::getGlobalContext(), name);
+    } else {
+	llvm::ArrayRef<llvm::Type*> elements(llvm::unwrap(types),
+		(unsigned) numTypes);
+	rt = llvm::StructType::create(elements, name, packed);
+    }
 
     Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, llvm::wrap(rt)));
     return TCL_OK;

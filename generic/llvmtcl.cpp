@@ -150,42 +150,6 @@ GetBuilderFromObj(
     return TCL_OK;
 }
 
-template<typename T>
-int
-GetTypeFromObj(
-    Tcl_Interp *interp,
-    Tcl_Obj *obj,
-    std::string msg,
-    T *&type)
-{
-    LLVMTypeRef typeref;
-    if (GetLLVMTypeRefFromObj(interp, obj, typeref) != TCL_OK)
-	return TCL_ERROR;
-    if (!(type = llvm::dyn_cast<T>(llvm::unwrap(typeref)))) {
-	SetStringResult(interp, msg);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-template<typename T>
-int
-GetValueFromObj(
-    Tcl_Interp *interp,
-    Tcl_Obj *obj,
-    std::string msg,
-    T *&value)
-{
-    LLVMValueRef valref;
-    if (GetLLVMValueRefFromObj(interp, obj, valref) != TCL_OK)
-	return TCL_ERROR;
-    if (!(value = llvm::dyn_cast<T>(llvm::unwrap(valref)))) {
-	SetStringResult(interp, msg);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
 Tcl_Obj *
 NewValueObj(
     llvm::Value *value)
@@ -907,6 +871,16 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::DebugInfo::Instruction.SetLocation",
 	    SetInstructionLocation);
     LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
+
+    LLVMObjCmd("llvmtcl::AddFunctionAttr", LLVMAddFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::GetFunctionAttr", LLVMGetFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveFunctionAttr", LLVMRemoveFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::AddArgumentAttribute", LLVMAddAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveArgumentAttribute", LLVMRemoveAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::GetArgumentAttribute", LLVMGetAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::AddCallAttribute", LLVMAddInstrAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveCallAttribute", LLVMRemoveInstrAttributeObjCmd);
+
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
     return TCL_OK;

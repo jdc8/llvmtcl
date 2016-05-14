@@ -75,7 +75,7 @@ esac
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([llvmtcl.cpp debuginfo.cpp testcode.cpp powidf2.cpp])
+TEA_ADD_SOURCES([llvmtcl.cpp debuginfo.cpp testcode.cpp powidf2.cpp attributes.cpp])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([-lstdc++])

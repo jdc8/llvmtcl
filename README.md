@@ -55,15 +55,15 @@ the sample extension.
        llvmtcl.h    File containing all the internal APIs of llvmtcl.
 
        attributes.cpp
-		    File containing the Tcl API to the LLVM attribute
- 		    management code.
+                    File containing the Tcl API to the LLVM attribute
+                    management code.
 
        debuginfo.cpp
-		    File containing the Tcl API to the LLVM debugging
-		    information generation code.
+                    File containing the Tcl API to the LLVM debugging
+                    information generation code.
 
        powidf2.cpp  File continaing the implementation of one of the LLVM
-       		    intrinsics, needed on some platforms and with some linkers.
+                    intrinsics, needed on some platforms and with some linkers.
 
        testcode.cpp Code only used for testing purposes.
 

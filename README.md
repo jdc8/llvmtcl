@@ -11,7 +11,7 @@ REQUIREMENTS
 ============
 
 * Tcl 8.6
-* LLVM 3.5
+* LLVM 3.7
 
 CONTENTS
 ========
@@ -48,12 +48,27 @@ the sample extension.
     generic/        This directory contains various source files, some only
                     generated during compilation (i.e., after `make`).
 
-       llvmtcl.cpp  File containing all non-generated parts of the Tcl API to
+       llvmtcl.cpp  File containing most non-generated parts of the Tcl API to
                     the LLVM C API. Also includes some sections which can only
                     be implemented using the LLVM C++ API.
 
+       llvmtcl.h    File containing all the internal APIs of llvmtcl.
+
+       attributes.cpp
+                    File containing the Tcl API to the LLVM attribute
+                    management code.
+
+       debuginfo.cpp
+                    File containing the Tcl API to the LLVM debugging
+                    information generation code.
+
+       powidf2.cpp  File continaing the implementation of one of the LLVM
+                    intrinsics, needed on some platforms and with some linkers.
+
+       testcode.cpp Code only used for testing purposes.
+
     llvmtcl.tcl     Scripts using the Tcl API to the llvm C API.
-    
+
     tests           Some tests for the package.
     
     tclconfig/      This directory contains various template files that build

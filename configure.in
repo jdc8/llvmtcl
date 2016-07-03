@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([llvmtcl], [3.6])
+AC_INIT([llvmtcl], [3.6.2])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -62,7 +62,7 @@ TEA_PREFIX
 TEA_SETUP_COMPILER
 # Horrible hack to make recent clang work right
 case $CC in
-    *clang*) CC="$CC -std=c++11 -stdlib=libc++";;
+    *clang*) CC="$CC -stdlib=libc++";;
 esac
 
 #-----------------------------------------------------------------------
@@ -75,10 +75,10 @@ esac
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([llvmtcl.cpp])
+TEA_ADD_SOURCES([llvmtcl.cpp debuginfo.cpp testcode.cpp powidf2.cpp attributes.cpp])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
-TEA_ADD_LIBS([])
+TEA_ADD_LIBS([-lstdc++])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([llvmtcl.tcl])
@@ -97,16 +97,16 @@ TEA_ADD_TCL_SOURCES([llvmtcl.tcl])
 # Add pkgIndex.tcl if it is generated in the Makefile instead of ./configure
 # and change Makefile.in to move it from CONFIG_CLEAN_FILES to BINARIES var.
 #CLEANFILES="pkgIndex.tcl"
-if test "${TEA_PLATFORM}" = "windows" ; then
+AS_IF([test "${TEA_PLATFORM}" = "windows"], [
     CLEANFILES="$CLEANFILES *.lib *.dll *.exp *.ilk *.pdb vc*.pch"
     #TEA_ADD_SOURCES([win/winFile.c])
     #TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/win)\"])
-else
+], [
     # Ensure no empty else clauses
     :
     #TEA_ADD_SOURCES([unix/unixFile.c])
     #TEA_ADD_LIBS([-lsuperfly])
-fi
+])
 AC_SUBST(CLEANFILES)
 
 #--------------------------------------------------------------------
@@ -189,6 +189,13 @@ AC_ARG_WITH(llvm-config,
   [LLVMCONFIG=$withval],
   [LLVMCONFIG=llvm-config])
 
+AC_ARG_WITH(llvm-config,
+    AC_HELP_STRING([--with-llvm-config=FILE],
+	[exact name of LLVM configuration description program; will be
+	    searched for on the PATH if not already fully qualified
+	    (llvm-config)]),
+    [LLVMCONFIG=$withval],
+    [LLVMCONFIG=llvm-config])
 AC_PATH_PROG(LLVMCONFIG,[$LLVMCONFIG],[$LLVMCONFIG],[no])
 AS_IF([test "x$LLVMCONFIG" = "xno"], [
 	AC_MSG_ERROR(llvm-config not usable)])

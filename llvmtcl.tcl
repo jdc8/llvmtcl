@@ -1,6 +1,10 @@
 namespace eval llvmtcl {
     namespace export *
     namespace ensemble create
+    namespace eval DebugInfo {
+	namespace export *
+	namespace ensemble create
+    }
 
     proc OptimizeModule {m optimizeLevel targetDataRef} {
 	set pm [llvmtcl CreatePassManager]

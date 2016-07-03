@@ -1,3 +1,5 @@
+package require Tcl 8.5
+
 proc gen_api_call {cf of l} {
     lassign [split $l "("] rtnm fargs
     set rtnm [string trim $rtnm]
@@ -469,13 +471,15 @@ proc gen_map {mf l} {
     puts $mf "\}"
 }
 
-set f [open llvmtcl-gen.inp r]
+set srcdir [file dirname [info script]]
+
+set f [open $srcdir/llvmtcl-gen.inp r]
 set ll [split [read $f] \n]
 close $f
 
-set cf [open generic/llvmtcl-gen.c w]
-set of [open generic/llvmtcl-gen-cmddef.c w]
-set mf [open generic/llvmtcl-gen-map.c w]
+set cf [open $srcdir/generic/llvmtcl-gen.c w]
+set of [open $srcdir/generic/llvmtcl-gen-cmddef.c w]
+set mf [open $srcdir/generic/llvmtcl-gen-map.c w]
 
 foreach l $ll {
     set l [string trim $l]

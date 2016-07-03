@@ -5,13 +5,17 @@
 #include <map>
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/Host.h"
+#if (LLVM_VERSION_MAJOR >=3 && LLVM_VERSION_MINOR >= 7)
+#include "llvm/IR/PassManager.h"
+#else
 #include "llvm/PassManager.h"
+#endif
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/DerivedTypes.h"
-//#include "llvm/Function.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
@@ -21,17 +25,23 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/BitWriter.h"
+#include "llvm-c/BitReader.h"
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm-c/Transforms/Scalar.h"
 #include "llvm-c/Transforms/Vectorize.h"
-
-static std::string GetRefName(std::string prefix)
+#include "llvmtcl.h"
+
+TCL_DECLARE_MUTEX(idLock)
+std::string GetRefName(std::string prefix)
 {
-    static int LLVMRef_id = 0;
+    static volatile int LLVMRef_id = 0;
+    int id;
+    Tcl_MutexLock(&idLock);
+    id = LLVMRef_id++;
+    Tcl_MutexUnlock(&idLock);
     std::ostringstream os;
-    os << prefix << LLVMRef_id;
-    LLVMRef_id++;
+    os << prefix << id;
     return os.str();
 }
 
@@ -49,7 +59,7 @@ LLVMDumpModuleTcl(
 {
     std::string s;
     llvm::raw_string_ostream os(s);
-    os << *(reinterpret_cast<llvm::Module*>(moduleRef));
+    os << *(llvm::unwrap(moduleRef));
     return s;
 }
 
@@ -92,9 +102,100 @@ LLVMRunFunction(
 {
     return LLVMRunFunction(EE, F, NumArgs, Args);
 }
-
-extern "C" {
 
+static inline void
+SetStringResult(
+    Tcl_Interp *interp,
+    std::string msg)
+{
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(msg.c_str(), msg.size()));
+}
+
+MODULE_SCOPE int
+GetModuleFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Module *&module)
+{
+    LLVMModuleRef modref;
+    if (GetLLVMModuleRefFromObj(interp, obj, modref) != TCL_OK)
+	return TCL_ERROR;
+    module = llvm::unwrap(modref);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetBasicBlockFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::BasicBlock *&block)
+{
+    LLVMBasicBlockRef blkref;
+    if (GetLLVMBasicBlockRefFromObj(interp, obj, blkref) != TCL_OK)
+	return TCL_ERROR;
+    block = llvm::unwrap(blkref);
+    return TCL_OK;
+}
+
+MODULE_SCOPE int
+GetBuilderFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::IRBuilder<> *&builder)
+{
+    LLVMBuilderRef bref;
+    if (GetLLVMBuilderRefFromObj(interp, obj, bref) != TCL_OK)
+	return TCL_ERROR;
+    builder = llvm::unwrap(bref);
+    return TCL_OK;
+}
+
+Tcl_Obj *
+NewValueObj(
+    llvm::Value *value)
+{
+    auto ref = llvm::wrap(value);
+    return SetLLVMValueRefAsObj(NULL, ref);
+}
+
+int
+GetTypeFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Type *&type)
+{
+    return GetTypeFromObj(interp, obj, "expected type but got type", type);
+}
+
+int
+GetValueFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::Value *&value)
+{
+    return GetValueFromObj(interp, obj, "expected value but got value", value);
+}
+
+Tcl_Obj *
+NewTypeObj(
+    llvm::Type *value)
+{
+    return SetLLVMTypeRefAsObj(NULL, llvm::wrap(value));
+}
+
+int
+GetEngineFromObj(
+    Tcl_Interp *interp,
+    Tcl_Obj *obj,
+    llvm::ExecutionEngine *&engine)
+{
+    LLVMExecutionEngineRef eeref;
+    if (GetLLVMExecutionEngineRefFromObj(interp, obj, eeref) != TCL_OK)
+	return TCL_ERROR;
+    engine = llvm::unwrap(eeref);
+    return TCL_OK;
+}
+
 static int search(const void *p1, const void *p2) {
   const char *s1 = (const char *) p1;
   const char *s2 = *(const char **) p2;
@@ -236,86 +337,6 @@ LLVMGenericValueToTclObjObjCmd(
     return TCL_OK;
 }
 
-void llvm_test() {}
-
-Tcl_Obj *
-llvm_add(
-    Tcl_Interp *interp,
-    Tcl_Obj *oa,
-    Tcl_Obj *ob)
-{
-    mp_int big1, big2, bigResult;
-
-    Tcl_GetBignumFromObj(interp, oa, &big1);
-    Tcl_GetBignumFromObj(interp, ob, &big2);
-    TclBN_mp_init(&bigResult);
-
-    TclBN_mp_add(&big1, &big2, &bigResult);
-
-    return Tcl_NewBignumObj(&bigResult);
-}
-
-Tcl_Obj *
-llvm_sub(
-    Tcl_Interp *interp,
-    Tcl_Obj *oa,
-    Tcl_Obj *ob)
-{
-    mp_int big1, big2, bigResult;
-
-    Tcl_GetBignumFromObj(interp, oa, &big1);
-    Tcl_GetBignumFromObj(interp, ob, &big2);
-    TclBN_mp_init(&bigResult);
-
-    TclBN_mp_sub(&big1, &big2, &bigResult);
-
-    return Tcl_NewBignumObj(&bigResult);
-}
-
-static int
-LLVMAddLLVMTclCommandsObjCmd(
-    ClientData clientData,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *const objv[])
-{
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "EE mod ");
-        return TCL_ERROR;
-    }
-
-    LLVMExecutionEngineRef ee = 0;
-    if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], ee) != TCL_OK)
-        return TCL_ERROR;
-
-    LLVMModuleRef mod = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[2], mod) != TCL_OK)
-        return TCL_ERROR;
-
-    {
-	LLVMTypeRef func_type = LLVMFunctionType(LLVMVoidType(), 0, 0, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_test", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_test);
-    }
-
-    {
-	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
-	LLVMTypeRef pta[3] = {pt, pt, pt};
-	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_add", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_add);
-    }
-
-    {
-	LLVMTypeRef pt = LLVMPointerType(LLVMInt8Type(), 0);
-	LLVMTypeRef pta[3] = {pt, pt, pt};
-	LLVMTypeRef func_type = LLVMFunctionType(pt, pta, 3, 0);
-	LLVMValueRef func = LLVMAddFunction(mod, "llvm_sub", func_type);
-	LLVMAddGlobalMapping(ee, func, (void*)&llvm_sub);
-    }
-    return TCL_OK;
-}
-
 static int
 LLVMAddIncomingObjCmd(
     ClientData clientData,
@@ -329,45 +350,41 @@ LLVMAddIncomingObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef phiNode = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], phiNode) != TCL_OK)
+    llvm::PHINode *phiNode;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only add incoming arcs to a phi", phiNode) != TCL_OK)
         return TCL_ERROR;
 
     int ivobjc = 0;
     Tcl_Obj **ivobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[2], &ivobjc, &ivobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingValuesList not specified as list", -1));
+	SetStringResult(interp, "IncomingValuesList not specified as list");
 	return TCL_ERROR;
     }
 
     int ibobjc = 0;
     Tcl_Obj **ibobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[3], &ibobjc, &ibobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingBlocksList not specified as list", -1));
+	SetStringResult(interp, "IncomingBlocksList not specified as list");
 	return TCL_ERROR;
     }
 
     if (ivobjc != ibobjc) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"IncomingValuesList and IncomingBlocksList have different length", -1));
+	SetStringResult(interp,
+		"IncomingValuesList and IncomingBlocksList have different length");
 	return TCL_ERROR;
     }
 
-    std::vector<LLVMValueRef> incomingValues(ivobjc);
-    std::vector<LLVMBasicBlockRef> incomingBlocks(ivobjc);
-
     for(int i = 0; i < ivobjc; i++) {
-	if (GetLLVMValueRefFromObj(interp, ivobjv[i],
-		incomingValues[i]) != TCL_OK)
+	llvm::Value *value;
+	LLVMBasicBlockRef bbref;
+
+	if (GetValueFromObj(interp, ivobjv[i], value) != TCL_OK)
 	    return TCL_ERROR;
-	if (GetLLVMBasicBlockRefFromObj(interp, ibobjv[i],
-		incomingBlocks[i]) != TCL_OK)
+	if (GetLLVMBasicBlockRefFromObj(interp, ibobjv[i], bbref) != TCL_OK)
 	    return TCL_ERROR;
+	phiNode->addIncoming(value, llvm::unwrap(bbref));
     }
-    LLVMAddIncoming(phiNode, incomingValues.data(), incomingBlocks.data(),
-	    ivobjc);
     return TCL_OK;
 }
 
@@ -390,8 +407,7 @@ LLVMBuildAggregateRetObjCmd(
     int rvobjc = 0;
     Tcl_Obj **rvobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[2], &rvobjc, &rvobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"RetValsList not specified as list", -1));
+	SetStringResult(interp, "RetValsList not specified as list");
 	return TCL_ERROR;
     }
 
@@ -432,8 +448,7 @@ LLVMBuildInvokeObjCmd(
     int aobjc = 0;
     Tcl_Obj **aobjv = 0;
     if (Tcl_ListObjGetElements(interp, objv[3], &aobjc, &aobjv) != TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-		"ArgsList not specified as list", -1));
+	SetStringResult(interp, "ArgsList not specified as list");
 	return TCL_ERROR;
     }
 
@@ -442,11 +457,9 @@ LLVMBuildInvokeObjCmd(
     std::string name = Tcl_GetStringFromObj(objv[6], 0);
 
     std::vector<LLVMValueRef> args(aobjc);
-    for(int i = 0; i < aobjc; i++) {
+    for(int i = 0; i < aobjc; i++)
 	if (GetLLVMValueRefFromObj(interp, aobjv[i], args[i]) != TCL_OK)
 	    return TCL_ERROR;
-    }
-
     if (GetLLVMBasicBlockRefFromObj(interp, objv[4], thenBlock) != TCL_OK)
         return TCL_ERROR;
     if (GetLLVMBasicBlockRefFromObj(interp, objv[5], catchBlock) != TCL_OK)
@@ -471,19 +484,16 @@ LLVMGetParamTypesObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMTypeRef functionType = 0;
-    if (GetLLVMTypeRefFromObj(interp, objv[1], functionType) != TCL_OK)
+    llvm::FunctionType *functionType;
+    if (GetTypeFromObj(interp, objv[1],
+	    "can only get parameter types of function types",
+	    functionType) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nargs = LLVMCountParamTypes(functionType);
-    std::vector<LLVMTypeRef> paramType(nargs);
-
-    LLVMGetParamTypes(functionType, paramType.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nargs; i++)
-	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMTypeRefAsObj(interp, paramType[i]));
+    for(auto type : functionType->params())
+	Tcl_ListObjAppendElement(NULL, rtl,
+		SetLLVMTypeRefAsObj(interp, llvm::wrap(type)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -501,19 +511,15 @@ LLVMGetParamsObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef function = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], function) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only get parameters of a function", function) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nargs = LLVMCountParams(function);
-    std::vector<LLVMValueRef> paramValue(nargs);
-
-    LLVMGetParams(function, paramValue.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nargs; i++)
-	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMValueRefAsObj(interp, paramValue[i]));
+    for (auto &value : function->getArgumentList())
+	Tcl_ListObjAppendElement(NULL, rtl,
+		SetLLVMValueRefAsObj(interp, llvm::wrap(&value)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -531,19 +537,15 @@ LLVMGetStructElementTypesObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMTypeRef structType = 0;
-    if (GetLLVMTypeRefFromObj(interp, objv[1], structType) != TCL_OK)
+    llvm::StructType *structType;
+    if (GetTypeFromObj(interp, objv[1],
+	    "can only get elements of struct types", structType) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nelem = LLVMCountStructElementTypes(structType);
-    std::vector<LLVMTypeRef> elemType(nelem);
-
-    LLVMGetStructElementTypes(structType, elemType.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nelem; i++)
+    for(auto &type : structType->elements())
 	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMTypeRefAsObj(interp, elemType[i]));
+		SetLLVMTypeRefAsObj(interp, llvm::wrap(type)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -561,19 +563,15 @@ LLVMGetBasicBlocksObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMValueRef function = 0;
-    if (GetLLVMValueRefFromObj(interp, objv[1], function) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[1],
+	    "can only list basic blocks of functions", function) != TCL_OK)
         return TCL_ERROR;
 
-    unsigned nblocks = LLVMCountBasicBlocks(function);
-    std::vector<LLVMBasicBlockRef> basicBlock(nblocks);
-
-    LLVMGetBasicBlocks(function, basicBlock.data());
-
     Tcl_Obj *rtl = Tcl_NewListObj(0, NULL);
-    for(unsigned i = 0; i < nblocks; i++)
+    for (auto I = function->begin(), E = function->end(); I != E; I++)
 	Tcl_ListObjAppendElement(interp, rtl,
-		SetLLVMBasicBlockRefAsObj(interp, basicBlock[i]));
+		SetLLVMBasicBlockRefAsObj(interp, llvm::wrap(&*I)));
 
     Tcl_SetObjResult(interp, rtl);
     return TCL_OK;
@@ -593,19 +591,19 @@ LLVMCallInitialisePackageFunction(
 	return TCL_ERROR;
     }
 
-    LLVMExecutionEngineRef engine;
-    if (GetLLVMExecutionEngineRefFromObj(interp, objv[1], engine) != TCL_OK)
+    llvm::ExecutionEngine *engine;
+    if (GetEngineFromObj(interp, objv[1], engine) != TCL_OK)
 	return TCL_ERROR;
-    LLVMValueRef func;
-    if (GetLLVMValueRefFromObj(interp, objv[2], func) != TCL_OK)
+    llvm::Function *function;
+    if (GetValueFromObj(interp, objv[2],
+	    "can only initialise using a function", function) != TCL_OK)
 	return TCL_ERROR;
 
-    uint64_t address = llvm::unwrap(engine)->getFunctionAddress(
-	    llvm::unwrap<llvm::Function>(func)->getName().str());
+    uint64_t address = engine->getFunctionAddress(function->getName());
 
     int (*initFunction)(Tcl_Interp*) = (int(*)(Tcl_Interp*)) address;
     if (initFunction == NULL) {
-	Tcl_AppendResult(interp, "no address for initialiser", NULL);
+	SetStringResult(interp, "no address for initialiser");
 	return TCL_ERROR;
     }
 
@@ -624,30 +622,30 @@ LLVMGetIntrinsicDefinitionObjCmd(
         return TCL_ERROR;
     }
 
-    LLVMModuleRef mod = 0;
-    if (GetLLVMModuleRefFromObj(interp, objv[1], mod) != TCL_OK)
-        return TCL_ERROR;
-
+    llvm::Module *mod;
     llvm::Intrinsic::ID id;
+    std::vector<llvm::Type *> arg_types;
+
+    if (GetModuleFromObj(interp, objv[1], mod) != TCL_OK)
+        return TCL_ERROR;
     if (GetLLVMIntrinsicIDFromObj(interp, objv[2], id) != TCL_OK)
         return TCL_ERROR;
-
-    std::vector<llvm::Type *> arg_types;
     for (int i=3 ; i<objc ; i++) {
-	LLVMTypeRef ty = 0;
-	if (GetLLVMTypeRefFromObj(interp, objv[i], ty) != TCL_OK)
+	llvm::Type *ty;
+
+	if (GetTypeFromObj(interp, objv[i], ty) != TCL_OK)
 	    return TCL_ERROR;
-	arg_types.push_back(llvm::unwrap(ty));
+	arg_types.push_back(ty);
     }
 
-    LLVMValueRef intrinsic = llvm::wrap(llvm::Intrinsic::getDeclaration(
-	    llvm::unwrap(mod), id, arg_types));
+    auto intrinsic = llvm::Intrinsic::getDeclaration(mod, id, arg_types);
 
     if (intrinsic == NULL) {
-	Tcl_AppendResult(interp, "no such intrinsic", NULL);
+	SetStringResult(interp, "no such intrinsic");
 	return TCL_ERROR;
     }
-    Tcl_SetObjResult(interp, SetLLVMValueRefAsObj(interp, intrinsic));
+    Tcl_SetObjResult(interp,
+	    SetLLVMValueRefAsObj(interp, llvm::wrap(intrinsic)));
     return TCL_OK;
 }
 
@@ -692,22 +690,20 @@ NamedStructTypeObjCmd(
     if (GetListOfLLVMTypeRefFromObj(interp, objv[2], types,
 	    numTypes) != TCL_OK)
         return TCL_ERROR;
-    if (numTypes < 1) {
-	Tcl_AppendResult(interp, "must supply at least one member", NULL);
-	return TCL_ERROR;
-    }
-
-    llvm::ArrayRef<llvm::Type*> elements(llvm::unwrap(types),
-	    (unsigned) numTypes);
-
     int packed = 0;
     if (Tcl_GetIntFromObj(interp, objv[3], &packed) != TCL_OK)
         return TCL_ERROR;
 
-    LLVMTypeRef rt = llvm::wrap(
-	    llvm::StructType::create(elements, name, packed));
+    llvm::Type *rt;
+    if (numTypes < 1) {
+	rt = llvm::StructType::create(llvm::getGlobalContext(), name);
+    } else {
+	llvm::ArrayRef<llvm::Type*> elements(llvm::unwrap(types),
+		(unsigned) numTypes);
+	rt = llvm::StructType::create(elements, name, packed);
+    }
 
-    Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, rt));
+    Tcl_SetObjResult(interp, SetLLVMTypeRefAsObj(interp, llvm::wrap(rt)));
     return TCL_OK;
 }
 
@@ -734,23 +730,41 @@ CreateMCJITCompilerForModuleObjCmd(
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel = (unsigned) level;
 
+    // Map stdin, stdout, and stderr explicitly; they're usually macros in C
+    // and that makes them normall unavailable from the LLVM level without
+    // using platform-specific hacks.
+    auto m = llvm::unwrap(mod);
+    auto ptr_type = llvm::Type::getInt8PtrTy(m->getContext());
+    auto std_in = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stdin", ptr_type));
+    auto std_out = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stdout", ptr_type));
+    auto std_err = llvm::cast<llvm::GlobalVariable>(
+	    m->getOrInsertGlobal("stderr", ptr_type));
+
     LLVMExecutionEngineRef eeRef = 0; // output argument (engine)
     char *error = 0; // output argument (error message)
     LLVMBool failed = LLVMCreateMCJITCompilerForModule(&eeRef, mod,
 	    &options, sizeof(options), &error);
 
     if (failed) {
-	//llvm::TargetRegistry::printRegisteredTargetsForVersion();
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(error, -1));
 	return TCL_ERROR;
     }
+
+    auto engine = llvm::unwrap(eeRef);
+    engine->addGlobalMapping(std_in, stdin);
+    engine->addGlobalMapping(std_out, stdout);
+    engine->addGlobalMapping(std_err, stderr);
+
+    engine->addGlobalMapping("__powidf2", (uint64_t) ((void *) __powidf2));
 
     Tcl_SetObjResult(interp, SetLLVMExecutionEngineRefAsObj(interp, eeRef));
     return TCL_OK;
 }
 
 static int
-InitAllTargetsObjCmd(
+GetHostTripleObjCmd(
     ClientData clientData,
     Tcl_Interp *interp,
     int objc,
@@ -760,31 +774,60 @@ InitAllTargetsObjCmd(
 	Tcl_WrongNumArgs(interp, 1, objv, "");
 	return TCL_ERROR;
     }
-
-    LLVMInitializeAllTargets();
-    LLVMInitializeAllTargetMCs();
-    LLVMInitializeAllAsmPrinters();
-    LLVMInitializeAllAsmParsers();
+    auto triple = llvm::sys::getProcessTriple();
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(triple.c_str(), -1));
     return TCL_OK;
+}
+
+static int
+CreateModuleFromBitcodeCmd(
+    ClientData clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    char *msg = NULL;
+    LLVMMemoryBufferRef buffer = NULL;
+    LLVMModuleRef module = NULL;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "Filename");
+	return TCL_ERROR;
+    }
+
+    if (LLVMCreateMemoryBufferWithContentsOfFile(Tcl_GetString(objv[1]),
+	    &buffer, &msg))
+	goto error;
+    if (LLVMParseBitcode(buffer, &module, &msg)) {
+	LLVMDisposeMemoryBuffer(buffer);
+	goto error;
+    }
+    LLVMDisposeMemoryBuffer(buffer);
+
+    Tcl_SetObjResult(interp, SetLLVMModuleRefAsObj(NULL, module));
+    return TCL_OK;
+
+  error:
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(msg, -1));
+    free(msg);
+    return TCL_ERROR;
 }
 
 #define LLVMObjCmd(tclName, cName) \
   Tcl_CreateObjCommand(interp, tclName, (Tcl_ObjCmdProc*)cName, (ClientData)NULL, (Tcl_CmdDeleteProc*)NULL);
 
+extern "C" {
 DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
 {
-    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL) {
+    if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
+    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL)
 	return TCL_ERROR;
-    }
-    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK)
 	return TCL_ERROR;
-    }
+
 #include "llvmtcl-gen-cmddef.c"
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclInterp", LLVMCreateGenericValueOfTclInterpObjCmd);
     LLVMObjCmd("llvmtcl::CreateGenericValueOfTclObj", LLVMCreateGenericValueOfTclObjObjCmd);
@@ -804,7 +847,42 @@ DLLEXPORT int Llvmtcl_Init(Tcl_Interp *interp)
     LLVMObjCmd("llvmtcl::NamedStructType", NamedStructTypeObjCmd);
     LLVMObjCmd("llvmtcl::CreateMCJITCompilerForModule",
 	    CreateMCJITCompilerForModuleObjCmd);
-    LLVMObjCmd("llvmtcl::InitializeAllTargets", InitAllTargetsObjCmd);
+    LLVMObjCmd("llvmtcl::GetHostTriple", GetHostTripleObjCmd);
+    LLVMObjCmd("llvmtcl::CreateModuleFromBitcode", CreateModuleFromBitcodeCmd);
+    // Debugging info support
+    LLVMObjCmd("llvmtcl::DebugInfo::BuildDbgValue", BuildDbgValue);
+    LLVMObjCmd("llvmtcl::DebugInfo::CreateBuilder", CreateDebugBuilder);
+    LLVMObjCmd("llvmtcl::DebugInfo::DisposeBuilder", DisposeDebugBuilder);
+    LLVMObjCmd("llvmtcl::DebugInfo::CompileUnit", DefineCompileUnit);
+    LLVMObjCmd("llvmtcl::DebugInfo::File", DefineFile);
+    LLVMObjCmd("llvmtcl::DebugInfo::Namespace", DefineNamespace);
+    LLVMObjCmd("llvmtcl::DebugInfo::Location", DefineLocation);
+    LLVMObjCmd("llvmtcl::DebugInfo::UnspecifiedType", DefineUnspecifiedType);
+    LLVMObjCmd("llvmtcl::DebugInfo::AliasType", DefineAliasType);
+    LLVMObjCmd("llvmtcl::DebugInfo::BasicType", DefineBasicType);
+    LLVMObjCmd("llvmtcl::DebugInfo::PointerType", DefinePointerType);
+    LLVMObjCmd("llvmtcl::DebugInfo::StructType", DefineStructType);
+    LLVMObjCmd("llvmtcl::DebugInfo::FunctionType", DefineFunctionType);
+    LLVMObjCmd("llvmtcl::DebugInfo::Parameter", DefineParameter);
+    LLVMObjCmd("llvmtcl::DebugInfo::Local", DefineLocal);
+    LLVMObjCmd("llvmtcl::DebugInfo::Function", DefineFunction);
+    LLVMObjCmd("llvmtcl::DebugInfo::Function.SetVariables",
+	    ReplaceFunctionVariables);
+    LLVMObjCmd("llvmtcl::DebugInfo::Instruction.SetLocation",
+	    SetInstructionLocation);
+    LLVMObjCmd("llvmtcl::DebugInfo::AttachToFunction", AttachToFunction);
+
+    LLVMObjCmd("llvmtcl::AddFunctionAttr", LLVMAddFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::GetFunctionAttr", LLVMGetFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveFunctionAttr", LLVMRemoveFunctionAttrObjCmd);
+    LLVMObjCmd("llvmtcl::AddArgumentAttribute", LLVMAddAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveArgumentAttribute", LLVMRemoveAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::GetArgumentAttribute", LLVMGetAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::AddCallAttribute", LLVMAddInstrAttributeObjCmd);
+    LLVMObjCmd("llvmtcl::RemoveCallAttribute", LLVMRemoveInstrAttributeObjCmd);
+
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
     return TCL_OK;
 }
 
